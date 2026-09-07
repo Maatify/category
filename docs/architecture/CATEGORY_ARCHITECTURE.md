@@ -51,12 +51,19 @@ they do not generate application time.
 The package uses PDO directly and owns no Host-table foreign keys or joins.
 The shared `maatify/persistence` Ordering API owns row-position locking,
 shifting, transaction coordination, nullable root scopes, and atomic
-`updated_at` mutation. Category does not provide a local ordering or
+`updated_at` mutation. Category creation locks its nullable `parent_id` scope,
+asks that API for the next position inside the application transaction, and
+persists the returned value. Category does not provide a local ordering or
 pagination implementation.
 
 The schema uses MySQL 8.0.16+ because enforced `CHECK` constraints are part of
 the status contract. Package-owned triggers enforce `parent_id <> id` after
 database-generated identity allocation and on updates.
+
+Translation creation, content update, soft deletion, and restoration are
+package-owned command operations. Their immutable `(category_id,
+language_code)` identity is enforced by the schema unique key and is never
+accepted by content-update commands.
 
 ## Query contract
 

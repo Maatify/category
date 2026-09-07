@@ -14,9 +14,12 @@ use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
 use Maatify\Category\DTO\CreateCategoryDTO;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
 use Maatify\Category\DTO\MoveCategoryDTO;
 use Maatify\Category\DTO\RestoreCategoryDTO;
+use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
 use Maatify\Category\DTO\SoftDeleteCategoryDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
 use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
 use Maatify\Category\DTO\UpdateCategoryStatusDTO;
 use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
@@ -170,13 +173,16 @@ final class CategoryCommandServiceTest extends TestCase
     {
         $queryReader = new InMemoryCategoryQueryReader([$this->category(5, null)]);
         $commandRepository = new InMemoryCategoryCommandRepository();
-        $service = $this->service($commandRepository, $queryReader);
+        $transaction = new InMemoryCategoryTransaction();
+        $service = $this->service($commandRepository, $queryReader, $transaction);
 
         $service->updateStatus(new UpdateCategoryStatusDTO(5, CategoryStatusEnum::INACTIVE));
         $service->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO(5, 3));
 
         self::assertSame(CategoryStatusEnum::INACTIVE, $commandRepository->statusUpdated?->status);
         self::assertSame(3, $commandRepository->displayOrderUpdated?->displayOrder);
+        self::assertSame([5], $queryReader->lockedIds);
+        self::assertSame(1, $transaction->runs);
     }
 
     public function testTranslationMutationCannotChangeItsLogicalIdentity(): void
@@ -207,8 +213,51 @@ final class CategoryCommandServiceTest extends TestCase
         $updated = $translationRepository->updated;
         self::assertNotNull($updated);
         self::assertSame(21, $updated->translationId);
+        self::assertSame([21], $queryReader->lockedTranslationIds);
         self::assertFalse(property_exists(UpdateCategoryTranslationDTO::class, 'categoryId'));
         self::assertFalse(property_exists(UpdateCategoryTranslationDTO::class, 'languageCode'));
+    }
+
+    public function testTranslationLifecycleUsesTypedOperationsAndPreservesIdentity(): void
+    {
+        $queryReader = new InMemoryCategoryQueryReader(
+            [$this->category(5, null)],
+            [new CategoryTranslationDTO(
+                id: 77,
+                categoryId: 5,
+                languageCode: 'en-US',
+                name: 'Shirts',
+                description: null,
+                createdAt: $this->createdAt(),
+                updatedAt: $this->createdAt(),
+                deletedAt: null,
+            )],
+        );
+        $translationRepository = new InMemoryCategoryTranslationCommandRepository();
+        $transaction = new InMemoryCategoryTransaction();
+        $service = new CategoryCommandService(
+            new InMemoryCategoryCommandRepository(),
+            $queryReader,
+            $translationRepository,
+            $transaction,
+            new FixedClock(),
+        );
+
+        $createdId = $service->createTranslation(
+            new CreateCategoryTranslationDTO(5, 'en-US', 'Shirts', null),
+        );
+        $service->updateTranslation(new UpdateCategoryTranslationDTO($createdId, 'قمصان', 'وصف'));
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationDTO($createdId));
+        $service->restoreTranslation(new RestoreCategoryTranslationDTO($createdId));
+
+        self::assertSame(77, $createdId);
+        self::assertNotNull($translationRepository->created);
+        self::assertSame(5, $translationRepository->created->categoryId);
+        self::assertSame('en-US', $translationRepository->created->languageCode);
+        self::assertSame($createdId, $translationRepository->updated?->translationId);
+        self::assertSame($createdId, $translationRepository->softDeleted?->translationId);
+        self::assertSame($createdId, $translationRepository->restored?->translationId);
+        self::assertSame(4, $transaction->runs);
     }
 
     private function service(
@@ -255,6 +304,9 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
 {
     /** @var list<int> */
     public array $lockedIds = [];
+
+    /** @var list<int> */
+    public array $lockedTranslationIds = [];
 
     /** @var list<CategoryDTO> */
     private array $categories;
@@ -340,6 +392,13 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
 
         return null;
     }
+
+    public function findTranslationByIdForUpdate(int $translationId): ?CategoryTranslationDTO
+    {
+        $this->lockedTranslationIds[] = $translationId;
+
+        return $this->findTranslationById($translationId);
+    }
 }
 
 /** @internal Test-only in-memory command port. */
@@ -406,11 +465,39 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
 /** @internal Test-only in-memory translation command port. */
 final class InMemoryCategoryTranslationCommandRepository implements CategoryTranslationCommandRepositoryInterface
 {
+    public ?CreateCategoryTranslationDTO $created = null;
     public ?UpdateCategoryTranslationDTO $updated = null;
+    public ?SoftDeleteCategoryTranslationDTO $softDeleted = null;
+    public ?RestoreCategoryTranslationDTO $restored = null;
+
+    public function create(CreateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): int
+    {
+        $this->created = $command;
+
+        return 77;
+    }
 
     public function update(UpdateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool
     {
         $this->updated = $command;
+
+        return true;
+    }
+
+    public function softDelete(
+        SoftDeleteCategoryTranslationDTO $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->softDeleted = $command;
+
+        return true;
+    }
+
+    public function restore(
+        RestoreCategoryTranslationDTO $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->restored = $command;
 
         return true;
     }

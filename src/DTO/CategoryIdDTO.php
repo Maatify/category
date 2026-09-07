@@ -13,7 +13,7 @@ use Maatify\Category\Exception\CategoryInvalidArgumentException;
  * reject signs, whitespace, leading zeroes, decimal notation, and overflow
  * before an integer cast occurs.
  */
-final readonly class CategoryIdDTO
+final readonly class CategoryIdDTO implements \JsonSerializable
 {
     public int $value;
 
@@ -40,5 +40,11 @@ final readonly class CategoryIdDTO
         }
 
         $this->value = (int) $value;
+    }
+
+    /** @return array{value: int} */
+    public function jsonSerialize(): mixed
+    {
+        return ['value' => $this->value];
     }
 }

@@ -70,11 +70,22 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
 
     public function findTranslationById(int $translationId): ?CategoryTranslationDTO
     {
+        return $this->findTranslation($translationId, false);
+    }
+
+    public function findTranslationByIdForUpdate(int $translationId): ?CategoryTranslationDTO
+    {
+        return $this->findTranslation($translationId, true);
+    }
+
+    private function findTranslation(int $translationId, bool $forUpdate): ?CategoryTranslationDTO
+    {
         $statement = $this->pdo->prepare(
             'SELECT `id`, `category_id`, `language_code`, `name`, `description`, '
             . '`created_at`, `updated_at`, `deleted_at` '
             . 'FROM `' . self::TRANSLATION_TABLE . '` '
-            . 'WHERE `id` = :id LIMIT 1',
+            . 'WHERE `id` = :id LIMIT 1'
+            . ($forUpdate ? ' FOR UPDATE' : ''),
         );
         $statement->execute(['id' => $translationId]);
         /** @var array<string, mixed>|false $row */

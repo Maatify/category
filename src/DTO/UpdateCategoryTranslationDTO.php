@@ -12,7 +12,7 @@ use Maatify\Category\Exception\CategoryInvalidArgumentException;
  * The Category Translation logical identity is deliberately absent: neither
  * category_id nor language_code can be changed through this contract.
  */
-final readonly class UpdateCategoryTranslationDTO
+final readonly class UpdateCategoryTranslationDTO implements \JsonSerializable
 {
     public int $translationId;
     public string $name;
@@ -31,5 +31,15 @@ final readonly class UpdateCategoryTranslationDTO
         $this->translationId = (new CategoryIdDTO($translationId, 'translationId'))->value;
         $this->name = $name;
         $this->description = $description;
+    }
+
+    /** @return array{translationId: int, name: string, description: ?string} */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'translationId' => $this->translationId,
+            'name' => $this->name,
+            'description' => $this->description,
+        ];
     }
 }

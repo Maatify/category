@@ -13,7 +13,7 @@ use IteratorAggregate;
  *
  * @implements IteratorAggregate<int, CategoryTranslationDTO>
  */
-final readonly class CategoryTranslationCollectionDTO implements IteratorAggregate, Countable
+final readonly class CategoryTranslationCollectionDTO implements IteratorAggregate, Countable, \JsonSerializable
 {
     /**
      * @param list<CategoryTranslationDTO> $items
@@ -36,5 +36,11 @@ final readonly class CategoryTranslationCollectionDTO implements IteratorAggrega
     public function isEmpty(): bool
     {
         return $this->items === [];
+    }
+
+    /** @return list<CategoryTranslationDTO> */
+    public function jsonSerialize(): mixed
+    {
+        return $this->items;
     }
 }

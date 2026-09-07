@@ -7,7 +7,7 @@ namespace Maatify\Category\DTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
 /** Validated input for the dedicated Category display-order operation. */
-final readonly class UpdateCategoryDisplayOrderDTO
+final readonly class UpdateCategoryDisplayOrderDTO implements \JsonSerializable
 {
     public int $categoryId;
     public int $displayOrder;
@@ -20,5 +20,14 @@ final readonly class UpdateCategoryDisplayOrderDTO
 
         $this->categoryId = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
         $this->displayOrder = $displayOrder;
+    }
+
+    /** @return array{categoryId: int, displayOrder: int} */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'categoryId' => $this->categoryId,
+            'displayOrder' => $this->displayOrder,
+        ];
     }
 }

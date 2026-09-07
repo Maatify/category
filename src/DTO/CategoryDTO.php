@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-final readonly class CategoryDTO
+final readonly class CategoryDTO implements \JsonSerializable
 {
     public function __construct(
         public int $id,
@@ -31,6 +31,35 @@ final readonly class CategoryDTO
         if ($parentId === $id) {
             throw CategoryInvalidArgumentException::selfParent($id);
         }
+
+        if ($displayOrder < 1) {
+            throw CategoryInvalidArgumentException::invalidDisplayOrder($displayOrder);
+        }
     }
 
+    /**
+     * @return array{
+     *     id: int,
+     *     parentId: ?int,
+     *     code: string,
+     *     status: string,
+     *     displayOrder: int,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     deletedAt: ?string
+     * }
+     */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'id' => $this->id,
+            'parentId' => $this->parentId,
+            'code' => $this->code,
+            'status' => $this->status->value,
+            'displayOrder' => $this->displayOrder,
+            'createdAt' => $this->createdAt->format(DATE_ATOM),
+            'updatedAt' => $this->updatedAt->format(DATE_ATOM),
+            'deletedAt' => $this->deletedAt?->format(DATE_ATOM),
+        ];
+    }
 }

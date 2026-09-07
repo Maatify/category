@@ -7,7 +7,7 @@ namespace Maatify\Category\DTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
 /** Validated input for moving a Category to a new parent or to the root. */
-final readonly class MoveCategoryDTO
+final readonly class MoveCategoryDTO implements \JsonSerializable
 {
     public int $categoryId;
     public ?int $parentId;
@@ -25,5 +25,14 @@ final readonly class MoveCategoryDTO
 
         $this->categoryId = $normalizedCategoryId;
         $this->parentId = $normalizedParentId;
+    }
+
+    /** @return array{categoryId: int, parentId: ?int} */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'categoryId' => $this->categoryId,
+            'parentId' => $this->parentId,
+        ];
     }
 }

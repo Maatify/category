@@ -29,16 +29,24 @@ final readonly class PdoCategoryCommandRepository implements CategoryCommandRepo
 
     public function create(CreateCategoryDTO $command, DateTimeImmutable $occurredAt): int
     {
+        $this->lockCreationScope($command->parentId);
+        $displayOrder = $this->orderingManager->getNextPosition(
+            $this->pdo,
+            $this->orderingConfig(),
+            $command->parentId,
+        );
+
         $statement = $this->pdo->prepare(
             'INSERT INTO `' . self::CATEGORY_TABLE . '` '
-            . '(`parent_id`, `code`, `status`, `created_at`, `updated_at`, `deleted_at`) '
-            . 'VALUES (:parent_id, :code, :status, :created_at, :updated_at, NULL)',
+            . '(`parent_id`, `code`, `status`, `display_order`, `created_at`, `updated_at`, `deleted_at`) '
+            . 'VALUES (:parent_id, :code, :status, :display_order, :created_at, :updated_at, NULL)',
         );
         $timestamp = $this->formatTimestamp($occurredAt);
         $statement->execute([
             'parent_id' => $command->parentId,
             'code' => $command->code,
             'status' => $command->status->value,
+            'display_order' => $displayOrder,
             'created_at' => $timestamp,
             'updated_at' => $timestamp,
         ]);
@@ -152,6 +160,24 @@ final readonly class PdoCategoryCommandRepository implements CategoryCommandRepo
             return null;
         }
         return (int) $value;
+    }
+
+    /**
+     * Serializes creation within the nullable parent scope before asking the
+     * shared Ordering API for MAX(display_order) + 1.
+     *
+     * The Category service owns the surrounding transaction. InnoDB locks the
+     * matching scope rows (or the empty indexed scope gap) so concurrent root
+     * and child creations cannot calculate the same next position.
+     */
+    private function lockCreationScope(?int $parentId): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id` FROM `' . self::CATEGORY_TABLE . '` '
+            . 'WHERE `parent_id` <=> :parent_id '
+            . 'FOR UPDATE',
+        );
+        $statement->execute(['parent_id' => $parentId]);
     }
 
     private function orderingConfig(): ScopedOrderingConfig

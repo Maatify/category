@@ -26,7 +26,8 @@ Slim, HTTP, permissions, and presentation layers.
 - Typed immutable Category and Category Translation DTOs.
 - Stable immutable Category codes and translation identities.
 - Parent movement with complete cycle prevention.
-- Soft delete, restore, status, and display-order mutations.
+- Category and Translation create, update, soft-delete, and restore lifecycle
+  mutations, plus Category status and display-order mutations.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
@@ -62,7 +63,7 @@ $category = new CategoryDTO(
     parentId: null,
     code: 'clothing',
     status: CategoryStatusEnum::ACTIVE,
-    displayOrder: 0,
+    displayOrder: 1,
     createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
     updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
     deletedAt: null,

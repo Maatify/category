@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use DateTimeImmutable;
 use Maatify\Category\DTO\CreateCategoryDTO;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
 use Maatify\Category\DTO\SoftDeleteCategoryDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
 use Maatify\Category\DTO\UpdateCategoryStatusDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
@@ -38,8 +39,8 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $this->setDisplayOrder($connection, $firstId, 2);
         $this->setDisplayOrder($connection, $secondId, 1);
         $this->setDisplayOrder($connection, $thirdId, 1);
-        $this->setDisplayOrder($connection, $inactiveId, 0);
-        $this->setDisplayOrder($connection, $deletedId, 0);
+        $this->setDisplayOrder($connection, $inactiveId, 3);
+        $this->setDisplayOrder($connection, $deletedId, 3);
 
         $reader = new PdoCategoryReadQuery($connection);
         $queryService = new CategoryQueryService($reader);
@@ -67,8 +68,8 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $commandService->softDelete(new SoftDeleteCategoryDTO($deletedChildId));
         $this->setDisplayOrder($connection, $firstChildId, 1);
         $this->setDisplayOrder($connection, $secondChildId, 1);
-        $this->setDisplayOrder($connection, $inactiveChildId, 0);
-        $this->setDisplayOrder($connection, $deletedChildId, 0);
+        $this->setDisplayOrder($connection, $inactiveChildId, 3);
+        $this->setDisplayOrder($connection, $deletedChildId, 3);
 
         $reader = new PdoCategoryReadQuery($connection);
         $queryService = new CategoryQueryService($reader);
@@ -96,11 +97,27 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveId, CategoryStatusEnum::INACTIVE));
         $commandService->softDelete(new SoftDeleteCategoryDTO($deletedId));
 
-        $this->insertTranslation($connection, $visibleId, 'en-US', 'Shirts', null, null);
-        $this->insertTranslation($connection, $visibleId, 'ar-EG', 'قمصان', 'وصف', null);
-        $this->insertTranslation($connection, $visibleId, 'fr-FR', 'Chemises', null, '2026-01-02 00:00:00');
-        $this->insertTranslation($connection, $inactiveId, 'en-US', 'Inactive', null, null);
-        $this->insertTranslation($connection, $deletedId, 'en-US', 'Deleted', null, null);
+        $commandService->createTranslation(
+            new CreateCategoryTranslationDTO($visibleId, 'en-US', 'Shirts', null),
+        );
+        $commandService->createTranslation(
+            new CreateCategoryTranslationDTO($visibleId, 'ar-EG', 'قمصان', 'وصف'),
+        );
+        $deletedVisibleTranslationId = $commandService->createTranslation(
+            new CreateCategoryTranslationDTO($visibleId, 'fr-FR', 'Chemises', null),
+        );
+        $commandService->createTranslation(
+            new CreateCategoryTranslationDTO($inactiveId, 'en-US', 'Inactive', null),
+        );
+        $deletedCategoryTranslationId = $commandService->createTranslation(
+            new CreateCategoryTranslationDTO($deletedId, 'en-US', 'Deleted', null),
+        );
+        $commandService->softDeleteTranslation(
+            new SoftDeleteCategoryTranslationDTO($deletedVisibleTranslationId),
+        );
+        $commandService->softDeleteTranslation(
+            new SoftDeleteCategoryTranslationDTO($deletedCategoryTranslationId),
+        );
 
         $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
         $visibleTranslations = $queryService->listTranslations($visibleId);
@@ -148,30 +165,4 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         ]);
     }
 
-    private function insertTranslation(
-        PDO $connection,
-        int $categoryId,
-        string $languageCode,
-        string $name,
-        ?string $description,
-        ?string $deletedAt,
-    ): void {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
-        $statement = $connection->prepare(
-            'INSERT INTO `maa_category_category_translations` '
-            . '(`category_id`, `language_code`, `name`, `description`, '
-            . '`created_at`, `updated_at`, `deleted_at`) '
-            . 'VALUES (:category_id, :language_code, :name, :description, '
-            . ':created_at, :updated_at, :deleted_at)',
-        );
-        $statement->execute([
-            'category_id' => $categoryId,
-            'language_code' => $languageCode,
-            'name' => $name,
-            'description' => $description,
-            'created_at' => $timestamp->format('Y-m-d H:i:s'),
-            'updated_at' => $timestamp->format('Y-m-d H:i:s'),
-            'deleted_at' => $deletedAt,
-        ]);
-    }
 }

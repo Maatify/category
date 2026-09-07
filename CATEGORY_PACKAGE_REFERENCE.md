@@ -52,7 +52,15 @@ Operation input DTOs are:
 - `RestoreCategoryDTO`
 - `UpdateCategoryStatusDTO`
 - `UpdateCategoryDisplayOrderDTO`
+- `CreateCategoryTranslationDTO`
 - `UpdateCategoryTranslationDTO`
+- `SoftDeleteCategoryTranslationDTO`
+- `RestoreCategoryTranslationDTO`
+
+Every public DTO and collection DTO is immutable and implements
+`JsonSerializable`. Collections also retain typed `IteratorAggregate` behavior.
+Date-time fields serialize as RFC 3339 strings; enum fields serialize using
+their backing values.
 
 DTOs validate their input/domain invariants. `CategoryDTO` and
 `CategoryTranslationDTO` require canonical positive identities. A Category
@@ -64,16 +72,18 @@ the stable Category code remains immutable after creation.
 ### Services and contracts
 
 - `CategoryCommandServiceInterface` and `CategoryCommandService` own mutation
-  orchestration for creation, parent movement, cycle prevention, soft delete,
-  restore, status, display order, and translation content.
+  orchestration for creation, translation creation/content update/soft
+  delete/restore, parent movement, cycle prevention, Category soft delete,
+  restore, status, and display order.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
   identity and list reads.
 - `CategoryCommandRepositoryInterface` is the Category write port.
-- `CategoryTranslationCommandRepositoryInterface` is the translation-content
-  write port.
+- `CategoryTranslationCommandRepositoryInterface` is the Translation
+  lifecycle write port.
 - `CategoryQueryReaderInterface` is the mutation-support read port. Its
   `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock rows inside the application transaction.
+  explicit `ForUpdate` methods lock Category and Translation rows inside the
+  application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
 - `CategoryTransactionInterface` defines the transaction boundary used by the
@@ -87,6 +97,8 @@ add local pagination or language fallback.
 - Category `code` is immutable and unique among all stored identities.
 - Category Translation logical identity `(category_id, language_code)` is
   immutable and unique.
+- Translation creation rejects an existing identity, including a soft-deleted
+  row; restoration reuses that same identity.
 - Parent movement rejects direct self-parenting and every indirect cycle,
   including `A → B → C → A`.
 - Soft delete is rejected while a Category has non-deleted children.
@@ -124,9 +136,11 @@ accepted but did not enforce `CHECK` constraints.
 Timestamps are application-managed UTC values. PDO repositories persist the
 supplied values and do not own time generation.
 
-Display-order mutations consume the stable `maatify/persistence` Ordering API,
-including nullable root scopes and atomic `updated_at` mutation. The package
-does not implement a local ordering or pagination substitute.
+Display-order creation and mutations consume the stable `maatify/persistence`
+Ordering API, including nullable root scopes and atomic `updated_at` mutation.
+Creation locks the target scope inside the package transaction before asking
+the API for `MAX(display_order) + 1`. The package does not implement a local
+ordering or pagination substitute.
 
 Package-owned storage/hydration failures use the appropriate
 `CategoryPersistenceException` hierarchy. An external `PDOException` is not
@@ -140,6 +154,7 @@ for distinct failure semantics:
 - `CategoryInvalidArgumentException`
 - `CategoryNotFoundException`
 - `CategoryTranslationNotFoundException`
+- `CategoryTranslationAlreadyExistsException`
 - `CategoryCodeAlreadyExistsException`
 - `CategoryCycleException`
 - `CategoryHasNonDeletedChildrenException`

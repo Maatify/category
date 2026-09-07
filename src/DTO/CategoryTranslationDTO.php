@@ -7,7 +7,7 @@ namespace Maatify\Category\DTO;
 use DateTimeImmutable;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-final readonly class CategoryTranslationDTO
+final readonly class CategoryTranslationDTO implements \JsonSerializable
 {
     public function __construct(
         public int $id,
@@ -26,6 +26,47 @@ final readonly class CategoryTranslationDTO
         if ($categoryId < 1) {
             throw CategoryInvalidArgumentException::nonPositiveId('categoryId');
         }
+
+        if (trim($languageCode) === '') {
+            throw CategoryInvalidArgumentException::emptyField('languageCode');
+        }
+
+        if (mb_strlen($languageCode) > 16) {
+            throw CategoryInvalidArgumentException::fieldTooLong('languageCode', 16);
+        }
+
+        if (trim($name) === '') {
+            throw CategoryInvalidArgumentException::emptyField('name');
+        }
+
+        if (mb_strlen($name) > 255) {
+            throw CategoryInvalidArgumentException::fieldTooLong('name', 255);
+        }
     }
 
+    /**
+     * @return array{
+     *     id: int,
+     *     categoryId: int,
+     *     languageCode: string,
+     *     name: string,
+     *     description: ?string,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     deletedAt: ?string
+     * }
+     */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'id' => $this->id,
+            'categoryId' => $this->categoryId,
+            'languageCode' => $this->languageCode,
+            'name' => $this->name,
+            'description' => $this->description,
+            'createdAt' => $this->createdAt->format(DATE_ATOM),
+            'updatedAt' => $this->updatedAt->format(DATE_ATOM),
+            'deletedAt' => $this->deletedAt?->format(DATE_ATOM),
+        ];
+    }
 }

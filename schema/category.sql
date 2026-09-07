@@ -22,6 +22,17 @@
 -- Relationship contract:
 --   - All foreign keys are internal to the Category foundation.
 --   - Internal foreign keys use ON DELETE RESTRICT and ON UPDATE RESTRICT.
+--
+-- Ordering contract:
+--   - display_order is always a positive position within the nullable
+--     parent_id scope.
+--   - Category application creation assigns it through the shared
+--     maatify/persistence Ordering API inside its transaction.
+--
+-- Translation lifecycle contract:
+--   - Category application commands own translation creation, content update,
+--     soft deletion, and restoration.
+--   - (category_id, language_code) is the immutable logical identity.
 -- =============================================================================
 
 CREATE TABLE `maa_category_categories`
@@ -30,7 +41,7 @@ CREATE TABLE `maa_category_categories`
     `parent_id`     BIGINT UNSIGNED NULL COMMENT 'Nullable internal parent category identity; NULL identifies a root category; no Host-table reference',
     `code`          VARCHAR(100) NOT NULL COMMENT 'Stable immutable category code; remains reserved after soft deletion',
     `status`        VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'Administrative category status; allowed values are active or inactive',
-    `display_order` INT NOT NULL DEFAULT 0 COMMENT 'Business-controlled order within the same parent scope; ties are resolved by id',
+    `display_order` INT NOT NULL COMMENT 'Business-controlled positive order within the same parent scope; assigned by the Category application through maatify/persistence',
     `created_at`    DATETIME NOT NULL COMMENT 'UTC timestamp assigned by the Category application when the category is created',
     `updated_at`    DATETIME NOT NULL COMMENT 'UTC timestamp assigned by the Category application on mutation, soft delete, or restore',
     `deleted_at`    DATETIME NULL COMMENT 'UTC timestamp assigned by the Category application on soft delete; NULL means not deleted',
@@ -39,6 +50,7 @@ CREATE TABLE `maa_category_categories`
     UNIQUE KEY `uq_maa_category_categories_code` (`code`),
     KEY `idx_maa_category_categories_parent_status_deleted_order` (`parent_id`, `status`, `deleted_at`, `display_order`, `id`),
     CONSTRAINT `chk_maa_category_categories_status` CHECK (`status` IN ('active', 'inactive')),
+    CONSTRAINT `chk_maa_category_categories_display_order` CHECK (`display_order` > 0),
     CONSTRAINT `fk_maa_category_categories_parent` FOREIGN KEY (`parent_id`)
         REFERENCES `maa_category_categories` (`id`)
         ON DELETE RESTRICT

@@ -6,11 +6,19 @@ namespace Maatify\Category\Tests\Integration;
 
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\DTO\CreateCategoryDTO;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
 use Maatify\Category\DTO\MoveCategoryDTO;
 use Maatify\Category\DTO\RestoreCategoryDTO;
+use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
 use Maatify\Category\DTO\SoftDeleteCategoryDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
+use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
+use Maatify\Category\DTO\UpdateCategoryStatusDTO;
+use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
+use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
@@ -19,7 +27,6 @@ use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -63,6 +70,94 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $service->move(new MoveCategoryDTO($a, $c));
     }
 
+    public function testCreatedRootAndChildRowsReceiveScopedPositionsAndMoveImmediately(): void
+    {
+        $connection = $this->connection();
+        $service = $this->service($connection, new FixedCategoryClock());
+        $firstRootId = $service->create(new CreateCategoryDTO('created-root-first'));
+        $secondRootId = $service->create(new CreateCategoryDTO('created-root-second'));
+        $firstChildId = $service->create(new CreateCategoryDTO('created-child-first', $firstRootId));
+        $secondChildId = $service->create(new CreateCategoryDTO('created-child-second', $firstRootId));
+
+        self::assertSame([
+            $firstRootId => 1,
+            $secondRootId => 2,
+        ], $this->ordersForScope($connection, null));
+        self::assertSame([
+            $firstChildId => 1,
+            $secondChildId => 2,
+        ], $this->ordersForScope($connection, $firstRootId));
+
+        $service->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO($secondRootId, 1));
+        $service->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO($secondChildId, 1));
+
+        self::assertSame([
+            $secondRootId => 1,
+            $firstRootId => 2,
+        ], $this->ordersForScope($connection, null));
+        self::assertSame([
+            $secondChildId => 1,
+            $firstChildId => 2,
+        ], $this->ordersForScope($connection, $firstRootId));
+    }
+
+    public function testTranslationLifecycleIsPackageOwnedAndPreservesLogicalIdentity(): void
+    {
+        $connection = $this->connection();
+        $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 UTC'));
+        $queryReader = new PdoCategoryQueryReader($connection);
+        $categoryId = $service->create(new CreateCategoryDTO('translation-lifecycle-category'));
+
+        $translationId = $service->createTranslation(
+            new CreateCategoryTranslationDTO($categoryId, 'en-US', 'Shirts', 'Base description'),
+        );
+        $created = $queryReader->findTranslationById($translationId);
+        self::assertNotNull($created);
+        self::assertSame($translationId, $created->id);
+        self::assertSame($categoryId, $created->categoryId);
+        self::assertSame('en-US', $created->languageCode);
+
+        $service->updateTranslation(new UpdateCategoryTranslationDTO(
+            $translationId,
+            'قمصان',
+            'وصف',
+        ));
+        $updated = $queryReader->findTranslationById($translationId);
+        self::assertNotNull($updated);
+        self::assertSame($translationId, $updated->id);
+        self::assertSame($categoryId, $updated->categoryId);
+        self::assertSame('en-US', $updated->languageCode);
+        self::assertSame('قمصان', $updated->name);
+
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationDTO($translationId));
+        $deleted = $queryReader->findTranslationById($translationId);
+        self::assertNotNull($deleted);
+        self::assertNotNull($deleted->deletedAt);
+        self::assertSame($translationId, $deleted->id);
+
+        $service->restoreTranslation(new RestoreCategoryTranslationDTO($translationId));
+        $restored = $queryReader->findTranslationById($translationId);
+        self::assertNotNull($restored);
+        self::assertSame($translationId, $restored->id);
+        self::assertSame($categoryId, $restored->categoryId);
+        self::assertSame('en-US', $restored->languageCode);
+        self::assertNull($restored->deletedAt);
+        self::assertSame('قمصان', $restored->name);
+    }
+
+    public function testTranslationCreationRejectsDuplicateLogicalIdentityIncludingSoftDeletedRows(): void
+    {
+        $service = $this->service($this->connection(), new FixedCategoryClock());
+        $categoryId = $service->create(new CreateCategoryDTO('translation-identity-category'));
+        $command = new CreateCategoryTranslationDTO($categoryId, 'en-US', 'Shirts', null);
+
+        $translationId = $service->createTranslation($command);
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationDTO($translationId));
+
+        $this->expectException(CategoryTranslationAlreadyExistsException::class);
+        $service->createTranslation($command);
+    }
+
     public function testSoftDeleteChecksNonDeletedChildrenAndAllowsTheParentAfterChildDeletion(): void
     {
         $service = $this->service($this->connection(), new FixedCategoryClock());
@@ -92,12 +187,6 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $firstId = $service->create(new CreateCategoryDTO('ordering-first', $parentId));
         $secondId = $service->create(new CreateCategoryDTO('ordering-second', $parentId));
 
-        $statement = $connection->prepare(
-            'UPDATE `maa_category_categories` SET `display_order` = :display_order WHERE `id` = :id',
-        );
-        $statement->execute(['display_order' => 1, 'id' => $firstId]);
-        $statement->execute(['display_order' => 2, 'id' => $secondId]);
-
         $service->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO($secondId, 1));
 
         $ordersStatement = $connection->query(
@@ -119,21 +208,6 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $createService = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 UTC'));
         $firstId = $createService->create(new CreateCategoryDTO('root-ordering-first'));
         $secondId = $createService->create(new CreateCategoryDTO('root-ordering-second'));
-
-        $statement = $connection->prepare(
-            'UPDATE `maa_category_categories` '
-            . 'SET `display_order` = :display_order, `updated_at` = :updated_at WHERE `id` = :id',
-        );
-        $statement->execute([
-            'display_order' => 1,
-            'updated_at' => '2026-01-01 00:00:00',
-            'id' => $firstId,
-        ]);
-        $statement->execute([
-            'display_order' => 2,
-            'updated_at' => '2026-01-01 00:00:00',
-            'id' => $secondId,
-        ]);
 
         $updateService = $this->service($connection, new FixedCategoryClock('2026-01-04 00:00:00 UTC'));
         $updateService->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO($secondId, 1));
@@ -247,6 +321,59 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $blockedService->softDelete(new SoftDeleteCategoryDTO($categoryId));
         self::assertNull((new PdoCategoryQueryReader($blockedConnection))->findActiveById($categoryId));
         $blockedConnection = null;
+    }
+
+    public function testStatusUpdateWaitsOnTheLockedCategoryRow(): void
+    {
+        $connection = $this->connection();
+        $service = $this->service($connection, new FixedCategoryClock());
+        $categoryId = $service->create(new CreateCategoryDTO('locked-status-category'));
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        self::assertNotNull((new PdoCategoryQueryReader($locker))->findActiveByIdForUpdate($categoryId));
+
+        $blockedConnection = $this->newConnection();
+        $blockedConnection->exec('SET SESSION innodb_lock_wait_timeout = 1');
+        $blockedService = $this->service($blockedConnection, new FixedCategoryClock());
+
+        try {
+            $blockedService->updateStatus(new UpdateCategoryStatusDTO($categoryId, CategoryStatusEnum::INACTIVE));
+            self::fail('Status update must wait for a lock on the category row.');
+        } catch (PDOException) {
+            self::assertFalse($blockedConnection->inTransaction());
+        } finally {
+            if ($locker->inTransaction()) {
+                $locker->rollBack();
+            }
+        }
+
+        $blockedService->updateStatus(new UpdateCategoryStatusDTO($categoryId, CategoryStatusEnum::INACTIVE));
+        self::assertSame(
+            CategoryStatusEnum::INACTIVE,
+            (new PdoCategoryQueryReader($blockedConnection))->findById($categoryId)?->status,
+        );
+        $blockedConnection = null;
+    }
+
+    /** @return array<int, int> */
+    private function ordersForScope(PDO $connection, ?int $parentId): array
+    {
+        $statement = $connection->prepare(
+            'SELECT `id`, `display_order` FROM `maa_category_categories` '
+            . 'WHERE `parent_id` <=> :parent_id AND `deleted_at` IS NULL '
+            . 'ORDER BY `display_order`, `id`',
+        );
+        $statement->execute(['parent_id' => $parentId]);
+        /** @var array<int|string, int|string> $orders */
+        $orders = $statement->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        $normalized = [];
+        foreach ($orders as $id => $order) {
+            $normalized[(int) $id] = (int) $order;
+        }
+
+        return $normalized;
     }
 
     private function service(PDO $connection, FixedCategoryClock $clock): CategoryCommandServiceInterface

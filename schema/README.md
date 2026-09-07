@@ -22,4 +22,11 @@ package-owned self-parent triggers:
 The schema contains no Host, Catalog, Product, Pricing, Inventory, or Media
 tables. Timestamps are supplied by the Category application in UTC, and soft
 deletion uses nullable `deleted_at`. Internal foreign keys use `RESTRICT` for
-delete and update operations.
+delete and update operations. Category creation obtains the next positive
+`display_order` for the nullable `parent_id` scope through the shared
+`maatify/persistence` Ordering API inside the application transaction.
+
+Category Translation creation, content updates, soft deletion, and restoration
+are exposed through the package command service; consumers do not need direct
+SQL for that lifecycle. The `(category_id, language_code)` identity remains
+unique and immutable.

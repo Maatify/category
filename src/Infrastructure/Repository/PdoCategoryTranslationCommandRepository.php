@@ -6,8 +6,14 @@ namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
 use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
+use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
 use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Exception\CategoryPersistenceException;
+use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
 use PDO;
+use PDOException;
 
 /** PDO write adapter for Category translation content. */
 final readonly class PdoCategoryTranslationCommandRepository implements CategoryTranslationCommandRepositoryInterface
@@ -15,6 +21,46 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
     private const TRANSLATION_TABLE = 'maa_category_category_translations';
 
     public function __construct(private PDO $pdo) {}
+
+    public function create(CreateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): int
+    {
+        try {
+            $statement = $this->pdo->prepare(
+                'INSERT INTO `' . self::TRANSLATION_TABLE . '` '
+                . '(`category_id`, `language_code`, `name`, `description`, '
+                . '`created_at`, `updated_at`, `deleted_at`) '
+                . 'VALUES (:category_id, :language_code, :name, :description, '
+                . ':created_at, :updated_at, NULL)',
+            );
+            $timestamp = $this->formatTimestamp($occurredAt);
+            $statement->execute([
+                'category_id' => $command->categoryId,
+                'language_code' => $command->languageCode,
+                'name' => $command->name,
+                'description' => $command->description,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+        } catch (PDOException $exception) {
+            $driverCode = $exception->errorInfo[1] ?? null;
+            if ((is_int($driverCode) || is_string($driverCode)) && (int) $driverCode === 1062) {
+                throw CategoryTranslationAlreadyExistsException::withIdentity(
+                    $command->categoryId,
+                    $command->languageCode,
+                    $exception,
+                );
+            }
+
+            throw $exception;
+        }
+
+        $id = $this->pdo->lastInsertId();
+        if ($id === false || !ctype_digit($id) || (int) $id < 1) {
+            throw CategoryPersistenceException::invalidTranslationAutoIncrementIdentity();
+        }
+
+        return (int) $id;
+    }
 
     public function update(UpdateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool
     {
@@ -26,10 +72,51 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
         $statement->execute([
             'name' => $command->name,
             'description' => $command->description,
-            'updated_at' => $occurredAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'updated_at' => $this->formatTimestamp($occurredAt),
             'id' => $command->translationId,
         ]);
 
         return $statement->rowCount() > 0;
+    }
+
+    public function softDelete(
+        SoftDeleteCategoryTranslationDTO $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            'UPDATE `' . self::TRANSLATION_TABLE . '` '
+            . 'SET `deleted_at` = :deleted_at, `updated_at` = :updated_at '
+            . 'WHERE `id` = :id AND `deleted_at` IS NULL',
+        );
+        $timestamp = $this->formatTimestamp($occurredAt);
+        $statement->execute([
+            'deleted_at' => $timestamp,
+            'updated_at' => $timestamp,
+            'id' => $command->translationId,
+        ]);
+
+        return $statement->rowCount() > 0;
+    }
+
+    public function restore(
+        RestoreCategoryTranslationDTO $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            'UPDATE `' . self::TRANSLATION_TABLE . '` '
+            . 'SET `deleted_at` = NULL, `updated_at` = :updated_at '
+            . 'WHERE `id` = :id AND `deleted_at` IS NOT NULL',
+        );
+        $statement->execute([
+            'updated_at' => $this->formatTimestamp($occurredAt),
+            'id' => $command->translationId,
+        ]);
+
+        return $statement->rowCount() > 0;
+    }
+
+    private function formatTimestamp(DateTimeImmutable $occurredAt): string
+    {
+        return $occurredAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
 }

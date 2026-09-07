@@ -48,4 +48,12 @@ interface CategoryQueryReaderInterface
     public function hasNonDeletedChildrenForUpdate(int $categoryId): bool;
 
     public function findTranslationById(int $translationId): ?CategoryTranslationDTO;
+
+    /**
+     * Finds and locks a Category Translation regardless of soft-delete state.
+     *
+     * This lookup MUST execute with a row lock inside the current
+     * CategoryTransactionInterface::run() transaction.
+     */
+    public function findTranslationByIdForUpdate(int $translationId): ?CategoryTranslationDTO;
 }

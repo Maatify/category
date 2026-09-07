@@ -13,7 +13,7 @@ use Maatify\Category\Exception\CategoryInvalidArgumentException;
  * Display order is intentionally absent; creation-time ordering belongs to
  * the persistence adapter and the shared ordering contract.
  */
-final readonly class CreateCategoryDTO
+final readonly class CreateCategoryDTO implements \JsonSerializable
 {
     public string $code;
     public ?int $parentId;
@@ -37,5 +37,15 @@ final readonly class CreateCategoryDTO
             ? null
             : (new CategoryIdDTO($parentId, 'parentId'))->value;
         $this->status = $status;
+    }
+
+    /** @return array{code: string, parentId: ?int, status: string} */
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'code' => $this->code,
+            'parentId' => $this->parentId,
+            'status' => $this->status->value,
+        ];
     }
 }

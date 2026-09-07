@@ -10,10 +10,14 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
+use Maatify\Category\DTO\CategoryTranslationDTO;
 use Maatify\Category\DTO\CreateCategoryDTO;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
 use Maatify\Category\DTO\MoveCategoryDTO;
 use Maatify\Category\DTO\RestoreCategoryDTO;
+use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
 use Maatify\Category\DTO\SoftDeleteCategoryDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
 use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
 use Maatify\Category\DTO\UpdateCategoryStatusDTO;
 use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
@@ -49,6 +53,15 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
             }
 
             return $this->commandRepository->create($command, $this->clock->now());
+        });
+    }
+
+    public function createTranslation(CreateCategoryTranslationDTO $command): int
+    {
+        return $this->transaction->run(function () use ($command): int {
+            $this->requireActiveCategoryForUpdate($command->categoryId);
+
+            return $this->translationCommandRepository->create($command, $this->clock->now());
         });
     }
 
@@ -95,11 +108,13 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
     public function updateStatus(UpdateCategoryStatusDTO $command): void
     {
-        $this->requireActiveCategory($command->categoryId);
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveCategoryForUpdate($command->categoryId);
 
-        if (!$this->commandRepository->updateStatus($command, $this->clock->now())) {
-            throw CategoryNotFoundException::withId($command->categoryId);
-        }
+            if (!$this->commandRepository->updateStatus($command, $this->clock->now())) {
+                throw CategoryNotFoundException::withId($command->categoryId);
+            }
+        });
     }
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderDTO $command): void
@@ -113,13 +128,35 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
     public function updateTranslation(UpdateCategoryTranslationDTO $command): void
     {
-        if ($this->queryReader->findTranslationById($command->translationId) === null) {
-            throw CategoryTranslationNotFoundException::withId($command->translationId);
-        }
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveTranslationForUpdate($command->translationId);
 
-        if (!$this->translationCommandRepository->update($command, $this->clock->now())) {
-            throw CategoryTranslationNotFoundException::withId($command->translationId);
-        }
+            if (!$this->translationCommandRepository->update($command, $this->clock->now())) {
+                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            }
+        });
+    }
+
+    public function softDeleteTranslation(SoftDeleteCategoryTranslationDTO $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveTranslationForUpdate($command->translationId);
+
+            if (!$this->translationCommandRepository->softDelete($command, $this->clock->now())) {
+                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            }
+        });
+    }
+
+    public function restoreTranslation(RestoreCategoryTranslationDTO $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireTranslationForUpdate($command->translationId);
+
+            if (!$this->translationCommandRepository->restore($command, $this->clock->now())) {
+                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            }
+        });
     }
 
     private function requireActiveCategory(int $categoryId): CategoryDTO
@@ -153,6 +190,28 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
 
         return $category;
+    }
+
+    private function requireActiveTranslationForUpdate(int $translationId): CategoryTranslationDTO
+    {
+        $translation = $this->requireTranslationForUpdate($translationId);
+
+        if ($translation->deletedAt !== null) {
+            throw CategoryTranslationNotFoundException::withId($translationId);
+        }
+
+        return $translation;
+    }
+
+    private function requireTranslationForUpdate(int $translationId): CategoryTranslationDTO
+    {
+        $translation = $this->queryReader->findTranslationByIdForUpdate($translationId);
+
+        if ($translation === null) {
+            throw CategoryTranslationNotFoundException::withId($translationId);
+        }
+
+        return $translation;
     }
 
     private function assertMoveDoesNotCreateCycle(int $categoryId, int $newParentId): void

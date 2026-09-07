@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Maatify\Category\Contract;
 
 use Maatify\Category\DTO\CreateCategoryDTO;
+use Maatify\Category\DTO\CreateCategoryTranslationDTO;
 use Maatify\Category\DTO\MoveCategoryDTO;
 use Maatify\Category\DTO\RestoreCategoryDTO;
+use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
 use Maatify\Category\DTO\SoftDeleteCategoryDTO;
+use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
 use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
 use Maatify\Category\DTO\UpdateCategoryStatusDTO;
 use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
@@ -17,11 +20,17 @@ interface CategoryCommandServiceInterface
 {
     public function create(CreateCategoryDTO $command): int;
 
+    public function createTranslation(CreateCategoryTranslationDTO $command): int;
+
     public function move(MoveCategoryDTO $command): void;
 
     public function softDelete(SoftDeleteCategoryDTO $command): void;
 
+    public function softDeleteTranslation(SoftDeleteCategoryTranslationDTO $command): void;
+
     public function restore(RestoreCategoryDTO $command): void;
+
+    public function restoreTranslation(RestoreCategoryTranslationDTO $command): void;
 
     public function updateStatus(UpdateCategoryStatusDTO $command): void;
 
