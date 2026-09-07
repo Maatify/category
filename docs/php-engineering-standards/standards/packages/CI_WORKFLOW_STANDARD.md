@@ -148,6 +148,7 @@ The standard MUST require, where applicable:
   * MUST NOT use `ignoreErrors`.
   * MUST NOT use inline suppressions merely to make CI pass.
 * **Code style**: When a supported formatter configuration (e.g., `.php-cs-fixer.php`) exists, CI MUST run a non-mutating check (e.g., `vendor/bin/php-cs-fixer fix --dry-run --diff`). CI MUST NEVER rewrite and commit formatting automatically during a required verification job.
+* **Whitespace verification**: CI MUST detect and fail on applicable whitespace defects such as trailing whitespace, malformed whitespace introduced in tracked text/source files, or equivalent repository-specific whitespace integrity failures. A canonical Git-aware verification such as `git diff --check` MAY be documented as an accepted/basic mechanism where appropriate, provided it works correctly for the actual comparison context. This must be treated as a real required quality check, separate from generic code-style formatting.
 * **Full test suite**: Where separate Unit, Regression, and Integration suites exist, run each explicitly. CI MUST also run the complete PHPUnit suite in at least one canonical environment.
 * **Example syntax validation**
 * **Composer security audit**
@@ -306,6 +307,7 @@ Any standalone Composer package in the Maatify ecosystem MUST verify the followi
 * [ ] PHP syntax passes
 * [ ] PHPStan max passes with zero suppressions
 * [ ] code-style dry-run passes when configured
+* [ ] explicit whitespace verification passes
 * [ ] Unit suite passes where applicable
 * [ ] Regression suite passes where applicable
 * [ ] Integration suite uses real services where applicable
