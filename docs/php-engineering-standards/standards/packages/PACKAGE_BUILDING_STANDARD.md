@@ -17,6 +17,10 @@ Every package must be:
 - **Host-agnostic** — never FKs or JOINs on host tables. Host provides IDs; package trusts them. Host applications wire dependencies themselves.
 - **PHPStan max** — zero errors at level max before the package is considered done
 
+### PHP 8.4 Baseline
+
+PHP 8.4 is the minimum baseline for newly created Maatify PHP libraries, reusable modules, and new standalone PHP work. An already published package MUST retain its declared compatibility contract until raising the minimum PHP version is permitted by the package's compatibility/versioning policy.
+
 ### Persistence Conditional Applicability
 
 All rules in this Standard concerning PDO, SQL, `schema/`, migrations, transaction handling, Ordering/Pagination, PDO hydration, database integration, and database-focused testing apply only when the package owns persistence or database behavior.
@@ -835,6 +839,7 @@ parameters:
 ```
 
 Repositories MUST configure PHPStan from their actual package-owned paths and MUST NOT reference a non-existent path merely to copy this example. Existing package-owned tests MUST NOT be excluded from static analysis.
+No PHPStan baseline, `ignoreErrors`, or inline suppression is permitted merely to make CI green.
 
 ### Final Classes and Test Doubles
 
@@ -844,20 +849,20 @@ Repositories MUST configure PHPStan from their actual package-owned paths and MU
   1. Use a real instance if it is deterministic and suitable for testing.
   2. Or test via a Mock/Fake for the collaborators or external boundaries that it depends on.
   3. Create an interface only when replaceability is a true runtime requirement, not just to satisfy a single test.
+- Production design must not be weakened solely for testing; `final` and `readonly` must not be removed merely to make mocking easier.
+- Interfaces must not be invented solely for a one-off test when runtime replaceability is not a real architectural requirement.
+- Prefer testing through real deterministic instances or proper replaceable collaborators/contracts.
 - The package `dg/bypass-finals` is NOT a Central Baseline and NOT a general requirement for Maatify projects.
-- Its continued use in a Legacy project — if any — is a documented local decision for that project, and MUST NOT be copied as a central policy.
-- It is strictly forbidden to add the following solely to allow mocking a `final` class:
-  - `ignoreErrors`
-  - PHPStan baseline
-  - inline suppression
-  - `@phpstan-ignore method.unresolvableReturnType`
-- Do not claim that every concrete class must have an interface; an interface is required only when there is a real replaceable capability.
+- `dg/bypass-finals` MAY be used as a development-only test tool when a repository has a legitimate documented need to test/mock concrete final classes and that choice is consistent with its test architecture.
+- Its use must never justify PHPStan suppressions, baselines, or weakening production architecture.
 
 ### Testing Strategy
 
+- For code with testable behavior, appropriate automated tests are required.
 - Packages that own persistence, database, or external-service behavior MUST define appropriate Integration coverage. Unit and Regression suites remain required where applicable.
 - Package-owned test behavior, fixtures, and suite responsibilities belong to the package architecture and reference documentation.
 - CI execution requirements — including real-service provisioning, MySQL/SQLite enforcement, PHP matrices, cleanup/repeatability checks, and example syntax validation — are governed exclusively by [`CI_WORKFLOW_STANDARD.md`](CI_WORKFLOW_STANDARD.md).
+- Full PHPUnit verification must be part of the appropriate CI quality gate.
 
 ### PDO fetch results — always annotate
 

@@ -130,15 +130,15 @@ Templates in this Standard use the following placeholders:
 - `{PACKAGE_DESCRIPTION}`: A concise and technically accurate package description.
 - `{ROOT_NAMESPACE}`: The PSR-4 root namespace without the final separator.
 - `{TEST_NAMESPACE}`: The test namespace root without the final separator; normally `{ROOT_NAMESPACE}\Tests`.
-- `{MINIMUM_PHP_VERSION}`: The minimum supported PHP minor, such as `8.2`.
-- `{MINIMUM_PHP_PATCH_VERSION}`: The root development baseline, such as `8.2.0`.
+- `{MINIMUM_PHP_VERSION}`: The minimum supported PHP minor, such as `8.4`.
+- `{MINIMUM_PHP_PATCH_VERSION}`: The root development baseline, such as `8.4.0`.
 - `{LICENSE_SPDX}`: The approved SPDX license identifier.
 - `{PRIMARY_DOMAIN_KEYWORD}`: The main searchable domain term for the library.
 - `{RUNTIME_EXTENSION_NAME}`: A directly required PHP extension name without the `ext-` prefix.
 - `{RUNTIME_PACKAGE_NAME}`: A direct runtime package in `vendor/package` form.
 - `{RUNTIME_PACKAGE_CONSTRAINT}`: The approved stable constraint for a runtime package.
-- `{PHPUNIT_CONSTRAINT}`: The approved PHPUnit constraint compatible with the supported PHP range.
-- `{PHPSTAN_CONSTRAINT}`: The approved PHPStan constraint.
+- `{PHPUNIT_CONSTRAINT}`: The latest stable PHPUnit constraint compatible with the supported PHP range.
+- `{PHPSTAN_CONSTRAINT}`: The latest stable PHPStan constraint.
 - `{CS_FIXER_CONSTRAINT}`: The approved PHP CS Fixer constraint.
 - `{README_FILE}`: A non-default README path when the package intentionally does not use `README.md`.
 - `{SECURITY_POLICY_URL}`: A stable absolute URL to the package security policy when supplied in Composer support metadata.
@@ -497,12 +497,16 @@ The `require` field MUST contain only direct runtime contracts.
 The canonical minimum form is:
 
 ```json
-"php": ">={MINIMUM_PHP_VERSION}"
+"php": "^{MINIMUM_PHP_VERSION}"
 ```
 
 Rules:
 
-- The minimum MUST be the oldest PHP minor genuinely supported.
+- For newly created Maatify PHP libraries/modules governed by the current engineering baseline, the minimum PHP version MUST NOT be lower than PHP 8.4.
+- The canonical new-package Composer constraint is `^8.4` or the equivalent placeholder form resolving to PHP 8.4.
+- The minimum MUST be the oldest PHP minor genuinely supported within the permitted baseline/compatibility policy; it MUST NOT allow new work to move below PHP 8.4.
+- Existing already-published packages MUST retain their currently declared PHP compatibility constraint until an approved compatibility/breaking version boundary permits changing it.
+- Existing packages are NOT required to convert an existing `>=...` constraint to caret syntax merely because the new-package canonical form is now `^8.4`.
 - The constraint is a public compatibility promise.
 - Every released PHP minor included by the constraint MUST be treated according to `CI_WORKFLOW_STANDARD.md`.
 - The minimum MUST NOT be increased merely because a developer uses a newer local PHP version.
@@ -572,9 +576,11 @@ Rules:
 - Runtime dependencies MUST NOT be placed only in `require-dev`.
 - Tool constraints MUST remain compatible with the minimum supported PHP version when the tool runs there.
 - An unused tool or a tool with no maintained configuration MUST be removed.
-- PHPUnit is REQUIRED when PHPUnit tests exist.
-- PHPStan is REQUIRED by the Maatify package quality profile.
+- PHPUnit MUST be declared directly in `require-dev` when the repository contains testable behavior/tests and MUST use the latest stable version compatible with the repository's declared PHP contract.
+- PHPStan is REQUIRED by the Maatify package quality profile and MUST use the latest stable version compatible with the repository's declared PHP contract.
+- `dg/bypass-finals` MAY be used as a development-only test tool when a repository has a legitimate documented need to test/mock concrete final classes and that choice is consistent with its test architecture. When used, it belongs in `require-dev`.
 - A code-style tool is REQUIRED when formatting is an enforced repository check.
+- Tool constraints MUST NOT hardcode patch releases as permanent policy.
 - Tool major-version upgrades require a compatibility review.
 - Development packages MUST be alphabetically sorted.
 
@@ -1022,7 +1028,7 @@ This template contains no empty fields:
     }
   },
   "require": {
-    "php": ">={MINIMUM_PHP_VERSION}"
+    "php": "^{MINIMUM_PHP_VERSION}"
   },
   "config": {
     "optimize-autoloader": true,
@@ -1072,7 +1078,7 @@ Add only direct runtime contracts:
   "require": {
     "ext-{RUNTIME_EXTENSION_NAME}": "*",
     "{RUNTIME_PACKAGE_NAME}": "{RUNTIME_PACKAGE_CONSTRAINT}",
-    "php": ">={MINIMUM_PHP_VERSION}"
+    "php": "^{MINIMUM_PHP_VERSION}"
   }
 }
 ```
