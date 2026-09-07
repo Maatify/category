@@ -94,8 +94,6 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $visibleId = $commandService->create(new CreateCategoryDTO('translated-category'));
         $inactiveId = $commandService->create(new CreateCategoryDTO('translated-inactive'));
         $deletedId = $commandService->create(new CreateCategoryDTO('translated-deleted'));
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveId, CategoryStatusEnum::INACTIVE));
-        $commandService->softDelete(new SoftDeleteCategoryDTO($deletedId));
 
         $commandService->createTranslation(
             new CreateCategoryTranslationDTO($visibleId, 'en-US', 'Shirts', null),
@@ -112,6 +110,9 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $deletedCategoryTranslationId = $commandService->createTranslation(
             new CreateCategoryTranslationDTO($deletedId, 'en-US', 'Deleted', null),
         );
+
+        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryDTO($deletedId));
         $commandService->softDeleteTranslation(
             new SoftDeleteCategoryTranslationDTO($deletedVisibleTranslationId),
         );
