@@ -35,7 +35,7 @@ Slim, HTTP, permissions, and presentation layers.
 
 ## Requirements
 
-- PHP 8.2 or later.
+- PHP 8.4 or later.
 - Composer.
 - MySQL 8.0.16 or later for Integration verification.
 

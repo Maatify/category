@@ -34,7 +34,7 @@ final class CategoryQueryServiceTest extends TestCase
 
     public function testGetByIdRejectsAnUnavailableCategory(): void
     {
-        $reader = $this->createMock(CategoryReadQueryInterface::class);
+        $reader = $this->createStub(CategoryReadQueryInterface::class);
         $reader->method('findVisibleById')->willReturn(null);
 
         $this->expectException(CategoryNotFoundException::class);
@@ -46,7 +46,7 @@ final class CategoryQueryServiceTest extends TestCase
     {
         $this->expectException(CategoryInvalidArgumentException::class);
 
-        (new CategoryQueryService($this->createMock(CategoryReadQueryInterface::class)))->getById(0);
+        (new CategoryQueryService($this->createStub(CategoryReadQueryInterface::class)))->getById(0);
     }
 
     public function testListOperationsReturnTypedCollectionsFromTheReader(): void

@@ -71,7 +71,7 @@ Maatify/php-engineering-standards
 والـsnapshot المعتمد حاليًا هو:
 
 ```text
-96ca557083f7c20166e68402dd6a7640a8b31bc0
+cda994090b659435e72cfd1df35256eb3895bff3
 ```
 
 وتنطبق على هذه المكتبة الـProfiles التالية:
@@ -1516,7 +1516,7 @@ dependencies التي يثبتها Phase 0.
 إذا كان Composer يعلن مثلًا:
 
 ```text
-php >=8.2
+php ^8.4
 ```
 
 يجب على CI تغطية كل released PHP minor التي تقع داخل الـsupport contract وفق CI Standard، وليس minimum/latest فقط إذا كان ذلك يخالف الـStandard.

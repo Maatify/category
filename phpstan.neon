@@ -6,7 +6,7 @@ parameters:
     paths:
         - src
         - tests
-    phpVersion: 80200
+    phpVersion: 80400
     reportUnmatchedIgnoredErrors: true
     bootstrapFiles:
         - vendor/autoload.php
