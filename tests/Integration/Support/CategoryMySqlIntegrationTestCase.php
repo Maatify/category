@@ -73,7 +73,10 @@ abstract class CategoryMySqlIntegrationTestCase extends TestCase
     {
         $value = getenv($name);
         if (!is_string($value) || trim($value) === '') {
-            throw new RuntimeException(sprintf('%s must be configured for Category integration tests.', $name));
+            throw new RuntimeException(sprintf(
+                '%s must be configured for Category integration tests; copy env.testing.example to env.testing or provide it through the environment.',
+                $name,
+            ));
         }
 
         return $value;

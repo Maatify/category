@@ -179,7 +179,10 @@ The package must pass, where applicable:
 - Workflow syntax validation
 
 The integration suite is configured with `CATEGORY_TEST_DSN`,
-`CATEGORY_TEST_DB_USER`, and `CATEGORY_TEST_DB_PASSWORD`.
+`CATEGORY_TEST_DB_USER`, and `CATEGORY_TEST_DB_PASSWORD`. For local runs,
+copy `env.testing.example` to the ignored `env.testing`; the PHPUnit bootstrap
+loads those values as defaults and preserves any externally injected values,
+including CI's isolated MySQL configuration.
 
 ## Non-goals and deferred work
 

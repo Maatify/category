@@ -101,6 +101,19 @@ composer test
 Integration tests require `CATEGORY_TEST_DSN`, `CATEGORY_TEST_DB_USER`, and
 `CATEGORY_TEST_DB_PASSWORD` and run against real MySQL 8.0.16 or later.
 
+For local Integration or full-suite runs, copy `env.testing.example` to
+`env.testing`, set the local MySQL credentials, and create the configured
+database before running PHPUnit. `tests/bootstrap.php` loads this ignored file
+as local defaults without overriding environment variables supplied by CI.
+
+Example local setup:
+
+```bash
+cp env.testing.example env.testing
+composer test:integration
+composer test
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

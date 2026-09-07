@@ -3,6 +3,7 @@
 /.phpunit.result.cache
 /.env
 /.env.*
+/env.testing
 /vendor/
 composer.lock
 .DS_Store
