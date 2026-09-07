@@ -29,7 +29,7 @@ maatify/category
 
 ---
 
-# 2. Package Identity
+## 2. Package Identity
 
 الهوية النهائية للمكتبة:
 
@@ -60,34 +60,43 @@ Catalog هو مستهلك/aggregator محتمل للمكتبة، وليس مال
 
 ---
 
-# 3. Standards Authority
+## 3. Standards Authority
 
-المكتبة تخضع لأحدث نسخة معتمدة من:
+المصدر التنفيذي لهذه الـRoadmap هو النسخة المحلية المثبتة من:
 
 ```text
 Maatify/php-engineering-standards
 ```
 
-وبشكل خاص:
+والـsnapshot المعتمد حاليًا هو:
 
 ```text
+96ca557083f7c20166e68402dd6a7640a8b31bc0
+```
+
+وتنطبق على هذه المكتبة الـProfiles التالية:
+
+```text
+standards/ai/AI_COLLABORATION_WORKFLOW_AR.md
 standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md
-
 standards/modules/MODULE_BUILDING_STANDARD.md
-
 standards/packages/PACKAGE_BUILDING_STANDARD.md
 standards/packages/COMPOSER_PACKAGE_STANDARD.md
 standards/packages/CI_WORKFLOW_STANDARD.md
 standards/packages/LIBRARY_PRESENTATION_STANDARD.md
 ```
 
-لا يجوز اعتبار implementation قديم أو architecture قديمة استثناءً تلقائيًا من الـStandards.
+تطبيق `MODULE_BUILDING_STANDARD.md` مقصود لأن `category` مصنفة كـBase Module قابل للاستخراج. وتطبق قواعد Persistence لأن المكتبة تملك schema وسلوك PDO/MySQL.
 
-أي تعارض يجب أن يُحل صراحة قبل التنفيذ.
+القواعد التفصيلية تظل مملوكة للملفات المرجعية أعلاه؛ هذه الوثيقة تسجل فقط قرارات Category الخاصة، وترتيب التنفيذ، وشروط القبول الخاصة بالحزمة.
+
+لا يجوز استخدام `main` المتحرك من مستودع الـstandards كمصدر تنفيذ مباشر. أي ترقية للـsnapshot أو تعديل للـstandard تغيير مستقل يحتاج قرارًا ومراجعة منفصلين.
+
+لا يجوز اعتبار implementation قديم أو architecture قديمة استثناءً تلقائيًا من الـStandards. وأي تعارض يجب أن يُحل صراحة قبل التنفيذ.
 
 ---
 
-# 4. Standards Compliance Principle
+## 4. Standards Compliance Principle
 
 الهدف ليس فقط:
 
@@ -118,11 +127,24 @@ Runtime
 
 لا تعتبر المكتبة مكتملة طالما يوجد بند إلزامي في الـStandards غير مطبق أو غير محسوم.
 
+### 4.1 Current Baseline and Target Contract
+
+هذه الوثيقة تصف Target Contract وليست إثباتًا بأن كل ما في الفرع الحالي يطابقه.
+
+عند إنشاء الـRoadmap كان baseline تنفيذ الحزمة هو:
+
+```text
+codex/phase-1-category-package
+e3999d250d9c02fef7e05fbe5dd696ab71a7315d
+```
+
+أي operation-input DTOs موجودة في baseline تعتبر Migration Gap، وليست العقد المستهدف. يجب تحديث `CATEGORY_PACKAGE_REFERENCE.md` في نفس Phase التي تنقل كل mutation إلى Command، ولا يصبح العقد Public API Frozen إلا في Phase 16 بعد توحيد الكود والمرجع والاختبارات.
+
 ---
 
-# 5. Domain Ownership
+## 5. Domain Ownership
 
-## 5.1 Category
+### 5.1 Category
 
 المكتبة تملك:
 
@@ -137,7 +159,7 @@ Runtime
 * Cycle prevention.
 * Hierarchy invariants.
 
-## 5.2 Category Translation
+### 5.2 Category Translation
 
 المكتبة تملك:
 
@@ -153,7 +175,7 @@ Runtime
 
 ---
 
-# 6. Explicit Non-Goals
+## 6. Explicit Non-Goals
 
 المكتبة لا تملك:
 
@@ -191,11 +213,14 @@ Runtime
 
 ---
 
-# 7. Artifact Naming Contract
+## 7. Artifact Naming Contract
 
-هذه القاعدة Binding على كل Runtime جديد.
+الأسماء والعقود الخاصة بـCategory في هذا القسم هي Target Inventory. قواعد
+التسمية، `final readonly`، وصيغة الملفات مملوكة للـ
+[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)
+ولا تعاد صياغتها هنا.
 
-## 7.1 Commands
+### 7.1 Commands
 
 كل Mutation Input يجب أن يكون Command.
 
@@ -215,19 +240,13 @@ SoftDeleteCategoryTranslationCommand
 RestoreCategoryTranslationCommand
 ```
 
-كل Command:
-
-* `final readonly`.
-* Validation في constructor.
-* لا يحتوي Business Orchestration.
-* لا يحتوي SQL.
-* لا يحتوي framework logic.
-* اسمه ينتهي بـ `Command`.
-* اسم الملف يطابق اسم الـClass.
+كل Mutation Intent في Category يستخدم أحد الـCommands أعلاه، ولا يستخدم DTO
+بديلًا عنها. يظل الفصل بين input validation وBusiness Orchestration وSQL
+والـframework wiring خاضعًا للـPackage وBase Module Standards.
 
 ---
 
-# 7.2 DTOs
+### 7.2 DTOs
 
 DTO تستخدم لتمثيل البيانات والنتائج، وليس Mutation Intent.
 
@@ -244,22 +263,15 @@ CategoryTranslationListCriteriaDTO
 
 كل DTO:
 
-* اسمها ينتهي بـ `DTO`.
-* `final readonly`.
-* تلتزم بعقد DTO الموجود في Package Standard.
-* إذا كان الـStandard يتطلب `JsonSerializable` فيجب تطبيقه.
+* تلتزم بالكامل بعقد DTO وCollection DTO الموجود في
+  [PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)،
+  بما في ذلك serialization وtyped iteration عند انطباقه.
 
 ممنوع استخدام DTO كبديل لـCommand في Create/Update/Delete/Restore operations.
 
 ---
 
-# 7.3 Enums
-
-كل Enum:
-
-```text
-*Enum
-```
+### 7.3 Enums
 
 مثال:
 
@@ -272,15 +284,10 @@ CategoryDeletedStateEnum
 
 ---
 
-# 7.4 Interfaces
+### 7.4 Interfaces
 
-كل Interface:
-
-```text
-*Interface
-```
-
-بما فيها Package Exception Marker.
+كل Interface يتبع قواعد التسمية والـmarker contract في الـPackage وBase Module
+Standards.
 
 مثال:
 
@@ -292,51 +299,24 @@ CategoryQueryServiceInterface
 
 ---
 
-# 7.5 Exceptions
+### 7.5 Exceptions
 
-كل Exception Class:
-
-```text
-*Exception
-```
-
-وتستخدم hierarchy مناسبة من:
-
-```text
-maatify/exceptions
-```
+كل Exception Class والـhierarchy الخاصة بها تتبع الـPackage وBase Module
+Standards، مع إبقاء exceptions الخاصة بـCategory ضمن الـinventory أعلاه.
 
 ---
 
-# 8. Public Contract Rules
+## 8. Public Contract Rules
 
-Public Service/Repository/Query contracts لا تعيد associative arrays.
-
-ممنوع:
-
-```text
-array
-array<string,mixed>
-mixed
-```
-
-كـPublic Domain Data Contract إلا عندما يكون هناك سبب تقني داخلي صريح لا يمثل Domain API.
-
-الـPublic Data تنتقل عبر DTOs.
-
-الـPublic Mutations تستقبل Commands.
-
-الـPublic Query Filters تستخدم typed DTOs/Enums عند الحاجة.
-
-ملاحظة:
-
-`JsonSerializable` داخل DTO لا يعني أن Service أو Repository تعيد array.
-
-Serialization capability شيء، والـPublic PHP Contract شيء آخر.
+تفاصيل Public PHP Contract، DTO serialization، وRepository/Service return
+types مملوكة للـ
+[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md).
+تطبيق Category الخاص هو أن الـmutations تستقبل Commands، والـreads تعيد DTOs
+أو Collections typed، ولا تعتمد على associative arrays كعقد Domain.
 
 ---
 
-# 9. Language Boundary
+## 9. Language Boundary
 
 المكتبة تخزن:
 
@@ -358,7 +338,7 @@ BCP-47 semantic validation وسياسة fallback تظل Host responsibility وف
 
 ---
 
-# 10. Phase Stack Execution Rule
+## 10. Phase Stack Execution Rule
 
 كل Phase في هذه الـRoadmap تنفذ بنظام:
 
@@ -387,27 +367,29 @@ main
 9. لا يدخل `main` إلا Phase مكتملة.
 10. Phase Draft يتم Squash Merge إلى `main` بعد اكتمال Verification + Documentation + Final Review.
 
+هذه القواعد لا تمنح صلاحية Merge أو Tag أو Release. تظل صلاحية الدمج والاعتماد النهائي لمالك المشروع، وتطبق قيود عدم الـamend والـforce-push وقواعد Review/Verification من الـPhase Stack Standard.
+
 ---
 
-# 11. Phase 0 — Architecture & Standards Lock
+## 11. Phase 0 — Architecture & Standards Lock
 
-## الهدف
+### الهدف
 
 إغلاق كل القرارات التي قد تسبب إعادة تصميم Runtime بعد التنفيذ.
 
-## Required Documents
+### Required Documents
 
 يجب اعتماد:
 
 ```text
-/CATEGORY_PACKAGE_REFERENCE.md
+CATEGORY_PACKAGE_REFERENCE.md
 
-/docs/architecture/CATEGORY_ARCHITECTURE.md
+docs/architecture/CATEGORY_ARCHITECTURE.md
 
-/docs/CATEGORY_LIBRARY_ROADMAP.md
+docs/CATEGORY_LIBRARY_ROADMAP.md
 ```
 
-الـPackage Reference هي stable package contract.
+الـPackage Reference هي المصدر الـcanonical الوحيد لعقد الحزمة بعد اعتماده، ويجب أن تظل متزامنة مع Target Contract. أثناء مراحل الـmigration لا تعتبر أي قائمة قديمة للـAPI عقدًا نهائيًا؛ تُحدّث في نفس الـPhase التي تغيّر السلوك العام.
 
 الـArchitecture توثق التفاصيل المعمارية.
 
@@ -415,11 +397,11 @@ main
 
 ---
 
-## Required Decisions
+### Required Decisions
 
 يجب إغلاق:
 
-### Package
+#### Package
 
 * namespace.
 * Composer identity.
@@ -427,38 +409,48 @@ main
 * MySQL support contract.
 * runtime dependencies.
 
-### Category
+#### Category
 
 * code validation.
 * code immutability.
 * parent rules.
 * status rules.
 * ordering rules.
+* nullable root scope (`parent_id IS NULL`) and sibling scope rules.
+* creation-time position policy and its transaction/locking boundary.
 * soft-delete rules.
 * restore rules.
 * timestamp rules.
 * hierarchy rules.
 * concurrency invariants.
 
-### Translation
+#### Translation
 
 * language code syntactic contract.
 * name validation.
 * description validation.
 * translation identity.
 * delete/restore semantics.
+* behavior when the parent Category is inactive or soft-deleted for every Translation mutation.
 
-### Persistence
+#### Persistence
 
 * transaction ownership.
 * lock boundaries.
 * ordering integration.
+* `getNextPosition()` versus movement transaction ownership.
 * pagination integration.
 * exception conversion/propagation.
 
+#### Query
+
+* management مقابل consumer read boundary.
+* اعتماد أو تأجيل `get by code` وSearch وPagination في `v1.0.0`.
+* مصادر البيانات والـDTOs والـvisibility rules لكل read contract معتمد.
+
 ---
 
-# 12. Phase 0 Critical Standards Reconciliation — Translation Pattern
+## 12. Phase 0 Critical Standards Reconciliation — Translation Pattern
 
 يجب حل هذه النقطة قبل الادعاء بأن المكتبة 100% Standard-Compliant.
 
@@ -496,21 +488,23 @@ language_code
 
 ### Option C
 
-تحديث الـEngineering Standard نفسه إذا ثبت أن الـPattern العام لا يصلح لكل Translation-only Domain.
+إذا ثبت أن الـPattern العام لا يصلح لكل Translation-only Domain، يتم تسجيل ذلك كـblocker وفتح تغيير مستقل في مستودع الـEngineering Standard. لا يتم تعديل الـstandard من هذا الفرع أو داخل Phase 0، ولا تعتمد الحزمة نسخة غير مثبتة أثناء انتظار القرار.
 
 ممنوع تجاهل التعارض.
 
 ممنوع اعتبار المكتبة 100% Standard-Compliant قبل إغلاقه.
 
+يجب تسجيل الـOption المختار وسببه ودليله في `CATEGORY_PACKAGE_REFERENCE.md` أو ADR مستقل قبل إغلاق Phase 0. وإذا كان الخيار C مطلوبًا، فلا يغلق Phase 0 في مكتبة Category قبل اعتماد snapshot معياري جديد مستقل.
+
 ---
 
-# 13. Phase 1 — Package Foundation
+## 13. Phase 1 — Package Foundation
 
-## الهدف
+### الهدف
 
 إنشاء Composer Library مستقلة صحيحة.
 
-## Required Root Files
+### Required Root Files
 
 ```text
 README.md
@@ -520,6 +514,9 @@ composer.json
 phpstan.neon
 phpunit.xml.dist
 LICENSE
+SECURITY.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
 
 src/
 tests/
@@ -532,26 +529,20 @@ docs/
 
 ---
 
-## Composer
+### Composer
 
-يجب أن يكون:
+هوية الحزمة هي:
 
 ```text
 maatify/category
 ```
 
-بدون:
-
-```text
-version
-composer.lock
-```
-
-في repository reusable library.
+وتفاصيل metadata وautoload وstability وlock-file policy مملوكة لـ
+[COMPOSER_PACKAGE_STANDARD.md](php-engineering-standards/standards/packages/COMPOSER_PACKAGE_STANDARD.md).
 
 ---
 
-## Runtime Dependencies
+### Runtime Dependencies
 
 حسب APIs المستخدمة فعليًا:
 
@@ -562,17 +553,12 @@ maatify/persistence
 ```
 
 كل Dependency تستخدم minimum stable version التي تحتوي على الـAPI المطلوب.
-
-لا يتم الاعتماد على:
-
-* branch.
-* commit.
-* unreleased API.
-* docs-only proposed contract.
+ولا تعتمد الحزمة على API غير منشورة أو غير مثبتة؛ تفاصيل dependency constraints
+مملوكة للـComposer Standard.
 
 ---
 
-## Namespace
+### Namespace
 
 ```text
 Maatify\Category\
@@ -580,7 +566,7 @@ Maatify\Category\
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 * Composer valid.
 * PSR-4 صحيح.
@@ -590,13 +576,13 @@ Maatify\Category\
 
 ---
 
-# 14. Phase 2 — Schema & Core Domain Data
+## 14. Phase 2 — Schema & Core Domain Data
 
-## الهدف
+### الهدف
 
 تثبيت database contract والـdata types الأساسية.
 
-## Tables
+### Tables
 
 ```text
 maa_category_categories
@@ -606,7 +592,7 @@ maa_category_category_translations
 
 ---
 
-## Category Schema
+### Category Schema
 
 الحقول الأساسية:
 
@@ -623,7 +609,7 @@ deleted_at
 
 ---
 
-## Translation Schema
+### Translation Schema
 
 الحقول الأساسية:
 
@@ -640,7 +626,7 @@ deleted_at
 
 ---
 
-## Database Requirements
+### Database Requirements
 
 * InnoDB.
 * utf8mb4.
@@ -653,10 +639,14 @@ deleted_at
 * unique translation logical identity.
 * required indexes.
 * application-owned timestamps.
+* `parent_id` nullable; `NULL` means root and each non-NULL value identifies the sibling scope.
+* `display_order` has no schema-default `0`; creation receives a valid position from the shared Ordering API.
+
+يجب تثبيت types وnullability وdefaults وindexes وconstraints والتعليقات لكل field في الـschema والـPackage Reference؛ لا يترك أي جزء من storage contract لقرار منفذ المرحلة.
 
 ---
 
-## Translation Identity
+### Translation Identity
 
 الهوية المنطقية:
 
@@ -668,7 +658,7 @@ deleted_at
 
 ---
 
-## Self-Parent Invariant
+### Self-Parent Invariant
 
 لا يستخدم:
 
@@ -689,7 +679,7 @@ BEFORE UPDATE
 
 ---
 
-## MySQL
+### MySQL
 
 العقد الحالي المستهدف:
 
@@ -699,9 +689,13 @@ MySQL 8.0.16+
 
 ويجب إثباته باختبارات حقيقية.
 
+### Creation Position Acceptance
+
+إنشاء Root Category وChild Category يجب أن يحصل على position صالح داخل الـscope الصحيح عبر shared Ordering API، داخل transaction وبحدود الـlocking المعتمدة. يجب أن ينجح تحريك كل row مباشرة بعد إنشائه دون أي SQL normalization من الاختبار.
+
 ---
 
-## DTOs
+### DTOs
 
 هذه المرحلة تنشئ Data DTOs فقط، مثل:
 
@@ -716,7 +710,7 @@ CategoryTranslationCollectionDTO
 
 ---
 
-## Enums
+### Enums
 
 مثل:
 
@@ -726,19 +720,19 @@ CategoryStatusEnum
 
 ---
 
-## Exit Gate
+### Exit Gate
 
-Schema + Core DTOs + Enums مثبتة Unit/Integration.
+Schema + Core DTOs + Enums مثبتة Unit/Integration، مع إثبات nullable root scope وcreation-time ordering للـroot والـchild.
 
 ---
 
-# 15. Phase 3 — Command & Validation Layer
+## 15. Phase 3 — Command & Validation Layer
 
-## الهدف
+### الهدف
 
 إنشاء Mutation Input Contract الصحيح قبل Business Orchestration.
 
-## Category Commands
+### Category Commands
 
 ```text
 CreateCategoryCommand
@@ -756,7 +750,7 @@ RestoreCategoryCommand
 
 ---
 
-## Category Translation Commands
+### Category Translation Commands
 
 ```text
 CreateCategoryTranslationCommand
@@ -770,17 +764,10 @@ RestoreCategoryTranslationCommand
 
 ---
 
-## Command Rules
+### Command Rules
 
-كل Command:
-
-```text
-final readonly
-```
-
-ويطبق فقط validation يمكن معرفتها من input نفسه.
-
-أمثلة validation التي قد تكون Command-owned بعد اعتماد Architecture:
+تحدد Architecture Category حدود validation الخاصة بكل Command. الأمثلة
+المحلية التي يجب حسمها هي:
 
 * positive canonical IDs.
 * non-empty required strings.
@@ -788,20 +775,13 @@ final readonly
 * max storage lengths.
 * directly detectable self-reference.
 
-ولا يطبق:
-
-* database existence.
-* uniqueness.
-* ancestor cycle lookup.
-* child dependency.
-* transaction rules.
-* business orchestration.
-
-هذه مسؤولية Service/Persistence layers.
+أما فصل input validation عن database checks وbusiness orchestration والـframework
+wiring فيتبع [PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)
+و[MODULE_BUILDING_STANDARD.md](php-engineering-standards/standards/modules/MODULE_BUILDING_STANDARD.md).
 
 ---
 
-## Display Order Rule
+### Display Order Rule
 
 `display_order` لا يدخل في:
 
@@ -819,9 +799,11 @@ UpdateCategoryDisplayOrderCommand
 
 واستخدام shared Ordering capability.
 
+إنشاء Category لا يقبل position من المستهلك ولا يعتمد على schema default؛ Service/Persistence integration تستدعي stable Ordering API للحصول على position داخل الـscope الصحيح قبل الحفظ.
+
 ---
 
-## Generic Update
+### Generic Update
 
 لا يتم إنشاء:
 
@@ -841,19 +823,19 @@ UpdateCategoryCommand
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 كل mutation intent له Command مستقلة وواضحة.
 
 ---
 
-# 16. Phase 4 — Persistence & Transaction Foundation
+## 16. Phase 4 — Persistence & Transaction Foundation
 
-## الهدف
+### الهدف
 
 توفير Infrastructure قابلة للاستخدام بواسطة Services بدون business logic داخل repositories.
 
-## Required Contracts
+### Required Contracts
 
 حسب الـArchitecture النهائية:
 
@@ -875,85 +857,66 @@ CategoryTransactionInterface
 
 ---
 
-## PDO
+### PDO
 
-* PDO مباشرة.
-* no ORM.
-* no external query builder.
-* unique named placeholders.
-* package-local JOINs فقط.
-* no Host FK.
-* no Host JOIN.
+تطبق قواعد PDO وSQL والـhost isolation كما هي مملوكة للـ
+[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)
+و[MODULE_BUILDING_STANDARD.md](php-engineering-standards/standards/modules/MODULE_BUILDING_STANDARD.md).
+الـJOINs والعلاقات هنا package-local فقط وفق حدود Category.
 
----
+### Shared Ordering Boundary
 
-## Repository Return Contract
+`getNextPosition()` لا يبدأ transaction ولا يكتسب lock. عند استخدامه لإنشاء Category، يملك caller transaction وقفل الـscope المناسب، بما في ذلك scope الجذر ذي `parent_id IS NULL`.
 
-Command Repository تتبع layer contract الخاص بالـPackage Standard.
-
-مثل:
-
-```text
-create → int
-mutation → bool
-findById → ?DTO
-```
-
-الـService هي التي تحول Repository `false/null` إلى Domain NotFound عند الحاجة.
+حركة row تستخدم operation الحركة المستقرة من `maatify/persistence`، ولا يتم استدعاؤها داخل transaction نشطة إذا كان عقد الـAPI يمنع ذلك. لا تنسخ الحزمة shifting أو clamping أو locking أو transaction mechanics.
 
 ---
 
-## Transaction Boundary
+### Repository Return Contract
 
-يجب استخدام transaction adapter/framework-neutral contract بحيث:
-
-* transaction تبدأ مرة واحدة.
-* commit صحيح.
-* rollback فقط عند transaction نشطة.
-* original Throwable لا يضيع.
-* لا swallowing.
-* لا blanket wrapping.
-
-الـService تقوم Business Orchestration.
-
-الـPDO transaction mechanics تبقى Infrastructure concern.
+تتبع Command Repositories وServices طبقات الإرجاع وتحويل not-found المملوكة
+للـ[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)،
+مع توثيق أي Category-specific public behavior في Package Reference.
 
 ---
 
-## Exception Classification
+### Transaction Boundary
 
-Known package-owned failures يمكن تحويلها إلى named package exceptions.
-
-Unknown PDO/infrastructure failures لا يتم تحويلها تعسفيًا.
-
-SQLSTATE `23xxx` لا يعني تلقائيًا duplicate.
-
-Duplicate classification يجب أن تستخدم documented driver evidence.
+تطبق transaction ownership وrollback وThrowable propagation كما هي مملوكة
+للـPackage وBase Module Standards. Category-specific transaction boundaries
+والـlocking المطلوبة لكل mutation موثقة في Phases 5 و6 و10.
 
 ---
 
-## Hydration
+### Exception Classification
 
-* type narrowing.
-* no blind `mixed` casts.
-* PHPStan max.
-* storage-shape failures تعامل حسب package exception contract.
+تتبع exception hierarchy وwrapping/propagation وSQLSTATE classification قواعد
+[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)
+ولا تعيد Category تعريفها هنا. أسماء failures الخاصة بـCategory تبقى ضمن
+الـPackage Reference.
 
 ---
 
-## Exit Gate
+### Hydration
+
+تتبع PDO hydration وtype narrowing وPHPStan max عقد الـPackage Standard؛ أي
+storage-shape failure خاص بـCategory يوثق في Package Reference.
+
+---
+
+### Exit Gate
 
 Persistence كاملة وقابلة للاختبار بمعزل عن Services.
 
 ---
 
-# 17. Phase 5 — Category Create & Mutation CRUD
+## 17. Phase 5 — Category Create & Mutation CRUD
 
-## الهدف
+### الهدف
 
 إكمال Category mutation lifecycle.
 
-## Create
+### Create
 
 ```text
 CreateCategoryCommand
@@ -965,13 +928,19 @@ CreateCategoryCommand
 * uniqueness.
 * optional parent.
 * parent existence.
-* transaction/locking حيث يلزم.
+* `parent_id = NULL` للـroot، أو sibling scope يساوي `parent_id` للـchild.
+* قفل الـscope داخل transaction قبل طلب position جديدة.
+* الحصول على position عبر stable Ordering API، وليس عبر schema default أو SQL محلي.
 * application-managed timestamps.
 * ordering assignment عبر shared persistence capability.
 
+يجب أن يتم assignment داخل transaction يملكها الـService/transaction boundary، بعد قفل scope الأشقاء المناسب؛ ويشمل ذلك scope الجذر ذي `parent_id IS NULL`. لا يمرر الـCommand قيمة `display_order` ولا يعتمد الإنشاء على schema default أو SQL محلي مكرر.
+
+Acceptance: إنشاء Root وChild ينتج position صالحًا في الـscope الصحيح، ثم يمكن تحريك كل منهما فورًا عبر public mutation API. اختبارات MySQL لا تقوم بإعادة ضبط `display_order` يدويًا.
+
 ---
 
-## Move
+### Move
 
 ```text
 MoveCategoryCommand
@@ -987,7 +956,7 @@ MoveCategoryCommand
 
 ---
 
-## Update Status
+### Update Status
 
 ```text
 UpdateCategoryStatusCommand
@@ -997,9 +966,11 @@ UpdateCategoryStatusCommand
 
 لا توجد status strings حرة في public contract.
 
+فحص وجود Category وحالتها lifecycle والكتابة يجب أن تتم داخل transaction واحدة مع locking boundary الموثقة؛ ممنوع تنفيذ unlocked existence/lifecycle read ثم write مستقل خارج transaction أو القفل المطلوب.
+
 ---
 
-## Update Display Order
+### Update Display Order
 
 ```text
 UpdateCategoryDisplayOrderCommand
@@ -1015,7 +986,7 @@ maatify/persistence
 
 ---
 
-## Delete
+### Delete
 
 ```text
 SoftDeleteCategoryCommand
@@ -1031,7 +1002,7 @@ Soft Delete
 
 ---
 
-## Restore
+### Restore
 
 ```text
 RestoreCategoryCommand
@@ -1045,7 +1016,7 @@ RestoreCategoryCommand
 
 ---
 
-## Hard Delete
+### Hard Delete
 
 Hard Delete ليست جزءًا من Category Domain CRUD الطبيعي في `v1.0.0`.
 
@@ -1055,15 +1026,15 @@ Hard Delete ليست جزءًا من Category Domain CRUD الطبيعي في `v
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 Category mutation side كاملة.
 
 ---
 
-# 18. Phase 6 — Category Translation CRUD
+## 18. Phase 6 — Category Translation CRUD
 
-## الهدف
+### الهدف
 
 إكمال lifecycle للTranslations.
 
@@ -1071,7 +1042,7 @@ Category mutation side كاملة.
 
 ---
 
-## Create
+### Create
 
 ```text
 CreateCategoryTranslationCommand
@@ -1090,15 +1061,17 @@ CreateCategoryTranslationCommand
 
 Restore هي operation مستقلة.
 
+يتم إنشاء Translation من خلال `CategoryCommandServiceInterface` وـpackage-owned command repository فقط. لا يحتاج Runtime consumer إلى تنفيذ SQL أو إدارة lifecycle يدويًا.
+
 ---
 
-## Read
+### Read
 
 Read side يتم تنفيذه في Query phases، لكن يجب أن يكون contract المطلوب معروفًا هنا.
 
 ---
 
-## Update
+### Update
 
 ```text
 UpdateCategoryTranslationCommand
@@ -1122,7 +1095,7 @@ language_code
 
 ---
 
-## Soft Delete
+### Soft Delete
 
 ```text
 SoftDeleteCategoryTranslationCommand
@@ -1136,7 +1109,7 @@ SoftDeleteCategoryTranslationCommand
 
 ---
 
-## Restore
+### Restore
 
 ```text
 RestoreCategoryTranslationCommand
@@ -1144,9 +1117,11 @@ RestoreCategoryTranslationCommand
 
 يعيد نفس row ونفس identity.
 
+كل عمليات Translation mutation الأربع لها typed Command وService contract وRepository behavior واضح، وتنفذ existence/lifecycle checks والكتابة داخل transaction والـlocking المطلوبين. يجب أن تثبت اختبارات MySQL الحقيقية النجاح، الفشل، ثبات `(category_id, language_code)`، وإعادة الاستخدام عبر Restore دون إنشاء row بديلة.
+
 ---
 
-## Parent Category State
+### Parent Category State
 
 قبل التنفيذ يجب أن تكون Architecture حاسمة بشأن:
 
@@ -1158,15 +1133,15 @@ RestoreCategoryTranslationCommand
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 Translation mutation CRUD كاملة.
 
 ---
 
-# 19. Phase 7 — Management Read Model
+## 19. Phase 7 — Management Read Model
 
-## الهدف
+### الهدف
 
 إكمال Read من CRUD للـmanagement/use-case APIs.
 
@@ -1174,7 +1149,7 @@ Translation mutation CRUD كاملة.
 
 ---
 
-## Category Reads
+### Category Reads
 
 على الأقل:
 
@@ -1189,7 +1164,7 @@ Translation mutation CRUD كاملة.
 
 ---
 
-## Translation Reads
+### Translation Reads
 
 * Get Translation.
 * List Translations for Category.
@@ -1198,7 +1173,7 @@ Translation mutation CRUD كاملة.
 
 ---
 
-## Criteria DTOs
+### Criteria DTOs
 
 Filters/criteria تستخدم DTOs مثل:
 
@@ -1212,7 +1187,7 @@ CategoryTranslationListCriteriaDTO
 
 ---
 
-## Deleted State
+### Deleted State
 
 يجب أن تكون semantics صريحة:
 
@@ -1226,7 +1201,7 @@ Deleted only
 
 ---
 
-## Search
+### Search
 
 إذا تم اعتماد Search كجزء من Management API:
 
@@ -1238,19 +1213,19 @@ Deleted only
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 الإدارة تستطيع قراءة الحالة الفعلية للـCategory/Translations بدون استخدام Consumer Visibility queries.
 
 ---
 
-# 20. Phase 8 — Consumer Visibility Query Model
+## 20. Phase 8 — Consumer Visibility Query Model
 
-## الهدف
+### الهدف
 
 توفير consumer-facing query contract منفصلة.
 
-## Visible Category
+### Visible Category
 
 Category مرئية عندما:
 
@@ -1268,7 +1243,7 @@ AND status = active
 
 ---
 
-## Required Reads
+### Required Reads
 
 * Find visible Category by ID.
 * List visible roots.
@@ -1277,7 +1252,7 @@ AND status = active
 
 ---
 
-## Hierarchy Visibility
+### Hierarchy Visibility
 
 يجب إثبات:
 
@@ -1288,7 +1263,7 @@ AND status = active
 
 ---
 
-## Language
+### Language
 
 المكتبة لا تقوم باختيار:
 
@@ -1300,19 +1275,19 @@ AND status = active
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 Management reads وConsumer reads منفصلين تمامًا.
 
 ---
 
-# 21. Phase 9 — Pagination, Ordering & Query Hardening
+## 21. Phase 9 — Pagination, Ordering & Query Hardening
 
-## الهدف
+### الهدف
 
 منع وجود list APIs غير production-ready أو implementation مكرر.
 
-## Ordering
+### Ordering
 
 الترتيب deterministic.
 
@@ -1326,26 +1301,19 @@ display_order, id
 
 ---
 
-## Shared Ordering
+### Shared Ordering
 
-كل row-position mutation تستخدم stable API من:
-
-```text
-maatify/persistence
-```
-
-ولا يتم نسخ:
-
-* shifting SQL.
-* locking engine.
-* clamping.
-* ordering transactions.
+كل row-position mutation في Category تستخدم stable API من `maatify/persistence`؛
+تفاصيل الـAPI ومنع إعادة تنفيذ mechanics مملوكة للـPackage Standard. قرار
+Category الخاص بالـscope والـtransaction موثق في Phase 4.
 
 ---
 
-## Pagination
+### Pagination
 
-إذا كانت Management lists تحتاج pagination:
+يجب أن يحسم Phase 0 ما إذا كانت Pagination جزءًا من `v1.0.0`، وأي lists تشملها. إذا لم تعتمد، يتم تسجيلها كـdeferred decision، وتظل كل القوائم غير المرقمة محدودة وموثقة بشكل production-safe؛ لا يترك القرار للـimplementer أثناء Phase 9.
+
+إذا اعتمدت Management lists Pagination:
 
 يتم استخدام stable Pagination capability من:
 
@@ -1357,33 +1325,28 @@ maatify/persistence
 
 ---
 
-## Public Results
+### Public Results
 
-لا ترجع Public Query:
-
-```text
-array
-```
-
-بل typed DTO result مناسب.
-
-إذا كانت persistence library تعيد result object خاص بها ويتم الحفاظ على Category public contract، يجوز thin adapter بدون إعادة تنفيذ pagination mechanics.
+تلتزم Category في كل list contract بالـtyped DTO result والـCollections
+المحددة في Package Reference. إذا احتاجت adapter لنتيجة shared persistence،
+يظل thin adapter فقط ولا يعيد تنفيذ pagination mechanics وفق الـPackage
+Standard.
 
 ---
 
-## Exit Gate
+### Exit Gate
 
-كل list contract deterministic ومحدودة/موثقة بشكل production-safe.
+كل list contract deterministic ومحدودة/موثقة بشكل production-safe، مع قرار صريح بشأن Pagination وSearch وGet-by-code قبل بدء التنفيذ.
 
 ---
 
-# 22. Phase 10 — Concurrency & Invariant Hardening
+## 22. Phase 10 — Concurrency & Invariant Hardening
 
-## الهدف
+### الهدف
 
 إثبات صحة المكتبة تحت العمليات المتزامنة.
 
-## Hierarchy Scenarios
+### Hierarchy Scenarios
 
 اختبار Real MySQL لـ:
 
@@ -1396,7 +1359,7 @@ array
 
 ---
 
-## Delete Scenarios
+### Delete Scenarios
 
 اختبار:
 
@@ -1407,7 +1370,7 @@ array
 
 ---
 
-## Ordering
+### Ordering
 
 اختبار:
 
@@ -1419,7 +1382,7 @@ array
 
 ---
 
-## Restore
+### Restore
 
 اختبار:
 
@@ -1430,7 +1393,7 @@ array
 
 ---
 
-## Transaction Failure
+### Transaction Failure
 
 إثبات:
 
@@ -1439,21 +1402,23 @@ array
 * original throwable preserved.
 * lock/transaction cleanup.
 
+اختبارات التزامن تستخدم PDO connections مستقلة، وحواجز/مهلات deterministic، وتتحقق من النتيجة النهائية دون deadlock غير منضبط. ويجب أن تثبت Integration suite cleanup، repeatability، وعدم بقاء tables/triggers/records/locks/transactions بعد التشغيل.
+
 ---
 
-## Exit Gate
+### Exit Gate
 
 كل invariant حرجة مثبتة Integration tests حقيقية.
 
 ---
 
-# 23. Phase 11 — Exception & Failure Contract
+## 23. Phase 11 — Exception & Failure Contract
 
-## الهدف
+### الهدف
 
 تثبيت failure surface قبل Stable API.
 
-## Candidate Package Exceptions
+### Candidate Package Exceptions
 
 حسب ما تثبته Architecture:
 
@@ -1475,7 +1440,7 @@ CategoryTransactionException
 
 ---
 
-## Package Marker
+### Package Marker
 
 ```text
 CategoryExceptionInterface
@@ -1491,88 +1456,60 @@ Throwable
 
 ---
 
-## Required Audit
+### Required Audit
 
-* no generic RuntimeException لpackage-owned semantic failure.
-* no misleading error codes.
-* no swallowed exception.
-* no blind catch-all wrapping.
-* no blanket SQLSTATE mapping.
-* `previous` preserved عند wrapping.
-* infrastructure propagation documented.
+تنفذ مراجعة failure surface وفق exception contract في
+[PACKAGE_BUILDING_STANDARD.md](php-engineering-standards/standards/packages/PACKAGE_BUILDING_STANDARD.md)،
+ثم تثبت Package Reference فقط الـsemantic failures التي تملكها Category، وما
+إذا كانت infrastructure failures تُمرر أو تُحوّل.
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 Failure contract كاملة داخل Package Reference.
 
 ---
 
-# 24. Phase 12 — Package / Composer Compliance
+## 24. Phase 12 — Package / Composer Compliance
 
-## Composer Review
+### Composer Review
 
-يجب التحقق من:
-
-* canonical package name.
-* correct description.
-* correct repository metadata.
-* `type: library`.
-* PSR-4.
-* direct dependencies.
-* require vs require-dev.
-* minimum PHP.
-* alphabetic package maps.
-* `sort-packages`.
-* valid scripts.
-* no committed `version`.
-* no committed `composer.lock`.
+تنفذ مراجعة `composer.json` كاملة وفق
+[COMPOSER_PACKAGE_STANDARD.md](php-engineering-standards/standards/packages/COMPOSER_PACKAGE_STANDARD.md)،
+مع تثبيت هوية Category (`maatify/category` و`Maatify\\Category\\`) والـruntime
+dependencies التي يثبتها Phase 0.
 
 ---
 
-## Required Commands
+### Required Commands
 
-يجب اجتياز:
-
-```text
-composer validate --strict
-
-composer dump-autoload --optimize --strict-psr
-
-composer check-platform-reqs
-
-composer audit --no-interaction --abandoned=fail
-```
+تطبق أوامر التحقق وحالات latest/lowest المحددة في
+[COMPOSER_PACKAGE_STANDARD.md](php-engineering-standards/standards/packages/COMPOSER_PACKAGE_STANDARD.md)
+و[CI_WORKFLOW_STANDARD.md](php-engineering-standards/standards/packages/CI_WORKFLOW_STANDARD.md).
 
 ---
 
-## Dependency Resolution
+### Dependency Resolution
 
-يجب اختبار:
-
-```text
-Latest-compatible
-Lowest-supported
-```
-
-ولا يكفي اختبار latest فقط.
+يجب إثبات latest-compatible وlowest-supported وفق الـComposer وCI Standards؛
+ولا يكفي latest وحده.
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 المكتبة يمكن تثبيتها كمكتبة Composer حقيقية.
 
 ---
 
-# 25. Phase 13 — CI Compliance
+## 25. Phase 13 — CI Compliance
 
-## الهدف
+### الهدف
 
 تحويل متطلبات الجودة إلى Gates فعلية.
 
-## PHP Matrix
+### PHP Matrix
 
 يتم تحديد PHP compatibility contract في Phase 0.
 
@@ -1586,67 +1523,54 @@ php >=8.2
 
 ---
 
-## Required CI Areas
+### Required CI Areas
 
-* Composer strict validation.
-* Latest dependency resolution.
-* Lowest dependency resolution.
-* platform check.
-* syntax.
-* PHPStan max.
-* Unit tests.
-* Regression tests حيث تنطبق.
-* Real MySQL Integration.
-* Full PHPUnit suite.
-* Composer audit fail-closed.
-* workflow lint.
-* aggregate quality gate.
+تطبق الـCI كامل Compliance Checklist في
+[CI_WORKFLOW_STANDARD.md](php-engineering-standards/standards/packages/CI_WORKFLOW_STANDARD.md)،
+مع تغطية latest/lowest dependency resolutions، وPHP minors المعتمدة، وReal
+MySQL Integration، وFull Suite، وبقية checks المنطبقة على هذه المكتبة.
+
+بنية Category الخاصة هي أن Jobs التحقق المطلوبة (`category-latest`,
+`category-lowest`, و`workflow-lint`) تصب في aggregate gate واحد اسمه
+`Category Quality Gate`. إعدادات Branch Protection/Ruleset تتطلب هذا الـgate
+فقط، ولا تتطلب أسماء Jobs الـmatrix منفردة.
 
 ---
 
-## Workflow Security
+### Workflow Security
 
-* minimum permissions.
-* `contents: read`.
-* immutable action pinning.
-* no unsafe `pull_request_target`.
-* explicit timeouts.
-* concurrency handling.
-* health checks.
-* explicit DB image/version.
+تتبع Workflow Security وpermissions وaction pinning وservice readiness
+والـtimeouts قواعد [CI_WORKFLOW_STANDARD.md](php-engineering-standards/standards/packages/CI_WORKFLOW_STANDARD.md).
+الـCategory-specific service هو MySQL بالإصدار الموثق في Phase 2.
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 كل required gates خضراء على نفس exact commit.
 
 ---
 
-# 26. Phase 14 — Documentation & Package Presentation
+## 26. Phase 14 — Documentation & Package Presentation
 
-## README
+### README
 
-يجب أن يوضح:
+يجب أن يعرض README هوية `maatify/category`، والغرض والنطاق وnon-goals،
+والـrequirements وطريقة التثبيت والاستخدام ومتطلب MySQL، مع روابط للـPackage
+Reference والوثائق. تفاصيل البنية البصرية والـbadges مملوكة لـ
+[LIBRARY_PRESENTATION_STANDARD.md](php-engineering-standards/standards/packages/LIBRARY_PRESENTATION_STANDARD.md).
 
-* purpose.
-* installation.
-* package scope.
-* non-goals.
-* requirements.
-* basic usage.
-* database requirement.
-* links to Package Reference/docs.
+ويجب أن تظل ملفات `SECURITY.md` و`CONTRIBUTING.md` و`CODE_OF_CONDUCT.md` و`LICENSE` موجودة ومتوافقة مع `LIBRARY_PRESENTATION_STANDARD.md` عند اعتبار الحزمة release-ready.
 
 ---
 
-## Package Reference
+### Package Reference
 
 ```text
-/CATEGORY_PACKAGE_REFERENCE.md
+CATEGORY_PACKAGE_REFERENCE.md
 ```
 
-هو المرجع stable الوحيد للـPublic Package Contract.
+هو المرجع الـcanonical الوحيد للـPublic Package Contract بعد اكتمال migration، وليس إثباتًا بأن baseline الحالي مكتمل.
 
 يشمل:
 
@@ -1666,65 +1590,55 @@ php >=8.2
 
 ---
 
-## Detailed Docs
+### Detailed Docs
 
 تحت:
 
 ```text
-/docs/
+docs/
 ```
 
 مثل:
 
 ```text
-/docs/architecture/CATEGORY_ARCHITECTURE.md
+docs/architecture/CATEGORY_ARCHITECTURE.md
 
-/docs/CATEGORY_LIBRARY_ROADMAP.md
+docs/CATEGORY_LIBRARY_ROADMAP.md
 
-/docs/DATABASE.md
+docs/DATABASE.md
 
-/docs/INTEGRATION.md
+docs/INTEGRATION.md
 
-/docs/EXCEPTIONS.md
+docs/EXCEPTIONS.md
 ```
 
 عند الحاجة الفعلية.
 
 ---
 
-## CHANGELOG
+### CHANGELOG
 
-يحتوي:
-
-```text
-[Unreleased]
-```
-
-وتبدأ release history عند:
-
-```text
-[1.0.0]
-```
-
-طبقًا للـPresentation Standard.
+يتبع CHANGELOG بنية وحوكمة
+[LIBRARY_PRESENTATION_STANDARD.md](php-engineering-standards/standards/packages/LIBRARY_PRESENTATION_STANDARD.md)،
+مع إبقاء `[Unreleased]` قبل أول إصدار وبدء release history عند `1.0.0`.
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 كل documentation claims مطابقة للRuntime الفعلي.
 
 ---
 
-# 27. Phase 15 — Standalone Consumer Verification
+## 27. Phase 15 — Standalone Consumer Verification
 
-## الهدف
+### الهدف
 
 إثبات أن المكتبة مستقلة فعليًا عن المصدر الذي تم استخراجها منه.
 
 يجب اختبار clean consumer installation.
 
-## يجب إثبات
+### يجب إثبات
 
 * `composer require` يعمل.
 * PSR-4 يعمل.
@@ -1739,17 +1653,19 @@ php >=8.2
 * services/repositories قابلة للـhost wiring.
 * runtime لا يحتاج ملفات خارج package.
 
+قبل نشر الحزمة على Packagist، يحدد الاختبار مصدر التثبيت صراحةً باستخدام VCS/path أو local package archive، ولا يفترض وجود نسخة منشورة. بعد النشر يضاف تحقق مستقل باستخدام `composer require maatify/category` من الـregistry المعتمد.
+
 ---
 
-## Exit Gate
+### Exit Gate
 
 `maatify/category` تعمل خارج أي Maatify host repository.
 
 ---
 
-# 28. Phase 16 — Final API Freeze Review
+## 28. Phase 16 — Final API Freeze Review
 
-## الهدف
+### الهدف
 
 مراجعة كل Public API قبل أول Stable Release.
 
@@ -1773,16 +1689,17 @@ php >=8.2
 
 ---
 
-## Cleanup
+### Cleanup
 
 قبل Stable:
 
-* dead code removed.
-* unused imports removed.
 * stale runtime removed.
 * legacy Catalog naming removed.
 * duplicate contracts removed.
 * speculative APIs removed.
+
+وتطبق بقية قواعد cleanup العامة من الـPackage وComposer Standards دون إعادة
+نسخها هنا.
 
 التعليقات وTODOs لا تحذف بشكل أعمى.
 
@@ -1790,39 +1707,24 @@ php >=8.2
 
 ---
 
-## Exit Gate
+### Exit Gate
 
 لا يوجد Public API معروف مسبقًا أنه يحتاج breaking redesign بعد الإصدار.
 
 ---
 
-# 29. Phase 17 — Release Readiness
+## 29. Phase 17 — Release Readiness
 
-## Exact Release Candidate Verification
+### Exact Release Candidate Verification
 
-على exact candidate SHA:
-
-* PHPStan max.
-* Unit.
-* Regression حيث تنطبق.
-* Real MySQL Integration.
-* Full tests.
-* latest dependencies.
-* lowest dependencies.
-* all supported PHP minors.
-* Composer strict validation.
-* platform requirements.
-* audit.
-* workflow lint.
-* clean repository.
-* docs sweep.
-* architecture review.
-* API inventory.
-* standalone installation test.
+على exact candidate SHA يجب اجتياز كل Gates المنطبقة في Package وComposer وCI
+وBase Module وPresentation Standards. والدليل الخاص بـCategory يجب أن يشمل
+Real MySQL Integration، كل PHP minors المعتمدة، مراجعة API/Architecture،
+documentation sweep، clean repository، وstandalone installation test.
 
 ---
 
-## Release Files
+### Release Files
 
 * README final.
 * Package Reference final.
@@ -1833,7 +1735,7 @@ php >=8.2
 
 ---
 
-## Stable Release
+### Stable Release
 
 بعد اجتياز كل ما سبق فقط تصبح المكتبة جاهزة لـ:
 
@@ -1841,19 +1743,21 @@ php >=8.2
 v1.0.0
 ```
 
+الجاهزية للإصدار ليست موافقة على الدمج أو إنشاء Tag أو النشر. أي Merge إلى `main` أو Tag أو Release أو Packagist publication يحتاج موافقة صريحة من مالك المشروع، ولا يجوز أن ينفذ تلقائيًا من CI أو من هذه الـRoadmap.
+
 ---
 
-# 30. Final CRUD Matrix
+## 30. Final CRUD Matrix
 
-## Category
+### Category
 
-### Create
+#### Create
 
 ```text
 CreateCategoryCommand
 ```
 
-### Read
+#### Read
 
 Management:
 
@@ -1870,7 +1774,7 @@ Consumer:
 * visible roots.
 * visible children.
 
-### Update
+#### Update
 
 ```text
 MoveCategoryCommand
@@ -1882,13 +1786,13 @@ UpdateCategoryDisplayOrderCommand
 
 لا Generic Update بدون Domain meaning.
 
-### Delete
+#### Delete
 
 ```text
 SoftDeleteCategoryCommand
 ```
 
-### Restore
+#### Restore
 
 ```text
 RestoreCategoryCommand
@@ -1896,34 +1800,34 @@ RestoreCategoryCommand
 
 ---
 
-# 31. Translation CRUD Matrix
+## 31. Translation CRUD Matrix
 
-## Create
+### Create
 
 ```text
 CreateCategoryTranslationCommand
 ```
 
-## Read
+### Read
 
 * translation detail.
 * list by Category.
 * management list.
 * visible translations.
 
-## Update
+### Update
 
 ```text
 UpdateCategoryTranslationCommand
 ```
 
-## Delete
+### Delete
 
 ```text
 SoftDeleteCategoryTranslationCommand
 ```
 
-## Restore
+### Restore
 
 ```text
 RestoreCategoryTranslationCommand
@@ -1931,9 +1835,9 @@ RestoreCategoryTranslationCommand
 
 ---
 
-# 32. Command / DTO Separation Checklist
+## 32. Command / DTO Separation Checklist
 
-## Commands
+### Commands
 
 * [ ] CreateCategoryCommand
 * [ ] MoveCategoryCommand
@@ -1946,7 +1850,7 @@ RestoreCategoryTranslationCommand
 * [ ] SoftDeleteCategoryTranslationCommand
 * [ ] RestoreCategoryTranslationCommand
 
-## DTOs
+### DTOs
 
 * [ ] CategoryDTO
 * [ ] CategoryTranslationDTO
@@ -1959,7 +1863,7 @@ Mutation Commands ممنوع تسميتها DTO.
 
 ---
 
-# 33. Migration From Previous Admin Implementation
+## 33. Migration From Previous Admin Implementation
 
 الشغل السابق داخل:
 
@@ -1967,7 +1871,7 @@ Mutation Commands ممنوع تسميتها DTO.
 admin-control-panel
 ```
 
-يعتبر implementation evidence فقط.
+يعتبر implementation evidence فقط، وكذلك أي pre-command implementation موجود في baseline الحالي للحزمة.
 
 تقريبًا:
 
@@ -1986,7 +1890,7 @@ Old Phase 3
 
 ---
 
-## Known Migration Gaps
+### Known Migration Gaps
 
 التنفيذ القديم استخدم أسماء مثل:
 
@@ -2018,7 +1922,7 @@ UpdateCategoryTranslationCommand
 
 ---
 
-## Other Known Gaps
+### Other Known Gaps
 
 * Master Roadmap لم تكن موجودة.
 * Translation CRUD لم تكن كاملة.
@@ -2033,7 +1937,7 @@ UpdateCategoryTranslationCommand
 
 ---
 
-# 34. Definition of Done
+## 34. Definition of Done
 
 Category Library لا تعتبر مكتملة لأن:
 
