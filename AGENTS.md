@@ -23,7 +23,7 @@ https://github.com/Maatify/php-engineering-standards.git
 وهي مثبتة عند commit:
 
 ```text
-df6ac0083b1d93b4e4911d843b89a6f238c3dcfd
+4918da9f15feb1b336a822d53afe497a6fef885e
 ```
 
 تم التحقق من تطابق الملفات الـ23 المنقولة داخل هذه النسخة مع نفس commit
