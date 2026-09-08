@@ -17,7 +17,10 @@ The package is host-agnostic:
   joined to or constrained by package-owned tables.
 - Internal Category and Translation relationships use package-owned foreign
   keys only.
-- Language-code validation and language fallback remain Host responsibilities.
+- Category owns the syntactic and storage validation of `language_code` required
+  by its contract, including the constraints enforced by the Runtime.
+- The Host owns semantic language validation, such as confirming that a language
+  is supported or known, together with fallback and locale policy.
 - Public and domain contracts use typed DTOs and collections, never associative
   arrays.
 
