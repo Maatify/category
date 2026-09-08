@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Tests\Unit\DTO;
+namespace Maatify\Category\Tests\Unit\Command;
 
 use ReflectionClass;
 use ReflectionProperty;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\DTO\CategoryIdDTO;
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\MoveCategoryDTO;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class CategoryOperationDTOTest extends TestCase
+final class CategoryCommandTest extends TestCase
 {
     public function testCanonicalStringIdentityIsNormalizedToAnInteger(): void
     {
@@ -49,19 +49,19 @@ final class CategoryOperationDTOTest extends TestCase
     {
         $this->expectException(CategoryInvalidArgumentException::class);
 
-        new CreateCategoryDTO(str_repeat('x', 101));
+        new CreateCategoryCommand(str_repeat('x', 101));
     }
 
     public function testDisplayOrderMustBePositive(): void
     {
         $this->expectException(CategoryInvalidArgumentException::class);
 
-        new UpdateCategoryDisplayOrderDTO(1, 0);
+        new UpdateCategoryDisplayOrderCommand(1, 0);
     }
 
     public function testTranslationUpdateHasNoLogicalIdentityInputs(): void
     {
-        $update = new UpdateCategoryTranslationDTO(4, 'Shirts', null);
+        $update = new UpdateCategoryTranslationCommand(4, 'Shirts', null);
         $propertyNames = array_map(
             static fn (ReflectionProperty $property): string => $property->getName(),
             (new ReflectionClass($update))->getProperties(),
@@ -71,6 +71,6 @@ final class CategoryOperationDTOTest extends TestCase
         self::assertNotContains('categoryId', $propertyNames);
         self::assertNotContains('languageCode', $propertyNames);
         self::assertNotContains('id', $propertyNames);
-        self::assertFalse(property_exists(MoveCategoryDTO::class, 'code'));
+        self::assertFalse(property_exists(MoveCategoryCommand::class, 'code'));
     }
 }

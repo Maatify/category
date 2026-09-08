@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
 /**
- * Validated input for changing translation content.
+ * Validated command for changing translation content.
  *
  * The Category Translation logical identity is deliberately absent: neither
  * category_id nor language_code can be changed through this contract.
  */
-final readonly class UpdateCategoryTranslationDTO implements \JsonSerializable
+final readonly class UpdateCategoryTranslationCommand implements \JsonSerializable
 {
     public int $translationId;
     public string $name;

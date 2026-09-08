@@ -13,16 +13,16 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\MoveCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
-use Maatify\Category\DTO\UpdateCategoryStatusDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
@@ -42,7 +42,7 @@ final class CategoryCommandServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
-        $createdId = $service->create(new CreateCategoryDTO('shirts', '7'));
+        $createdId = $service->create(new CreateCategoryCommand('shirts', '7'));
 
         self::assertSame(99, $createdId);
         $created = $commandRepository->created;
@@ -52,8 +52,8 @@ final class CategoryCommandServiceTest extends TestCase
         self::assertSame(1, $transaction->runs);
         self::assertSame([7], $queryReader->lockedIds);
         self::assertSame('2026-01-03 00:00:00', $commandRepository->occurredAt?->format('Y-m-d H:i:s'));
-        self::assertFalse(property_exists(UpdateCategoryStatusDTO::class, 'code'));
-        self::assertFalse(property_exists(UpdateCategoryDisplayOrderDTO::class, 'code'));
+        self::assertFalse(property_exists(UpdateCategoryStatusCommand::class, 'code'));
+        self::assertFalse(property_exists(UpdateCategoryDisplayOrderCommand::class, 'code'));
     }
 
     public function testCreateRejectsAStableCodeThatAlreadyExistsIncludingSoftDeletedRows(): void
@@ -63,7 +63,7 @@ final class CategoryCommandServiceTest extends TestCase
         $service = $this->service($commandRepository, $queryReader);
 
         $this->expectException(CategoryCodeAlreadyExistsException::class);
-        $service->create(new CreateCategoryDTO('category-7'));
+        $service->create(new CreateCategoryCommand('category-7'));
     }
 
     public function testMoveToAValidParentIsDelegated(): void
@@ -77,7 +77,7 @@ final class CategoryCommandServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
-        $service->move(new MoveCategoryDTO(3, 2));
+        $service->move(new MoveCategoryCommand(3, 2));
 
         $moved = $commandRepository->moved;
         self::assertNotNull($moved);
@@ -88,11 +88,11 @@ final class CategoryCommandServiceTest extends TestCase
         self::assertSame('2026-01-03 00:00:00', $commandRepository->occurredAt?->format('Y-m-d H:i:s'));
     }
 
-    public function testDirectSelfParentIsRejectedByTheInputDTO(): void
+    public function testDirectSelfParentIsRejectedByTheInputCommand(): void
     {
         $this->expectException(CategoryInvalidArgumentException::class);
 
-        new MoveCategoryDTO('7', '7');
+        new MoveCategoryCommand('7', '7');
     }
 
     public function testIndirectCycleIsRejectedAcrossTheWholeAncestorChain(): void
@@ -107,7 +107,7 @@ final class CategoryCommandServiceTest extends TestCase
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
         try {
-            $service->move(new MoveCategoryDTO(1, 3));
+            $service->move(new MoveCategoryCommand(1, 3));
             self::fail('The complete ancestor chain must reject an indirect cycle.');
         } catch (CategoryCycleException) {
             self::assertSame(1, $transaction->runs);
@@ -127,7 +127,7 @@ final class CategoryCommandServiceTest extends TestCase
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
         try {
-            $service->softDelete(new SoftDeleteCategoryDTO(1));
+            $service->softDelete(new SoftDeleteCategoryCommand(1));
             self::fail('A Category with a non-deleted child must not be soft-deleted.');
         } catch (CategoryHasNonDeletedChildrenException) {
             self::assertSame(1, $transaction->runs);
@@ -146,7 +146,7 @@ final class CategoryCommandServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
-        $service->softDelete(new SoftDeleteCategoryDTO('1'));
+        $service->softDelete(new SoftDeleteCategoryCommand('1'));
 
         $deleted = $commandRepository->softDeleted;
         self::assertNotNull($deleted);
@@ -161,7 +161,7 @@ final class CategoryCommandServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
-        $service->restore(new RestoreCategoryDTO('11'));
+        $service->restore(new RestoreCategoryCommand('11'));
 
         $restored = $commandRepository->restored;
         self::assertNotNull($restored);
@@ -176,8 +176,8 @@ final class CategoryCommandServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = $this->service($commandRepository, $queryReader, $transaction);
 
-        $service->updateStatus(new UpdateCategoryStatusDTO(5, CategoryStatusEnum::INACTIVE));
-        $service->updateDisplayOrder(new UpdateCategoryDisplayOrderDTO(5, 3));
+        $service->updateStatus(new UpdateCategoryStatusCommand(5, CategoryStatusEnum::INACTIVE));
+        $service->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand(5, 3));
 
         self::assertSame(CategoryStatusEnum::INACTIVE, $commandRepository->statusUpdated?->status);
         self::assertSame(3, $commandRepository->displayOrderUpdated?->displayOrder);
@@ -208,14 +208,14 @@ final class CategoryCommandServiceTest extends TestCase
             new FixedClock(),
         );
 
-        $service->updateTranslation(new UpdateCategoryTranslationDTO(21, 'قمصان', 'وصف'));
+        $service->updateTranslation(new UpdateCategoryTranslationCommand(21, 'قمصان', 'وصف'));
 
         $updated = $translationRepository->updated;
         self::assertNotNull($updated);
         self::assertSame(21, $updated->translationId);
         self::assertSame([21], $queryReader->lockedTranslationIds);
-        self::assertFalse(property_exists(UpdateCategoryTranslationDTO::class, 'categoryId'));
-        self::assertFalse(property_exists(UpdateCategoryTranslationDTO::class, 'languageCode'));
+        self::assertFalse(property_exists(UpdateCategoryTranslationCommand::class, 'categoryId'));
+        self::assertFalse(property_exists(UpdateCategoryTranslationCommand::class, 'languageCode'));
     }
 
     public function testTranslationLifecycleUsesTypedOperationsAndPreservesIdentity(): void
@@ -244,11 +244,11 @@ final class CategoryCommandServiceTest extends TestCase
         );
 
         $createdId = $service->createTranslation(
-            new CreateCategoryTranslationDTO(5, 'en-US', 'Shirts', null),
+            new CreateCategoryTranslationCommand(5, 'en-US', 'Shirts', null),
         );
-        $service->updateTranslation(new UpdateCategoryTranslationDTO($createdId, 'قمصان', 'وصف'));
-        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationDTO($createdId));
-        $service->restoreTranslation(new RestoreCategoryTranslationDTO($createdId));
+        $service->updateTranslation(new UpdateCategoryTranslationCommand($createdId, 'قمصان', 'وصف'));
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($createdId));
+        $service->restoreTranslation(new RestoreCategoryTranslationCommand($createdId));
 
         self::assertSame(77, $createdId);
         self::assertNotNull($translationRepository->created);
@@ -406,14 +406,14 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
 {
     public ?DateTimeImmutable $occurredAt = null;
 
-    public ?CreateCategoryDTO $created = null;
-    public ?MoveCategoryDTO $moved = null;
-    public ?SoftDeleteCategoryDTO $softDeleted = null;
-    public ?RestoreCategoryDTO $restored = null;
-    public ?UpdateCategoryStatusDTO $statusUpdated = null;
-    public ?UpdateCategoryDisplayOrderDTO $displayOrderUpdated = null;
+    public ?CreateCategoryCommand $created = null;
+    public ?MoveCategoryCommand $moved = null;
+    public ?SoftDeleteCategoryCommand $softDeleted = null;
+    public ?RestoreCategoryCommand $restored = null;
+    public ?UpdateCategoryStatusCommand $statusUpdated = null;
+    public ?UpdateCategoryDisplayOrderCommand $displayOrderUpdated = null;
 
-    public function create(CreateCategoryDTO $command, DateTimeImmutable $occurredAt): int
+    public function create(CreateCategoryCommand $command, DateTimeImmutable $occurredAt): int
     {
         $this->created = $command;
         $this->occurredAt = $occurredAt;
@@ -421,7 +421,7 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
         return 99;
     }
 
-    public function move(MoveCategoryDTO $command, DateTimeImmutable $occurredAt): bool
+    public function move(MoveCategoryCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->moved = $command;
         $this->occurredAt = $occurredAt;
@@ -429,7 +429,7 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
         return true;
     }
 
-    public function softDelete(SoftDeleteCategoryDTO $command, DateTimeImmutable $occurredAt): bool
+    public function softDelete(SoftDeleteCategoryCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->softDeleted = $command;
         $this->occurredAt = $occurredAt;
@@ -437,7 +437,7 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
         return true;
     }
 
-    public function restore(RestoreCategoryDTO $command, DateTimeImmutable $occurredAt): bool
+    public function restore(RestoreCategoryCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->restored = $command;
         $this->occurredAt = $occurredAt;
@@ -445,7 +445,7 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
         return true;
     }
 
-    public function updateStatus(UpdateCategoryStatusDTO $command, DateTimeImmutable $occurredAt): bool
+    public function updateStatus(UpdateCategoryStatusCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->statusUpdated = $command;
         $this->occurredAt = $occurredAt;
@@ -453,7 +453,7 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
         return true;
     }
 
-    public function updateDisplayOrder(UpdateCategoryDisplayOrderDTO $command, DateTimeImmutable $occurredAt): bool
+    public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->displayOrderUpdated = $command;
         $this->occurredAt = $occurredAt;
@@ -465,19 +465,19 @@ final class InMemoryCategoryCommandRepository implements CategoryCommandReposito
 /** @internal Test-only in-memory translation command port. */
 final class InMemoryCategoryTranslationCommandRepository implements CategoryTranslationCommandRepositoryInterface
 {
-    public ?CreateCategoryTranslationDTO $created = null;
-    public ?UpdateCategoryTranslationDTO $updated = null;
-    public ?SoftDeleteCategoryTranslationDTO $softDeleted = null;
-    public ?RestoreCategoryTranslationDTO $restored = null;
+    public ?CreateCategoryTranslationCommand $created = null;
+    public ?UpdateCategoryTranslationCommand $updated = null;
+    public ?SoftDeleteCategoryTranslationCommand $softDeleted = null;
+    public ?RestoreCategoryTranslationCommand $restored = null;
 
-    public function create(CreateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): int
+    public function create(CreateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): int
     {
         $this->created = $command;
 
         return 77;
     }
 
-    public function update(UpdateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool
+    public function update(UpdateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->updated = $command;
 
@@ -485,7 +485,7 @@ final class InMemoryCategoryTranslationCommandRepository implements CategoryTran
     }
 
     public function softDelete(
-        SoftDeleteCategoryTranslationDTO $command,
+        SoftDeleteCategoryTranslationCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $this->softDeleted = $command;
@@ -494,7 +494,7 @@ final class InMemoryCategoryTranslationCommandRepository implements CategoryTran
     }
 
     public function restore(
-        RestoreCategoryTranslationDTO $command,
+        RestoreCategoryTranslationCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $this->restored = $command;

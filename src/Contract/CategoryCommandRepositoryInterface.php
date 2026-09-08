@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Maatify\Category\Contract;
 
 use DateTimeImmutable;
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\MoveCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryDTO;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
-use Maatify\Category\DTO\UpdateCategoryStatusDTO;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryStatusCommand;
 
 /**
  * Write port for Category persistence.
@@ -21,15 +21,15 @@ use Maatify\Category\DTO\UpdateCategoryStatusDTO;
  */
 interface CategoryCommandRepositoryInterface
 {
-    public function create(CreateCategoryDTO $command, DateTimeImmutable $occurredAt): int;
+    public function create(CreateCategoryCommand $command, DateTimeImmutable $occurredAt): int;
 
-    public function move(MoveCategoryDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function move(MoveCategoryCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function softDelete(SoftDeleteCategoryDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function softDelete(SoftDeleteCategoryCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function restore(RestoreCategoryDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function restore(RestoreCategoryCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function updateStatus(UpdateCategoryStatusDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function updateStatus(UpdateCategoryStatusCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function updateDisplayOrder(UpdateCategoryDisplayOrderDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command, DateTimeImmutable $occurredAt): bool;
 }

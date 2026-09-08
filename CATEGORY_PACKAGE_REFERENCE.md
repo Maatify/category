@@ -21,8 +21,8 @@ The package is host-agnostic:
   by its contract, including the constraints enforced by the Runtime.
 - The Host owns semantic language validation, such as confirming that a language
   is supported or known, together with fallback and locale policy.
-- Public and domain contracts use typed DTOs and collections, never associative
-  arrays.
+- Public read contracts use typed DTOs and collections, while mutation
+  contracts use typed Commands; neither uses associative arrays.
 
 ## Standards Applicability Decision
 
@@ -57,35 +57,35 @@ Status is independent from soft deletion.
 
 The immutable record DTOs are:
 
+- `CategoryIdDTO`
 - `CategoryDTO`
 - `CategoryTranslationDTO`
 - `CategoryCollectionDTO`
 - `CategoryTranslationCollectionDTO`
 
-Operation input DTOs are:
+### Commands
 
-- `CategoryIdDTO`
-- `CreateCategoryDTO`
-- `MoveCategoryDTO`
-- `SoftDeleteCategoryDTO`
-- `RestoreCategoryDTO`
-- `UpdateCategoryStatusDTO`
-- `UpdateCategoryDisplayOrderDTO`
-- `CreateCategoryTranslationDTO`
-- `UpdateCategoryTranslationDTO`
-- `SoftDeleteCategoryTranslationDTO`
-- `RestoreCategoryTranslationDTO`
+- `CreateCategoryCommand`
+- `MoveCategoryCommand`
+- `SoftDeleteCategoryCommand`
+- `RestoreCategoryCommand`
+- `UpdateCategoryStatusCommand`
+- `UpdateCategoryDisplayOrderCommand`
+- `CreateCategoryTranslationCommand`
+- `UpdateCategoryTranslationCommand`
+- `SoftDeleteCategoryTranslationCommand`
+- `RestoreCategoryTranslationCommand`
 
 Every public DTO and collection DTO is immutable and implements
 `JsonSerializable`. Collections also retain typed `IteratorAggregate` behavior.
 Date-time fields serialize as RFC 3339 strings; enum fields serialize using
 their backing values.
 
-DTOs validate their input/domain invariants. `CategoryDTO` and
+Commands and DTOs validate their input/domain invariants. `CategoryDTO` and
 `CategoryTranslationDTO` require canonical positive identities. A Category
-cannot use itself as its parent. `UpdateCategoryTranslationDTO` accepts only
+cannot use itself as its parent. `UpdateCategoryTranslationCommand` accepts only
 translation content, preserving the logical identity
-`(category_id, language_code)`. Category mutation DTOs do not expose `code`, so
+`(category_id, language_code)`. Category mutation Commands do not expose `code`, so
 the stable Category code remains immutable after creation.
 
 ### Services and contracts

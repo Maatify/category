@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
 /**
- * Validated input for creating a Category.
+ * Validated command for creating a Category.
  *
  * Display order is intentionally absent; creation-time ordering belongs to
  * the persistence adapter and the shared ordering contract.
  */
-final readonly class CreateCategoryDTO implements \JsonSerializable
+final readonly class CreateCategoryCommand implements \JsonSerializable
 {
     public string $code;
     public ?int $parentId;

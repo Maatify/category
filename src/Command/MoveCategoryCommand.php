@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Validated input for moving a Category to a new parent or to the root. */
-final readonly class MoveCategoryDTO implements \JsonSerializable
+/** Validated command for moving a Category to a new parent or to the root. */
+final readonly class MoveCategoryCommand implements \JsonSerializable
 {
     public int $categoryId;
     public ?int $parentId;

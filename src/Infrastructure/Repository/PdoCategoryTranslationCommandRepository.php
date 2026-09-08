@@ -6,10 +6,10 @@ namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
 use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
 use PDO;
@@ -22,7 +22,7 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
 
     public function __construct(private PDO $pdo) {}
 
-    public function create(CreateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): int
+    public function create(CreateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): int
     {
         try {
             $statement = $this->pdo->prepare(
@@ -62,7 +62,7 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
         return (int) $id;
     }
 
-    public function update(UpdateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool
+    public function update(UpdateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $statement = $this->pdo->prepare(
             'UPDATE `' . self::TRANSLATION_TABLE . '` '
@@ -80,7 +80,7 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
     }
 
     public function softDelete(
-        SoftDeleteCategoryTranslationDTO $command,
+        SoftDeleteCategoryTranslationCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $statement = $this->pdo->prepare(
@@ -99,7 +99,7 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
     }
 
     public function restore(
-        RestoreCategoryTranslationDTO $command,
+        RestoreCategoryTranslationCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $statement = $this->pdo->prepare(

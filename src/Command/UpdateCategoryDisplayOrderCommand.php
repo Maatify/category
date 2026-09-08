@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Validated input for the dedicated Category display-order operation. */
-final readonly class UpdateCategoryDisplayOrderDTO implements \JsonSerializable
+/** Validated command for the dedicated Category display-order operation. */
+final readonly class UpdateCategoryDisplayOrderCommand implements \JsonSerializable
 {
     public int $categoryId;
     public int $displayOrder;

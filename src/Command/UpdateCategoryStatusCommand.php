@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 
-/** Validated input for changing only a Category status. */
-final readonly class UpdateCategoryStatusDTO implements \JsonSerializable
+/** Validated command for changing only a Category status. */
+final readonly class UpdateCategoryStatusCommand implements \JsonSerializable
 {
     public int $categoryId;
     public CategoryStatusEnum $status;

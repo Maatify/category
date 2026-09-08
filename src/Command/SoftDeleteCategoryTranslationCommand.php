@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
-/** Validated input for restoring a Category Translation with its identity. */
-final readonly class RestoreCategoryTranslationDTO implements \JsonSerializable
+use Maatify\Category\DTO\CategoryIdDTO;
+
+/** Validated command for soft-deleting a Category Translation. */
+final readonly class SoftDeleteCategoryTranslationCommand implements \JsonSerializable
 {
     public int $translationId;
 

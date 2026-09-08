@@ -139,7 +139,10 @@ codex/phase-1-category-package
 e3999d250d9c02fef7e05fbe5dd696ab71a7315d
 ```
 
-أي operation-input DTOs موجودة في baseline تعتبر Migration Gap، وليست العقد المستهدف. يجب تحديث `CATEGORY_PACKAGE_REFERENCE.md` في نفس Phase التي تنقل كل mutation إلى Command، ولا يصبح العقد Public API Frozen إلا في Phase 16 بعد توحيد الكود والمرجع والاختبارات.
+كان baseline يتضمن legacy operation inputs، بينما العقد المستهدف هو أن تستقبل كل
+mutation typed Commands. أُغلقت Migration Gap الخاصة بـPhase 1 بنقل هذه
+العقود إلى Commands وتحديث المرجع والاختبارات؛ ولا يصبح العقد Public API
+Frozen إلا في Phase 16 بعد توحيد الكود والمرجع والاختبارات.
 
 ---
 
@@ -675,7 +678,8 @@ CategoryCollectionDTO
 CategoryTranslationCollectionDTO
 ```
 
-ولا تنشئ Mutation DTOs.
+ولا تنشئ mutation inputs؛ تبقى هذه المسؤولية ضمن طبقة Commands المحددة في
+Phase 3.
 
 ---
 
@@ -699,7 +703,15 @@ Schema + Core DTOs + Enums مثبتة Unit/Integration، مع إثبات nullabl
 
 ### الهدف
 
-إنشاء Mutation Input Contract الصحيح قبل Business Orchestration.
+استكمال وتثبيت Command & Validation Layer وفق مسؤوليات Phase 3 المتبقية.
+تم تقديم الـ10 typed mutation Commands الأساسية مبكرًا ضمن Phase 1 لإغلاق
+Migration Gap الخاصة بـmutation inputs؛ لذلك لا تعيد Phase 3 إنشاءها من الصفر
+ولا تعتبر مكتملة بمجرد وجود هذه Commands. تظل Phase 3 مسؤولة عن استكمال ما
+تبقى من validation وdomain-contract completion وإثبات معايير القبول الخاصة
+بها أدناه.
+
+القوائم التالية هي inventory الـCommands الموجودة فعليًا والمستخدمة في
+Runtime، وتُعرض هنا كـbaseline لهذه المرحلة.
 
 ### Category Commands
 
@@ -735,8 +747,8 @@ RestoreCategoryTranslationCommand
 
 ### Command Rules
 
-تحدد Architecture Category حدود validation الخاصة بكل Command. الأمثلة
-المحلية التي يجب حسمها هي:
+تستكمل Phase 3 حسم وتثبيت حدود validation الخاصة بكل Command وفق Architecture
+Category. وما تبقى من contract completion يجب أن يثبت على الأقل:
 
 * positive canonical IDs.
 * non-empty required strings.
@@ -794,7 +806,10 @@ UpdateCategoryCommand
 
 ### Exit Gate
 
-كل mutation intent له Command مستقلة وواضحة.
+وجود الـCommands الأساسية واستخدامها في Runtime ليس وحده Exit Gate. لا تعتبر
+Phase 3 مكتملة إلا بعد استكمال validation/domain-contract completion المتبقي
+وإثبات acceptance criteria الخاصة بهذه الطبقة، مع بقاء كل mutation intent
+مرتبطًا بـCommand مستقلة وواضحة.
 
 ---
 
@@ -1808,16 +1823,16 @@ RestoreCategoryTranslationCommand
 
 ### Commands
 
-* [ ] CreateCategoryCommand
-* [ ] MoveCategoryCommand
-* [ ] UpdateCategoryStatusCommand
-* [ ] UpdateCategoryDisplayOrderCommand
-* [ ] SoftDeleteCategoryCommand
-* [ ] RestoreCategoryCommand
-* [ ] CreateCategoryTranslationCommand
-* [ ] UpdateCategoryTranslationCommand
-* [ ] SoftDeleteCategoryTranslationCommand
-* [ ] RestoreCategoryTranslationCommand
+* [x] CreateCategoryCommand
+* [x] MoveCategoryCommand
+* [x] UpdateCategoryStatusCommand
+* [x] UpdateCategoryDisplayOrderCommand
+* [x] SoftDeleteCategoryCommand
+* [x] RestoreCategoryCommand
+* [x] CreateCategoryTranslationCommand
+* [x] UpdateCategoryTranslationCommand
+* [x] SoftDeleteCategoryTranslationCommand
+* [x] RestoreCategoryTranslationCommand
 
 ### DTOs
 
@@ -1859,23 +1874,9 @@ Old Phase 3
 
 ---
 
-### Known Migration Gaps
+### Resolved Mutation Contract
 
-التنفيذ القديم استخدم أسماء مثل:
-
-```text
-CreateCategoryDTO
-MoveCategoryDTO
-RestoreCategoryDTO
-SoftDeleteCategoryDTO
-UpdateCategoryStatusDTO
-UpdateCategoryDisplayOrderDTO
-UpdateCategoryTranslationDTO
-```
-
-هذه mutation inputs يجب ألا تنتقل بهذه الأسماء إلى المكتبة الجديدة.
-
-يجب تحويل contract الجديد إلى:
+تم توحيد mutation-input contract في المكتبة الجديدة إلى:
 
 ```text
 CreateCategoryCommand
@@ -1884,10 +1885,14 @@ RestoreCategoryCommand
 SoftDeleteCategoryCommand
 UpdateCategoryStatusCommand
 UpdateCategoryDisplayOrderCommand
+CreateCategoryTranslationCommand
 UpdateCategoryTranslationCommand
+SoftDeleteCategoryTranslationCommand
+RestoreCategoryTranslationCommand
 ```
 
-مع إضافة Translation Commands الناقصة.
+وتستخدم الخدمات والعقود والـPDO adapters والاختبارات هذه Commands مباشرة، مع
+بقاء DTOs مخصصة للبيانات ونتائج القراءة.
 
 ---
 
@@ -1901,7 +1906,6 @@ UpdateCategoryTranslationCommand
 * naming كان ما زال Catalog-centric.
 * table prefix كان `maa_catalog_`.
 * package namespace كان Catalog-oriented.
-* DTO contract يحتاج إعادة مطابقة مع الـStandard الحالي.
 * Translation-only Domain contract موثق ومتوافق مع الـPackage Standard.
 
 ---
