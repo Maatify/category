@@ -71,7 +71,7 @@ Maatify/php-engineering-standards
 والـsnapshot المعتمد حاليًا هو:
 
 ```text
-cda994090b659435e72cfd1df35256eb3895bff3
+df6ac0083b1d93b4e4911d843b89a6f238c3dcfd
 ```
 
 وتنطبق على هذه المكتبة الـProfiles التالية:
@@ -84,6 +84,7 @@ standards/packages/PACKAGE_BUILDING_STANDARD.md
 standards/packages/COMPOSER_PACKAGE_STANDARD.md
 standards/packages/CI_WORKFLOW_STANDARD.md
 standards/packages/LIBRARY_PRESENTATION_STANDARD.md
+standards/testing/TESTING_STANDARD.md
 ```
 
 تطبيق `MODULE_BUILDING_STANDARD.md` مقصود لأن `category` مصنفة كـBase Module قابل للاستخراج. وتطبق قواعد Persistence لأن المكتبة تملك schema وسلوك PDO/MySQL.
@@ -472,29 +473,28 @@ language_code
 
 بينما Translation Pattern العام الموجود في Package Standard يحتوي assumptions مختلفة، منها Base value / translated value paths.
 
-لذلك يجب في Phase 0 تحديد واحد فقط من الآتي عبر قرار رسمي:
+تم اعتماد **Option C** كقرار رسمي في
+[`CATEGORY_PACKAGE_REFERENCE.md`](../CATEGORY_PACKAGE_REFERENCE.md):
 
-### Option A
+- Category domain هو Translation-only؛ جدول Category الأساسي لا يملك base
+  `name`، والترجمات هي المصدر الوحيد للـlocalized `name` و`description`.
+- الـPackage Standard الحالي يفرض Translation Pattern مبنيًا على base value
+  وtranslated fallback path، ولذلك يوجد تعارض حقيقي في applicability للـStandard
+  العام.
+- لا يجوز اختراع exception محلي، ولا تعديل Architecture الحالية لإرضاء pattern
+  عام.
+- يلزم تعديل مستقل في مستودع `php-engineering-standards` لمعالجة Translation-only
+  domains.
 
-إثبات أن Translation Pattern العام غير منطبق على هذا Domain بالشكل الحرفي، وتوثيق سبب Architecture-specific applicability وفق الـStandards.
+هذا blocker معياري في applicability وليس Runtime gap. لا تعتبر Phase 0 مغلقة
+حتى تتحقق الشروط التالية بالترتيب:
 
-أو:
+1. تعديل الـEngineering Standard في مستودعه المستقل.
+2. اعتماد snapshot جديدة من ذلك المستودع.
+3. تحديث Category إلى هذه الـsnapshot الجديدة.
 
-### Option B
-
-تعديل Category Architecture لتصبح متوافقة مع الـTranslation contract الإلزامي إن ثبت أنه Binding على هذا النوع من المكتبات.
-
-أو:
-
-### Option C
-
-إذا ثبت أن الـPattern العام لا يصلح لكل Translation-only Domain، يتم تسجيل ذلك كـblocker وفتح تغيير مستقل في مستودع الـEngineering Standard. لا يتم تعديل الـstandard من هذا الفرع أو داخل Phase 0، ولا تعتمد الحزمة نسخة غير مثبتة أثناء انتظار القرار.
-
-ممنوع تجاهل التعارض.
-
-ممنوع اعتبار المكتبة 100% Standard-Compliant قبل إغلاقه.
-
-يجب تسجيل الـOption المختار وسببه ودليله في `CATEGORY_PACKAGE_REFERENCE.md` أو ADR مستقل قبل إغلاق Phase 0. وإذا كان الخيار C مطلوبًا، فلا يغلق Phase 0 في مكتبة Category قبل اعتماد snapshot معياري جديد مستقل.
+لا يتم تعديل النسخة المعيارية المحلية أو اعتماد snapshot غير مثبتة من هذا
+الفرع أثناء انتظار التغيير المستقل.
 
 ---
 
