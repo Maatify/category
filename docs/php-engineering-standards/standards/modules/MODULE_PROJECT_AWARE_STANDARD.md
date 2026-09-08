@@ -4,6 +4,7 @@
 
 This document extends `MODULE_BUILDING_STANDARD.md` and `MODULE_SLIM_BUILDING_STANDARD.md`.
 Read both fully before reading this document.
+Testing requirements and regression protection rules are governed by the canonical [TESTING_STANDARD.md](../testing/TESTING_STANDARD.md).
 
 ---
 

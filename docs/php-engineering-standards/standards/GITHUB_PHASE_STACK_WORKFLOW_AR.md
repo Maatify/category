@@ -83,6 +83,7 @@ main
 
 1. **الـ Runtime implementation وحده لا يعني اكتمال الـ Phase.**
 2. لا تعتبر الـ Phase مكتملة إلا بعد إتمام جميع العناصر المطلوبة لها من البداية للنهاية، بما في ذلك التوثيق (Documentation)، والتحقق (Verification)، والمراجعة النهائية (Final Review) عند انطباقها.
+3. **ممنوع** اعتبار الـ Phase مكتملة أو جاهزة للدمج النهائي إذا لم تتوفر فيها حماية الانحدار (Regression Protection) عبر اختبارات النظام / E2E، وفقاً لما ينص عليه [معيار الاختبارات (Testing Standard)](testing/TESTING_STANDARD.md).
 
 ## 4.2 الدمج النهائي إلى `main`
 
