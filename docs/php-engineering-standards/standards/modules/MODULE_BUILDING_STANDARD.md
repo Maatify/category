@@ -21,6 +21,7 @@ To ensure clarity in modular architecture, the following profile relationships a
 
 This standard strictly owns Base Module boundaries and profile relationships. Generic package mechanics are delegated to their canonical owners to prevent competing sources of truth. The module MUST adhere to:
 
+- **Testing Architecture & Regression Protection:** [TESTING_STANDARD.md](../testing/TESTING_STANDARD.md) owns the canonical testing strategy, regression-protection rules, and E2E/system test enforcement for externally observable behavior.
 - **Package Architecture & Testing:** [PACKAGE_BUILDING_STANDARD.md](../packages/PACKAGE_BUILDING_STANDARD.md) owns generic runtime/test mechanics, static analysis, DB architecture, and exception classification policies.
 - **Composer Metadata:** [COMPOSER_PACKAGE_STANDARD.md](../packages/COMPOSER_PACKAGE_STANDARD.md) owns dependency rules.
 - **CI Checks:** [CI_WORKFLOW_STANDARD.md](../packages/CI_WORKFLOW_STANDARD.md) owns GitHub Actions workflow execution.

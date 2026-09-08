@@ -17,6 +17,8 @@ Example: `SettingsSlim` wraps `Settings`
 > (e.g. enriching images with order data), see `MODULE_PROJECT_AWARE_STANDARD.md` for the
 > project-aware pattern. This document covers single-core-module Slim modules only.
 
+> **Testing Architecture**: For system and end-to-end regression testing requirements, see the canonical [TESTING_STANDARD.md](../testing/TESTING_STANDARD.md).
+
 ---
 
 ## 📁 Directory Structure

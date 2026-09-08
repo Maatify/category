@@ -858,6 +858,7 @@ No PHPStan baseline, `ignoreErrors`, or inline suppression is permitted merely t
 
 ### Testing Strategy
 
+- The core testing strategy and regression-protection rules are exclusively governed by the canonical [Testing Standard](../testing/TESTING_STANDARD.md).
 - For code with testable behavior, appropriate automated tests are required.
 - Packages that own persistence, database, or external-service behavior MUST define appropriate Integration coverage. Unit and Regression suites remain required where applicable.
 - Package-owned test behavior, fixtures, and suite responsibilities belong to the package architecture and reference documentation.

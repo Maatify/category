@@ -2,7 +2,7 @@
 
 ## بيانات المعيار
 
-- **الإصدار:** `3.0.0`
+- **الإصدار:** `3.1.0`
 - **اللغة المعتمدة:** العربية.
 - **حالة الاعتماد:** يصبح معتمدًا عند دمجه في الفرع الافتراضي للمشروع.
 - **مالك المعيار:** مالك المشروع.
@@ -156,7 +156,7 @@
 
 ### 3.2.2 استلام PR من Jules
 
-بعد أن ينهي Jules مهمته ويكتب على branch جديدة تخصه، تصبح بيانات الـ PR النهائية مسؤولية المساعد القائد:
+بعد أن ينهي Jules مهمته ويكتب على branch جديدة خاصة بالمهمة الحالية (Jules task branch)، تصبح بيانات الـ PR النهائية مسؤولية المساعد القائد:
 
 1. يجلب الـ PR الفعلية والـ remote HEAD الحالية.
 2. يراجع الـ changed files والـ diff والـ checks والـ base freshness.
@@ -536,6 +536,9 @@ git diff --stat
 
 الـ Prompt يذكر expected branch والـ exact source SHA للتحقق والتوقف فقط؛ ولا يستطيع تغيير Starting branch أو إصلاح ancestry بعد بدء الـ Session.
 
+أي صلاحية عامة مصرح بها لعمليات `git switch` أو `git checkout` (كالمذكورة في §6.3 و §6.4) لا تمنح Jules الصلاحية لتغيير Source Context أو Starting Branch الخاصة بالـ Session.
+إذا كان العمل يتطلب Starting Branch مختلفة، يُمنع معالجة ذلك داخل نفس الـ Session عبر أوامر Git؛ بل يجب إيقاف الـ Session وبدء واحدة جديدة من المصدر الصحيح. (هذا لا يغير قواعد المنفذ المحلي).
+
 عند بدء Jules Session متتابعة:
 
 1. تُثبت latest remote HEAD للـ source branch.
@@ -543,8 +546,9 @@ git diff --stat
 3. يتحقق الـ Prompt من branch والـ exact SHA، ويتوقف عند أي اختلاف دون fallback إلى `main`.
 4. تنفذ Jules النطاق المعزول فقط ثم تعمل Commit وPush وفق الصلاحيات.
 5. إذا كانت base المطلوبة غير `main`، تستخدم Jules **Publish Branch فقط** ولا تستخدم Publish PR.
-6. يتحقق المساعد القائد من remote ancestry و`merge-base` والـ diff، ثم يفتح PR من GitHub من branch المنشورة إلى source branch المطلوبة.
-7. إذا كانت base المقصودة `main`، يمكن استخدام Publish PR فقط عند وجود تصريح صريح.
+6. إذا كانت base المقصودة `main`، يمكن استخدام Publish PR فقط عند وجود تصريح صريح.
+
+> **ملاحظة تشغيلية (Maatify Workflow Policy):** تقييد `Publish PR` بالـ `main` base وإلزام Jules باستخدام `Publish Branch` للفروع الأخرى هو **سياسة سير عمل خاصة بـ Maatify** لحماية الـ branch ancestry والـ Phase Stack، وليس قيدًا تقنيًا ثابتًا في منتج Jules. المساعد القائد هو من يتولى إنشاء أو تصحيح topology الـ PR من GitHub بعد التحقق من الفروع المنشورة.
 
 ### بوابة القدرة الفعلية
 
@@ -769,8 +773,8 @@ git diff --cached --check
 
 قبل التعديل تحقق من branch والـ exact source SHA. إذا لم تتطابق، توقف دون fallback إلى `main` ودون محاولة إصلاح ancestry.
 
-أنشئ branch جديدة تخص هذه المهمة فقط:
-`{{JULES_OWNED_BRANCH}}`
+أنشئ branch جديدة تخص هذه المهمة فقط (Jules task branch):
+`{{JULES_TASK_BRANCH}}`
 
 لا تكتب على branch أو PR branch أنشأها منفذ آخر.
 
@@ -799,7 +803,7 @@ git diff --cached --check
 - أي تصحيح بعد Commit يكون Commit جديدًا.
 
 - إذا كانت العملية `YES` تُنفذ بعد نجاح بواباتها دون طلب تأكيد جديد.
-- `Publish PR: YES` لا يُستخدم إلا عندما تكون `PR Base` هي `main`.
+- كسياسة خاصة بـ Maatify: `Publish PR: YES` لا يُستخدم إلا عندما تكون `PR Base` هي `main`.
 - عندما تكون `PR Base` غير `main` يجب أن يكون `Publish PR: NO`، ويُستخدم `Publish Branch: YES` عند التصريح.
 
 اعرض: Starting branch، starting SHA، branch المنشورة، commits، remote HEAD، remote merge-base، changed files، `git diff --check`، وطريقة النشر، وPR URL إن وجدت.
@@ -818,14 +822,17 @@ git diff --cached --check
 
 # 11. ملكية Jules وحدود Git
 
-## 11.1 ملكية branch وتصحيحات PR
+## 11.1 ملكية Branch (Jules Task Branch) وتصحيحات PR
 
-Jules يكتب فقط على branch **أنشأها هو للمهمة الحالية**.
+Jules يكتب فقط على branch **خاصة بمهمته الحالية (Jules task branch)**.
+هذا المصطلح تنظيمي يعني أن الـ branch أُنشئت بواسطة الـ task أو الـ session الحالية لـ Jules، وليس ادعاءً بملكية تقنية على مستوى GitHub.
 
-- لا يُطلب منه تعديل branch أنشأها المنفذ المحلي أو المساعد القائد أو Jules Session أخرى.
-- إذا كان التصحيح داخل نفس مهمة Jules ونفس PR والـ branch المملوكة لها، يُرسل عبر **top-level PR conversation comment أو Reply عادي داخل نفس PR بمنشن صريح `@jules`**.
+- لا يُطلب منه تعديل branch أنشأها المنفذ المحلي أو المساعد القائد أو Jules task/session أخرى.
+- إذا كان التصحيح داخل نفس مهمة Jules ونفس PR والـ branch الخاصة بها، يُرسل عبر **top-level PR conversation comment أو Reply عادي داخل نفس PR بمنشن صريح `@jules`**.
 - كل تصحيح ينتج Commit جديدة؛ amend وforce-push ممنوعان.
-- لا يستخدم `@jules` لنقل PR إلى منفذ جديد أو لتعديل branch لا تملكها نفس المهمة.
+- لا يستخدم `@jules` لنقل PR إلى منفذ جديد أو لتعديل branch لا تخص نفس المهمة.
+- عند استخدام Jules لمتابعة PR feedback، يجب استخدام `Reactive Mode` بحيث لا تتحول المناقشات أو التعليقات العادية إلى أوامر تنفيذية غير مقصودة.
+- **PR feedback does not expand task scope:** أي تعليق أو استخدام لـ `@jules` يسمح فقط بتصحيح أو استكمال نفس المهمة (acceptance criteria الحالية)، ولا يمنح نطاقًا أو قرارًا معماريًا جديدًا.
 - عند تغير النطاق، أو بدء Session جديدة، أو فقدان الاستيعاب، يُستخدم المسار المتتابع في القسم `6.7`.
 
 هذه الآلية خاصة بمهام Jules، ولا تغيّر مسار المنفذ المحلي أو صلاحيات المساعد القائد.
@@ -845,6 +852,25 @@ Jules يكتب فقط على branch **أنشأها هو للمهمة الحال�
 - يثبت المساعد القائد العنوان والوصف النهائيين عند نجاح المهمة.
 
 المرجع هو GitHub الفعلي وقت المراجعة، لا SHA أو metadata قديمة في تقرير المنفذ.
+
+## 11.4 التعديلات التلقائية للمستودع (Autonomous Repository Mutations)
+
+أي أتمتة لـ Jules يمكنها إنشاء أو تعديل Branch أو Commit أو PR تلقائيًا خارج التوجيه المباشر (مثل CI auto-fixing أو scheduled tasks) تكون **غير مستخدمة افتراضيًا** في المشاريع الخاضعة لهذا المعيار.
+لا يُسمح بتفعيلها إلا بقرار صريح من مالك المشروع، ويجب ألا تتجاوز في عملها:
+- النطاق المحدد للمهمة (task scope).
+- قواعد ملكية الـ Branch.
+- التسلسل الصارم لنظام Phase Stack.
+- سلطة الدمج (merge authority) الخاصة بالمالك.
+
+## 11.5 سياق وذاكرة Jules (Jules Memory)
+
+أي ذاكرة (Memory) أو سياق سابق قد يحتفظ به Jules ليس مصدرًا معتمدًا (authoritative).
+لا يجوز الاعتماد عليه لتجاوز أو كبديل عن:
+1. تعليمات مالك المشروع الحالية.
+2. التوجيهات في ملف `AGENTS.md`.
+3. المعايير والقرارات المعتمدة الحالية للمشروع.
+4. الحالة الفعلية الحالية للمستودع.
+5. توجيه المهمة (Prompt) الحالي.
 
 ---
 
@@ -882,7 +908,7 @@ Jules يكتب فقط على branch **أنشأها هو للمهمة الحال�
 ## المرجع
 - Repository وStarting branch
 - Audited source SHA
-- Jules-owned branch
+- Jules task branch (الـ branch الخاصة بالمهمة الحالية)
 
 ## التعديل
 - الملفات والنتيجة المبنية على الأدلة
@@ -925,7 +951,7 @@ Jules يكتب فقط على branch **أنشأها هو للمهمة الحال�
 - التعديل محصور في الملفات المسموحة.
 - `git diff --check` نظيف.
 - لا يوجد Runtime داخل Documentation-only PR.
-- branch مملوكة لـ Jules صاحبة المهمة إن كان Jules هو المنفذ.
+- الـ branch هي Jules task branch (خاصة بالمهمة الحالية) إن كان Jules هو المنفذ.
 - Starting branch وطريقة النشر متوافقتان مع القسم `6.7`.
 - لا amend أو force-push.
 - وصف PR النهائي يُثبته المساعد القائد بعد نجاح المراجعة.
@@ -936,7 +962,7 @@ Jules يكتب فقط على branch **أنشأها هو للمهمة الحال�
 
 1. PR state وdraft status مقصودان.
 2. base وHEAD وmerge-base وbehind/ahead معلومة.
-3. branch ownership والـ changed files والـ diff داخل النطاق.
+3. تبعية الـ branch للمهمة (Jules task branch) والـ changed files والـ diff داخل النطاق.
 4. checks والـ review threads وتاريخ commits مفهومة.
 5. وصف PR النهائي مبني على remote state.
 6. في مهام Jules، إعداد Starting branch وطريقة النشر مطابقان للقسم `6.7`.
@@ -971,7 +997,7 @@ Jules يكتب فقط على branch **أنشأها هو للمهمة الحال�
 - تعديل ملفات مشتركة في مهام متوازية.
 - `git add .` أو `git add -A`.
 - amend أو force-push.
-- كتابة Jules على branch لا تملكها.
+- كتابة Jules على branch لا تخص مهمته الحالية.
 - اعتبار وصف Jules الأولي نهائيًا.
 - الاعتماد على الـ Prompt لتغيير Jules Starting branch بعد بدء Session.
 - استخدام Publish PR من Jules عندما تكون base المطلوبة غير `main`.
@@ -1008,7 +1034,7 @@ standards/
 **لـ AI Collaboration:**
    - Upstream Repository: Maatify/php-engineering-standards
    - Upstream Path: standards/ai/AI_COLLABORATION_WORKFLOW_AR.md
-   - Upstream Version: 3.0.0 (أو الإصدار المثبت الأحدث)
+   - Upstream Version: 3.1.0 (أو الإصدار المثبت الأحدث)
 
 **لـ Phase Stack:**
    - Upstream Repository: Maatify/php-engineering-standards
@@ -1046,6 +1072,14 @@ standards/
 ---
 
 # 17. سجل تغييرات المعيار
+
+## `3.1.0`
+
+- توضيح حدود Git لـ Jules لمنع تغيير الـ Starting Branch داخل نفس الـ Session.
+- ضبط مصطلح `Jules task branch` ليعكس التبعية التنظيمية للمهمة الحالية وليس ملكية تقنية.
+- تصنيف قاعدة Publish PR كسياسة سير عمل (Maatify Workflow Policy) لحماية الـ Phase Stack.
+- إضافة قواعد جديدة لاستخدام `Reactive Mode` ومحدودية النطاق عند التعامل مع ملاحظات PR.
+- حظر التعديلات التلقائية للمستودع (Autonomous Repository Mutations) بشكل افتراضي، وعدم اعتماد Memory كمرجع authoritative.
 
 ## `3.0.0`
 
@@ -1090,7 +1124,7 @@ standards/
 - اعتماد Review Staging الافتراضي للمسارات الصريحة.
 - إبقاء Commit وPush وPR وMerge صلاحيات مستقلة.
 - منع `git commit --amend` واعتماد Commit جديد لكل تصحيح.
-- تثبيت ملكية Jules للـ branch التي تنشئها لمهمتها فقط.
+- تثبيت اقتصار Jules على branch الخاصة بمهمتها فقط.
 - تثبيت handoff PR metadata من Jules إلى المساعد القائد بعد نجاح المراجعة.
 - اعتماد قاعدة Minimum Sufficient Prompt وتقليل القوالب إلى نواة إلزامية ووحدات اختيارية.
 
@@ -1105,7 +1139,7 @@ standards/
 - **مالك المشروع:** يقرر الهدف والأولوية والنطاق والسياسات والدمج.
 - **المساعد القائد:** يخطط ويرتب التبعيات ويكتب Prompt بالحد الأدنى الكافي ويراجع التنفيذ والـ PR ويثبت وصف PR النهائي بعد نجاح مهمة Jules.
 - **المنفذ المحلي:** ينفذ الكود والاختبارات محليًا داخل نطاق مغلق ويسلم staged patch كاملة.
-- **Jules:** يبدأ من Repository وStarting branch محددتين قبل الـ Prompt، وينفذ على branch يملكها للمهمة.
+- **Jules:** يبدأ من Repository وStarting branch محددتين قبل الـ Prompt، وينفذ على branch خاصة بمهمته الحالية (Jules task branch).
 - **نشر Jules:** Publish Branch للـ base غير `main`؛ Publish PR فقط عند استهداف `main`.
 - **تصحيح Jules:** عبر top-level PR conversation comment أو Reply عادي داخل نفس PR بمنشن صريح `@jules` لنفس المهمة ونفس PR والـ branch فقط.
 - **Review Staging:** مسموح افتراضيًا للمسارات الصريحة، مع بقاء التغييرات local وstaged وuncommitted.
