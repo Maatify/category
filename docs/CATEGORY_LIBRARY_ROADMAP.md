@@ -738,7 +738,7 @@ COMPLETED / VERIFIED (Final Review: PASSED)
 
 * Phase 1 verified content tree: `f282d7fd6c0bab361f05694a472bfda8254cd942`
 * Category Package CI run #22 نجحت على ذلك المحتوى.
-* Phase 2 Draft الحالية تحتوي أيضًا CI Phase-Draft trigger fix عند: `319de8bae4b267f21edfe07f651493a21011b191`
+* Phase 2 CI Phase-Draft trigger fix تم دمجه ضمن مسار المرحلة عند: `319de8bae4b267f21edfe07f651493a21011b191`
 * لا تعتبر CI #22 بديلًا عن CI الخاصة بالـPR الجديدة.
 
 ---
