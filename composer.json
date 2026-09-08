@@ -50,7 +50,7 @@
     "phpunit/phpunit": "^12.5"
   },
   "scripts": {
-    "analyse": "phpstan analyse src tests --level=max",
+    "analyse": "phpstan analyse src tests --level=max --memory-limit=256M",
     "test": "phpunit",
     "test:unit": "phpunit --testsuite unit",
     "test:integration": "phpunit --testsuite integration"
