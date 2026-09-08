@@ -37,7 +37,8 @@ Slim, HTTP, permissions, and presentation layers.
 
 - PHP 8.4 or later.
 - Composer.
-- MySQL 8.0.16 or later for Integration verification.
+- MySQL 8.0.16 or later, required by the package storage contract because
+  enforced `CHECK` constraints are part of the schema behavior.
 
 ## Installation
 
@@ -101,7 +102,8 @@ composer test
 ```
 
 Integration tests require `CATEGORY_TEST_DSN`, `CATEGORY_TEST_DB_USER`, and
-`CATEGORY_TEST_DB_PASSWORD` and run against real MySQL 8.0.16 or later.
+`CATEGORY_TEST_DB_PASSWORD` and run against the same required MySQL runtime
+version: 8.0.16 or later.
 
 For local Integration or full-suite runs, copy `env.testing.example` to
 `env.testing`, set the local MySQL credentials, and create the configured

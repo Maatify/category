@@ -41,7 +41,7 @@ row.
 `CategoryCommandService` owns orchestration while input Commands own syntactic and
 domain validation. Parent moves lock the complete relevant ancestor chain and
 reject direct and indirect cycles. Soft delete locks the Category and its
-non-deleted children and rejects the operation when active children remain.
+non-deleted children and rejects the operation when non-deleted children remain.
 Restore uses the original identity.
 
 Every mutation receives its timestamp from the injected
