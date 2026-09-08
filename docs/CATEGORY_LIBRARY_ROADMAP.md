@@ -703,7 +703,15 @@ Schema + Core DTOs + Enums مثبتة Unit/Integration، مع إثبات nullabl
 
 ### الهدف
 
-إنشاء Mutation Input Contract الصحيح قبل Business Orchestration.
+استكمال وتثبيت Command & Validation Layer وفق مسؤوليات Phase 3 المتبقية.
+تم تقديم الـ10 typed mutation Commands الأساسية مبكرًا ضمن Phase 1 لإغلاق
+Migration Gap الخاصة بـmutation inputs؛ لذلك لا تعيد Phase 3 إنشاءها من الصفر
+ولا تعتبر مكتملة بمجرد وجود هذه Commands. تظل Phase 3 مسؤولة عن استكمال ما
+تبقى من validation وdomain-contract completion وإثبات معايير القبول الخاصة
+بها أدناه.
+
+القوائم التالية هي inventory الـCommands الموجودة فعليًا والمستخدمة في
+Runtime، وتُعرض هنا كـbaseline لهذه المرحلة.
 
 ### Category Commands
 
@@ -739,8 +747,8 @@ RestoreCategoryTranslationCommand
 
 ### Command Rules
 
-تحدد Architecture Category حدود validation الخاصة بكل Command. الأمثلة
-المحلية التي يجب حسمها هي:
+تستكمل Phase 3 حسم وتثبيت حدود validation الخاصة بكل Command وفق Architecture
+Category. وما تبقى من contract completion يجب أن يثبت على الأقل:
 
 * positive canonical IDs.
 * non-empty required strings.
@@ -798,7 +806,10 @@ UpdateCategoryCommand
 
 ### Exit Gate
 
-كل mutation intent له Command مستقلة وواضحة.
+وجود الـCommands الأساسية واستخدامها في Runtime ليس وحده Exit Gate. لا تعتبر
+Phase 3 مكتملة إلا بعد استكمال validation/domain-contract completion المتبقي
+وإثبات acceptance criteria الخاصة بهذه الطبقة، مع بقاء كل mutation intent
+مرتبطًا بـCommand مستقلة وواضحة.
 
 ---
 
