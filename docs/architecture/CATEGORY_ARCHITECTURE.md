@@ -19,8 +19,10 @@ The package owns:
 - Package-local PDO persistence adapters and transaction boundaries.
 - The two package-owned MySQL tables and their internal constraints.
 
-The Host owns dependency injection, HTTP, permissions, language validation and
-fallback, presentation serialization, and relationships to Host-owned tables.
+The Package owns the syntactic and storage validation of `language_code`
+required by its contract and Runtime. The Host owns dependency injection, HTTP,
+permissions, semantic language validation, fallback/locale policy, presentation
+serialization, and relationships to Host-owned tables.
 
 ## Domain model
 

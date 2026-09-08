@@ -72,8 +72,10 @@ Profiles الخاصة بـ Slim أو Project-Aware أو Admin على هذه ال
 - orchestration الخاص بالمجال وطبقات PDO والجداول المملوكة للحزمة.
 - schema MySQL المملوك للحزمة واختبارات التكامل مع الخدمة الحقيقية.
 
-المضيف يملك Dependency Injection وHTTP وRoutes وPermissions وLanguage
-validation/fallback وPresentation، وأي علاقات مع جداول Host. لا تُضاف داخل هذه
+المضيف يملك Dependency Injection وHTTP وRoutes وPermissions وsemantic Language
+validation وfallback/locale policy وPresentation، وأي علاقات مع جداول Host.
+وتملك الحزمة syntactic/storage validation الخاصة بـ`language_code` المطلوبة
+بعقدها وRuntime. لا تُضاف داخل هذه
 الحزمة Catalog أو Product أو Pricing أو Inventory أو Media أو Framework
 bindings.
 
