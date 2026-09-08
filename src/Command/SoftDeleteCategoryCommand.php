@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
-/** Validated input for restoring a Category with its existing identity. */
-final readonly class RestoreCategoryDTO implements \JsonSerializable
+use Maatify\Category\DTO\CategoryIdDTO;
+
+/** Validated command for soft-deleting a Category. */
+final readonly class SoftDeleteCategoryCommand implements \JsonSerializable
 {
     public int $categoryId;
 

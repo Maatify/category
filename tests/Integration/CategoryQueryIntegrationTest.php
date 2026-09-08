@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryStatusDTO;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
@@ -28,14 +28,14 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     {
         $connection = $this->connection();
         $commandService = $this->commandService($connection);
-        $firstId = $commandService->create(new CreateCategoryDTO('root-first'));
-        $secondId = $commandService->create(new CreateCategoryDTO('root-second'));
-        $thirdId = $commandService->create(new CreateCategoryDTO('root-third'));
-        $inactiveId = $commandService->create(new CreateCategoryDTO('root-inactive'));
-        $deletedId = $commandService->create(new CreateCategoryDTO('root-deleted'));
+        $firstId = $commandService->create(new CreateCategoryCommand('root-first'));
+        $secondId = $commandService->create(new CreateCategoryCommand('root-second'));
+        $thirdId = $commandService->create(new CreateCategoryCommand('root-third'));
+        $inactiveId = $commandService->create(new CreateCategoryCommand('root-inactive'));
+        $deletedId = $commandService->create(new CreateCategoryCommand('root-deleted'));
 
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveId, CategoryStatusEnum::INACTIVE));
-        $commandService->softDelete(new SoftDeleteCategoryDTO($deletedId));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryCommand($deletedId));
         $this->setDisplayOrder($connection, $firstId, 2);
         $this->setDisplayOrder($connection, $secondId, 1);
         $this->setDisplayOrder($connection, $thirdId, 1);
@@ -55,17 +55,17 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     {
         $connection = $this->connection();
         $commandService = $this->commandService($connection);
-        $activeRootId = $commandService->create(new CreateCategoryDTO('active-root'));
-        $inactiveRootId = $commandService->create(new CreateCategoryDTO('inactive-root'));
-        $firstChildId = $commandService->create(new CreateCategoryDTO('first-child', $activeRootId));
-        $secondChildId = $commandService->create(new CreateCategoryDTO('second-child', $activeRootId));
-        $inactiveChildId = $commandService->create(new CreateCategoryDTO('inactive-child', $activeRootId));
-        $deletedChildId = $commandService->create(new CreateCategoryDTO('deleted-child', $activeRootId));
-        $grandchildId = $commandService->create(new CreateCategoryDTO('grandchild', $firstChildId));
+        $activeRootId = $commandService->create(new CreateCategoryCommand('active-root'));
+        $inactiveRootId = $commandService->create(new CreateCategoryCommand('inactive-root'));
+        $firstChildId = $commandService->create(new CreateCategoryCommand('first-child', $activeRootId));
+        $secondChildId = $commandService->create(new CreateCategoryCommand('second-child', $activeRootId));
+        $inactiveChildId = $commandService->create(new CreateCategoryCommand('inactive-child', $activeRootId));
+        $deletedChildId = $commandService->create(new CreateCategoryCommand('deleted-child', $activeRootId));
+        $grandchildId = $commandService->create(new CreateCategoryCommand('grandchild', $firstChildId));
 
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveRootId, CategoryStatusEnum::INACTIVE));
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveChildId, CategoryStatusEnum::INACTIVE));
-        $commandService->softDelete(new SoftDeleteCategoryDTO($deletedChildId));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveRootId, CategoryStatusEnum::INACTIVE));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveChildId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryCommand($deletedChildId));
         $this->setDisplayOrder($connection, $firstChildId, 1);
         $this->setDisplayOrder($connection, $secondChildId, 1);
         $this->setDisplayOrder($connection, $inactiveChildId, 3);
@@ -81,7 +81,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         self::assertSame([], $this->categoryIds($queryService->listChildren($inactiveRootId)));
         self::assertSame($grandchildId, $queryService->getById($grandchildId)->id);
 
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($activeRootId, CategoryStatusEnum::INACTIVE));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($activeRootId, CategoryStatusEnum::INACTIVE));
 
         self::assertSame([], $this->categoryIds($queryService->listChildren($activeRootId)));
         self::assertNull($reader->findVisibleById($grandchildId));
@@ -91,33 +91,33 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     {
         $connection = $this->connection();
         $commandService = $this->commandService($connection);
-        $visibleId = $commandService->create(new CreateCategoryDTO('translated-category'));
-        $inactiveId = $commandService->create(new CreateCategoryDTO('translated-inactive'));
-        $deletedId = $commandService->create(new CreateCategoryDTO('translated-deleted'));
+        $visibleId = $commandService->create(new CreateCategoryCommand('translated-category'));
+        $inactiveId = $commandService->create(new CreateCategoryCommand('translated-inactive'));
+        $deletedId = $commandService->create(new CreateCategoryCommand('translated-deleted'));
 
         $commandService->createTranslation(
-            new CreateCategoryTranslationDTO($visibleId, 'en-US', 'Shirts', null),
+            new CreateCategoryTranslationCommand($visibleId, 'en-US', 'Shirts', null),
         );
         $commandService->createTranslation(
-            new CreateCategoryTranslationDTO($visibleId, 'ar-EG', 'قمصان', 'وصف'),
+            new CreateCategoryTranslationCommand($visibleId, 'ar-EG', 'قمصان', 'وصف'),
         );
         $deletedVisibleTranslationId = $commandService->createTranslation(
-            new CreateCategoryTranslationDTO($visibleId, 'fr-FR', 'Chemises', null),
+            new CreateCategoryTranslationCommand($visibleId, 'fr-FR', 'Chemises', null),
         );
         $commandService->createTranslation(
-            new CreateCategoryTranslationDTO($inactiveId, 'en-US', 'Inactive', null),
+            new CreateCategoryTranslationCommand($inactiveId, 'en-US', 'Inactive', null),
         );
         $deletedCategoryTranslationId = $commandService->createTranslation(
-            new CreateCategoryTranslationDTO($deletedId, 'en-US', 'Deleted', null),
+            new CreateCategoryTranslationCommand($deletedId, 'en-US', 'Deleted', null),
         );
 
-        $commandService->updateStatus(new UpdateCategoryStatusDTO($inactiveId, CategoryStatusEnum::INACTIVE));
-        $commandService->softDelete(new SoftDeleteCategoryDTO($deletedId));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryCommand($deletedId));
         $commandService->softDeleteTranslation(
-            new SoftDeleteCategoryTranslationDTO($deletedVisibleTranslationId),
+            new SoftDeleteCategoryTranslationCommand($deletedVisibleTranslationId),
         );
         $commandService->softDeleteTranslation(
-            new SoftDeleteCategoryTranslationDTO($deletedCategoryTranslationId),
+            new SoftDeleteCategoryTranslationCommand($deletedCategoryTranslationId),
         );
 
         $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));

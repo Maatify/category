@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Maatify\Category\Contract;
 
 use DateTimeImmutable;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 
 /** Write port for the complete Category Translation mutation lifecycle. */
 interface CategoryTranslationCommandRepositoryInterface
 {
-    public function create(CreateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): int;
+    public function create(CreateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): int;
 
-    public function update(UpdateCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function update(UpdateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function softDelete(SoftDeleteCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function softDelete(SoftDeleteCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool;
 
-    public function restore(RestoreCategoryTranslationDTO $command, DateTimeImmutable $occurredAt): bool;
+    public function restore(RestoreCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool;
 }

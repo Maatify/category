@@ -11,22 +11,22 @@ use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\MoveCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
-use Maatify\Category\DTO\UpdateCategoryStatusDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use PHPUnit\Framework\TestCase;
 
-final class CategoryDTOJsonSerializationTest extends TestCase
+final class CategoryContractJsonSerializationTest extends TestCase
 {
-    public function testEveryPublicDtoIsJsonSerializableWithStableScalarShape(): void
+    public function testEveryPublicDtoAndCommandIsJsonSerializableWithStableScalarShape(): void
     {
         $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
         $category = new CategoryDTO(
@@ -54,16 +54,16 @@ final class CategoryDTOJsonSerializationTest extends TestCase
             new CategoryIdDTO(7),
             $category,
             $translation,
-            new CreateCategoryDTO('shirts', 3, CategoryStatusEnum::INACTIVE),
-            new CreateCategoryTranslationDTO(7, 'ar-EG', 'قمصان', 'وصف'),
-            new MoveCategoryDTO(7, 3),
-            new RestoreCategoryDTO(7),
-            new RestoreCategoryTranslationDTO(11),
-            new SoftDeleteCategoryDTO(7),
-            new SoftDeleteCategoryTranslationDTO(11),
-            new UpdateCategoryDisplayOrderDTO(7, 4),
-            new UpdateCategoryStatusDTO(7, CategoryStatusEnum::INACTIVE),
-            new UpdateCategoryTranslationDTO(11, 'قمصان', 'وصف'),
+            new CreateCategoryCommand('shirts', 3, CategoryStatusEnum::INACTIVE),
+            new CreateCategoryTranslationCommand(7, 'ar-EG', 'قمصان', 'وصف'),
+            new MoveCategoryCommand(7, 3),
+            new RestoreCategoryCommand(7),
+            new RestoreCategoryTranslationCommand(11),
+            new SoftDeleteCategoryCommand(7),
+            new SoftDeleteCategoryTranslationCommand(11),
+            new UpdateCategoryDisplayOrderCommand(7, 4),
+            new UpdateCategoryStatusCommand(7, CategoryStatusEnum::INACTIVE),
+            new UpdateCategoryTranslationCommand(11, 'قمصان', 'وصف'),
         ];
 
         foreach ($dtos as $dto) {

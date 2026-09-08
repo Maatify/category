@@ -13,7 +13,7 @@ schema.
 
 The package owns:
 
-- Category and Translation DTOs and input validation.
+- Category and Translation DTOs, typed mutation Commands, and input validation.
 - Category mutation/query contracts.
 - Business orchestration and domain exceptions.
 - Package-local PDO persistence adapters and transaction boundaries.
@@ -38,7 +38,7 @@ row.
 
 ## Mutation orchestration
 
-`CategoryCommandService` owns orchestration while input DTOs own syntactic and
+`CategoryCommandService` owns orchestration while input Commands own syntactic and
 domain validation. Parent moves lock the complete relevant ancestor chain and
 reject direct and indirect cycles. Soft delete locks the Category and its
 non-deleted children and rejects the operation when active children remain.

@@ -11,16 +11,16 @@ use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CreateCategoryDTO;
-use Maatify\Category\DTO\CreateCategoryTranslationDTO;
-use Maatify\Category\DTO\MoveCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryDTO;
-use Maatify\Category\DTO\RestoreCategoryTranslationDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryDTO;
-use Maatify\Category\DTO\SoftDeleteCategoryTranslationDTO;
-use Maatify\Category\DTO\UpdateCategoryDisplayOrderDTO;
-use Maatify\Category\DTO\UpdateCategoryStatusDTO;
-use Maatify\Category\DTO\UpdateCategoryTranslationDTO;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
@@ -39,7 +39,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         private ClockInterface $clock,
     ) {}
 
-    public function create(CreateCategoryDTO $command): int
+    public function create(CreateCategoryCommand $command): int
     {
         return $this->transaction->run(function () use ($command): int {
             if ($this->queryReader->findByCode($command->code) !== null) {
@@ -56,7 +56,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function createTranslation(CreateCategoryTranslationDTO $command): int
+    public function createTranslation(CreateCategoryTranslationCommand $command): int
     {
         return $this->transaction->run(function () use ($command): int {
             $this->requireActiveCategoryForUpdate($command->categoryId);
@@ -65,7 +65,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function move(MoveCategoryDTO $command): void
+    public function move(MoveCategoryCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $category = $this->requireActiveCategoryForUpdate($command->categoryId);
@@ -80,7 +80,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function softDelete(SoftDeleteCategoryDTO $command): void
+    public function softDelete(SoftDeleteCategoryCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveCategoryForUpdate($command->categoryId);
@@ -95,7 +95,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function restore(RestoreCategoryDTO $command): void
+    public function restore(RestoreCategoryCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireCategoryForUpdate($command->categoryId);
@@ -106,7 +106,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function updateStatus(UpdateCategoryStatusDTO $command): void
+    public function updateStatus(UpdateCategoryStatusCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveCategoryForUpdate($command->categoryId);
@@ -117,7 +117,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function updateDisplayOrder(UpdateCategoryDisplayOrderDTO $command): void
+    public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void
     {
         $this->requireActiveCategory($command->categoryId);
 
@@ -126,7 +126,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
     }
 
-    public function updateTranslation(UpdateCategoryTranslationDTO $command): void
+    public function updateTranslation(UpdateCategoryTranslationCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveTranslationForUpdate($command->translationId);
@@ -137,7 +137,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function softDeleteTranslation(SoftDeleteCategoryTranslationDTO $command): void
+    public function softDeleteTranslation(SoftDeleteCategoryTranslationCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveTranslationForUpdate($command->translationId);
@@ -148,7 +148,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function restoreTranslation(RestoreCategoryTranslationDTO $command): void
+    public function restoreTranslation(RestoreCategoryTranslationCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireTranslationForUpdate($command->translationId);

@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\DTO;
+namespace Maatify\Category\Command;
 
+use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Validated input for creating a Category Translation with a stable identity. */
-final readonly class CreateCategoryTranslationDTO implements \JsonSerializable
+/** Validated command for creating a Category Translation with a stable identity. */
+final readonly class CreateCategoryTranslationCommand implements \JsonSerializable
 {
     public int $categoryId;
     public string $languageCode;
