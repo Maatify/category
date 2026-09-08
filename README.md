@@ -70,8 +70,10 @@ $category = new CategoryDTO(
 );
 ```
 
-The host application owns dependency injection, language validation/fallback,
-HTTP response envelopes, and presentation formatting.
+The Category package owns the syntactic and storage validation of `language_code`
+required by its contract and Runtime. The host application owns dependency
+injection, semantic language validation, fallback/locale policy, HTTP response
+envelopes, and presentation formatting.
 
 ## Documentation
 

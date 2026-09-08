@@ -25,7 +25,8 @@ interface CategoryReadQueryInterface
 
     /**
      * Lists non-deleted translations for a visible Category in language-code
-     * order. Language validation and fallback remain Host responsibilities.
+     * order. The Package validates the syntactic/storage contract; the Host
+     * validates semantic language support and owns fallback/locale policy.
      */
     public function listVisibleTranslations(int $categoryId): CategoryTranslationCollectionDTO;
 }
