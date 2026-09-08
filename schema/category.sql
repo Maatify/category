@@ -6,7 +6,7 @@
 -- Scope:
 --   - This file contains only Category and Category Translation tables plus
 --     the package-owned triggers required for the Category self-parent rule.
---   - It does not define Category, Product, Pricing, Inventory, Media, or Host
+--   - It does not define Catalog, Product, Pricing, Inventory, Media, or Host
 --     tables and has no relationship to any Host-owned table.
 --
 -- Timestamp contract:

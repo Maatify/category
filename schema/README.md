@@ -5,8 +5,9 @@ The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../CATEGORY_PAC
 This directory contains the package-owned persistence contract for Categories
 and Category Translations.
 
-Integration verification requires MySQL 8.0.16 or later so the database
-`CHECK` constraints are enforced.
+The package requires MySQL 8.0.16 or later. This minimum is part of the storage
+contract because the database schema relies on enforced `CHECK` constraints.
+Integration verification uses the same required runtime version.
 
 ## Included tables
 
