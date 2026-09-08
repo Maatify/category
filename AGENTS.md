@@ -23,16 +23,17 @@ https://github.com/Maatify/php-engineering-standards.git
 وهي مثبتة عند commit:
 
 ```text
-cda994090b659435e72cfd1df35256eb3895bff3
+df6ac0083b1d93b4e4911d843b89a6f238c3dcfd
 ```
 
-تم التحقق من تطابق الملفات الـ22 المنقولة داخل هذه النسخة مع نفس commit
+تم التحقق من تطابق الملفات الـ23 المنقولة داخل هذه النسخة مع نفس commit
 upstream، بما في ذلك `standards/` وملفات الحوكمة والتدقيق.
 
-النسخ المعيارية المحلية المعتمدة:
+النسخ المعيارية المحلية المثبتة في هذه النسخة:
 
-- `standards/ai/AI_COLLABORATION_WORKFLOW_AR.md` — `3.0.0`
+- `standards/ai/AI_COLLABORATION_WORKFLOW_AR.md` — `3.1.0`
 - `standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md` — `1.0.0`
+- `standards/testing/TESTING_STANDARD.md` — `v1`
 
 لا تعتمد على `main` المتحرك، ولا تعدّل أي ملف تحت
 `docs/php-engineering-standards/` أثناء بناء المكتبة. ترقية هذه النسخة أو تعديل
@@ -49,10 +50,15 @@ upstream، بما في ذلك `standards/` وملفات الحوكمة والت�
 5. [`CI_WORKFLOW_STANDARD.md`](docs/php-engineering-standards/standards/packages/CI_WORKFLOW_STANDARD.md)
 6. [`LIBRARY_PRESENTATION_STANDARD.md`](docs/php-engineering-standards/standards/packages/LIBRARY_PRESENTATION_STANDARD.md)
 7. [`MODULE_BUILDING_STANDARD.md`](docs/php-engineering-standards/standards/modules/MODULE_BUILDING_STANDARD.md)
+8. [`TESTING_STANDARD.md`](docs/php-engineering-standards/standards/testing/TESTING_STANDARD.md)
 
 تنطبق Profile الـ Base Module لأن وثيقة المشروع تعرف `category` بهذه الصفة.
 وتنطبق قواعد Persistence لأن المكتبة تملك schema وسلوك PDO/MySQL. لا تنطبق
 Profiles الخاصة بـ Slim أو Project-Aware أو Admin على هذه المكتبة.
+ويحكم `TESTING_STANDARD.md` طبقات الاختبار وحماية الانحدار. وبحكم أن
+`category` Standalone Base Module يملك Persistence، تُراجع حماية السلوك الخارجي
+من خلال Public API وحدود MySQL الحقيقي عند اعتمادها على التخزين، دون إعادة نسخ
+قواعد الاختبار العامة داخل هذا الملف.
 
 عند العمل داخل `docs/php-engineering-standards/` يجب أيضًا قراءة
 [`docs/php-engineering-standards/AGENTS.md`](docs/php-engineering-standards/AGENTS.md)،
