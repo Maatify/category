@@ -17,32 +17,28 @@ The package is host-agnostic:
   joined to or constrained by package-owned tables.
 - Internal Category and Translation relationships use package-owned foreign
   keys only.
-- Language-code validation and language fallback remain Host responsibilities.
+- Category owns the syntactic and storage validation of `language_code` required
+  by its contract, including the constraints enforced by the Runtime.
+- The Host owns semantic language validation, such as confirming that a language
+  is supported or known, together with fallback and locale policy.
 - Public and domain contracts use typed DTOs and collections, never associative
   arrays.
 
 ## Standards Applicability Decision
 
 The Category domain is translation-only. The base Category table does not own a
-base `name`; localized `name` and `description` values are owned exclusively by
+localized `name`; localized `name` and `description` values are owned by
 Category Translation rows.
 
-The current Package Standard defines a Translation Pattern that assumes a base
-value plus translated fallback paths. That pattern does not apply cleanly to
-this Translation-only domain. This package therefore adopts **Option C** from
-the Phase 0 Critical Standards Reconciliation — Translation Pattern decision:
+The logical identity of a translation is `(category_id, language_code)`. The
+Host remains responsible for semantic language validation and fallback
+behavior.
 
-- The conflict is a real applicability conflict in the general Engineering
-  Standard, not a reason to invent a local exception.
-- The current Category Translation-only architecture remains unchanged.
-- An independent change is required in the `php-engineering-standards`
-  repository to make the general Translation Pattern applicable to
-  Translation-only domains.
-
-This is a standards-governance blocker, not a Runtime gap. Phase 0 cannot be
-considered closed until the Engineering Standard is changed in its own
-repository, a new standards snapshot is approved, and Category is updated to
-that snapshot.
+This contract is compatible with the Package Standard at snapshot
+`4918da9f15feb1b336a822d53afe497a6fef885e`, whose Translation Pattern now
+conditions applicability on the Domain contract. Category's Translation-only
+architecture is therefore part of the standard applicability model and is not
+described as a local exception.
 
 ## Runtime API
 

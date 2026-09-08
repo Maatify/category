@@ -71,7 +71,7 @@ Maatify/php-engineering-standards
 والـsnapshot المعتمد حاليًا هو:
 
 ```text
-df6ac0083b1d93b4e4911d843b89a6f238c3dcfd
+4918da9f15feb1b336a822d53afe497a6fef885e
 ```
 
 وتنطبق على هذه المكتبة الـProfiles التالية:
@@ -453,7 +453,8 @@ docs/CATEGORY_LIBRARY_ROADMAP.md
 
 ## 12. Phase 0 Critical Standards Reconciliation — Translation Pattern
 
-يجب حل هذه النقطة قبل الادعاء بأن المكتبة 100% Standard-Compliant.
+تم حسم Translation Pattern reconciliation في snapshot المعيارية الجديدة، ولم تعد
+هذه النقطة blocker مفتوحًا.
 
 الـCategory Architecture الحالية تعتمد:
 
@@ -471,30 +472,21 @@ Category Translation rows
 language_code
 ```
 
-بينما Translation Pattern العام الموجود في Package Standard يحتوي assumptions مختلفة، منها Base value / translated value paths.
+بينما كان Translation Pattern العام يحتوي assumptions مختلفة، منها Base value /
+translated fallback paths، عالج تعديل upstream في
+`php-engineering-standards` هذا الاختلاف في commit
+`4918da9f15feb1b336a822d53afe497a6fef885e`، فأصبحت applicability الخاصة
+بالـTranslation architecture مشروطة بعقد الـDomain نفسه.
 
-تم اعتماد **Option C** كقرار رسمي في
-[`CATEGORY_PACKAGE_REFERENCE.md`](../CATEGORY_PACKAGE_REFERENCE.md):
+وبذلك أصبحت Category Translation-only architecture متوافقة مع الـPackage
+Standard عند هذه snapshot، وليست exception محلية أو تعارضًا معياريًا. يظل
+العقد الخاص بـCategory هو أن جدول Category الأساسي لا يملك base `name`، وأن
+Category Translation تملك localized `name` و`description` مع الحفاظ على
+logical identity `(category_id, language_code)`.
 
-- Category domain هو Translation-only؛ جدول Category الأساسي لا يملك base
-  `name`، والترجمات هي المصدر الوحيد للـlocalized `name` و`description`.
-- الـPackage Standard الحالي يفرض Translation Pattern مبنيًا على base value
-  وtranslated fallback path، ولذلك يوجد تعارض حقيقي في applicability للـStandard
-  العام.
-- لا يجوز اختراع exception محلي، ولا تعديل Architecture الحالية لإرضاء pattern
-  عام.
-- يلزم تعديل مستقل في مستودع `php-engineering-standards` لمعالجة Translation-only
-  domains.
-
-هذا blocker معياري في applicability وليس Runtime gap. لا تعتبر Phase 0 مغلقة
-حتى تتحقق الشروط التالية بالترتيب:
-
-1. تعديل الـEngineering Standard في مستودعه المستقل.
-2. اعتماد snapshot جديدة من ذلك المستودع.
-3. تحديث Category إلى هذه الـsnapshot الجديدة.
-
-لا يتم تعديل النسخة المعيارية المحلية أو اعتماد snapshot غير مثبتة من هذا
-الفرع أثناء انتظار التغيير المستقل.
+ينحصر إغلاق هذا القسم في Translation Pattern reconciliation فقط. لا تعلن هذه
+المهمة إغلاق Phase 0 بالكامل؛ فإغلاق Phase 0 يتطلب استكمال جميع بنودها الأخرى
+وفق الـRoadmap.
 
 ---
 

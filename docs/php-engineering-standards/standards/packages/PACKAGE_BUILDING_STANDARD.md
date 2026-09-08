@@ -572,86 +572,46 @@ Exact class signatures, internal formulas, SQL assembly rules, exception classif
 
 ## 12. Translation Pattern
 
-### Always support both paths
+Translation support is **CONDITIONAL**, not a universal Package requirement. A Package MUST implement translation only when translation is part of its actual domain contract. Packages without a translation requirement MUST NOT add translation APIs, fields, persistence, joins, or fallback behavior solely to conform to this Standard.
 
-```php
-// Path 1: with translation (for apps using a translation system)
-listByLanguageId(int $languageId): CollectionDTO
+### Domain-Owned Translation Contract
 
-// Path 2: base name only (for apps without a translation system)
-listWithoutTranslation(): CollectionDTO
-```
+When translation is part of the domain, the Package Reference and Architecture for that Package are authoritative for:
 
-### JOIN Guard — critical for avoiding duplicate rows
+- ownership of localized fields
+- translation identity
+- fallback semantics
+- mutation semantics
+- query contracts, including result cardinality, filtering, and search behavior
 
-```php
-// ONLY join translations when languageId is explicitly provided.
-// Without this guard: if a method has 2 translations (ar + en),
-// a JOIN without language filter returns 2 rows per method.
+The general Package Standard must not force a package to invent localized base fields, fallback behavior, actor-specific query shapes, or mutation semantics that are not part of its domain contract.
 
-if ($languageId !== null) {
-    $joinSql           = 'LEFT JOIN maa_something_translations t
-                              ON t.something_id = s.id
-                             AND t.language_id  = :language_id';
-    $translationSelect = 'COALESCE(t.name,  s.name)  AS name,
-                          COALESCE(t.image, s.image) AS image';
-    $params['language_id'] = $languageId;
-} else {
-    $joinSql           = '';
-    $translationSelect = 'NULL AS translated_name, NULL AS translated_image';
-}
-```
+Accordingly, this Standard does not require any particular translation implementation, including:
 
-### COALESCE Fallback Chain
+- a base localized value
+- `listWithoutTranslation()`
+- `language_id` specifically
+- `COALESCE(translated, base)` fallback
+- Upsert as the only mutation
+- fixed Admin/Customer query shapes
+- fixed search fields
+- comparison with a base name
 
-```sql
--- Always in customer queries:
-COALESCE(t.name,  s.name)  AS name    -- translated → base
-COALESCE(t.image, s.image) AS image   -- translated → base
+### Host-Owned Language Identity
 
--- Admin findById (no language): select s.name directly — no JOIN needed
-```
+If language or locale identity is owned by the Host, the Package MUST NOT create a foreign key to, or a JOIN with, Host tables, in accordance with the Package isolation rules. The Package must use only the identity and integration contract exposed to it without coupling its persistence to Host table structure.
 
-### Upsert Pattern — always, never separate INSERT + UPDATE
+### Translation Query Cardinality
 
-```sql
-INSERT INTO maa_something_translations
-    (something_id, language_id, name)
-VALUES
-    (:something_id, :language_id, :name)
-ON DUPLICATE KEY UPDATE
-    name       = VALUES(name),
-    updated_at = NOW()
-```
+Any query whose contract promises one row per entity MUST constrain the translation relation to one logical translation identity before joining, or avoid joining translations. An unrestricted JOIN that can return multiple translations for one entity is not permitted for a single-row-per-entity contract. A query may return multiple translations only when its contract explicitly defines a translation collection and its result shape supports that cardinality.
 
-Requires `UNIQUE KEY (something_id, language_id)` on the translation table.
+### Translation Persistence Invariants
 
-### Admin Translation List — LEFT JOIN on base table
+If the Package owns persistence for translations:
 
-```sql
-SELECT
-    t.id,
-    t.something_id,
-    t.language_id,
-    t.name,
-    t.image,
-    t.created_at,
-    t.updated_at,
-    s.name  AS base_name,    -- shown alongside translation for admin comparison
-    s.image AS base_image
-FROM maa_something_translations t
-LEFT JOIN maa_something s ON s.id = t.something_id
-{$whereSql}
-ORDER BY t.something_id ASC, t.language_id ASC
-```
-
-### Global Search Scope
-
-| Context | Search fields |
-|---|---|
-| Admin main list | Base table fields only (`s.name`, `s.code`) — never join translations for search |
-| Admin translation list | Translation fields only (`t.name`) — that IS the translation table |
-| Customer list | No search — customer receives a filtered, ordered list only |
+- the logical translation identity MUST be documented in the Package Reference or Architecture
+- the persistence schema MUST enforce that identity with uniqueness constraints appropriate to the domain contract
+- the mutation behavior MUST follow the domain contract; this Standard does not prescribe Upsert or any other single mutation strategy
 
 ---
 
