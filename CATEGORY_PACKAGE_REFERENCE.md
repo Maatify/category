@@ -21,6 +21,29 @@ The package is host-agnostic:
 - Public and domain contracts use typed DTOs and collections, never associative
   arrays.
 
+## Standards Applicability Decision
+
+The Category domain is translation-only. The base Category table does not own a
+base `name`; localized `name` and `description` values are owned exclusively by
+Category Translation rows.
+
+The current Package Standard defines a Translation Pattern that assumes a base
+value plus translated fallback paths. That pattern does not apply cleanly to
+this Translation-only domain. This package therefore adopts **Option C** from
+the Phase 0 Critical Standards Reconciliation — Translation Pattern decision:
+
+- The conflict is a real applicability conflict in the general Engineering
+  Standard, not a reason to invent a local exception.
+- The current Category Translation-only architecture remains unchanged.
+- An independent change is required in the `php-engineering-standards`
+  repository to make the general Translation Pattern applicable to
+  Translation-only domains.
+
+This is a standards-governance blocker, not a Runtime gap. Phase 0 cannot be
+considered closed until the Engineering Standard is changed in its own
+repository, a new standards snapshot is approved, and Category is updated to
+that snapshot.
+
 ## Runtime API
 
 The production namespace is `Maatify\Category\`.
