@@ -451,42 +451,19 @@ docs/CATEGORY_LIBRARY_ROADMAP.md
 
 ---
 
-## 12. Phase 0 Critical Standards Reconciliation — Translation Pattern
+## 12. Phase 0 Translation Architecture Contract
 
-تم حسم Translation Pattern reconciliation في snapshot المعيارية الجديدة، ولم تعد
-هذه النقطة blocker مفتوحًا.
+Category translation architecture is a natural part of the Domain contract.
+The base Category does not own a localized `name`; `name` and `description`
+are owned by Category Translation.
 
-الـCategory Architecture الحالية تعتمد:
+The logical identity is `(category_id, language_code)`. The Package owns the
+syntactic and storage validation of `language_code` required by its contract.
+The Host owns semantic language validation and fallback/locale policy.
 
-```text
-Category
-+
-Category Translation rows
-```
-
-ولا يوجد Base `name` داخل Category نفسها.
-
-كما تستخدم:
-
-```text
-language_code
-```
-
-بينما كان Translation Pattern العام يحتوي assumptions مختلفة، منها Base value /
-translated fallback paths، عالج تعديل upstream في
-`php-engineering-standards` هذا الاختلاف في commit
-`4918da9f15feb1b336a822d53afe497a6fef885e`، فأصبحت applicability الخاصة
-بالـTranslation architecture مشروطة بعقد الـDomain نفسه.
-
-وبذلك أصبحت Category Translation-only architecture متوافقة مع الـPackage
-Standard عند هذه snapshot، وليست exception محلية أو تعارضًا معياريًا. يظل
-العقد الخاص بـCategory هو أن جدول Category الأساسي لا يملك base `name`، وأن
-Category Translation تملك localized `name` و`description` مع الحفاظ على
-logical identity `(category_id, language_code)`.
-
-ينحصر إغلاق هذا القسم في Translation Pattern reconciliation فقط. لا تعلن هذه
-المهمة إغلاق Phase 0 بالكامل؛ فإغلاق Phase 0 يتطلب استكمال جميع بنودها الأخرى
-وفق الـRoadmap.
+This contract is compatible with the Package Standard at snapshot
+`4918da9f15feb1b336a822d53afe497a6fef885e`. No Translation standards blocker
+is open.
 
 ---
 
@@ -1925,7 +1902,7 @@ UpdateCategoryTranslationCommand
 * table prefix كان `maa_catalog_`.
 * package namespace كان Catalog-oriented.
 * DTO contract يحتاج إعادة مطابقة مع الـStandard الحالي.
-* Translation Pattern standards reconciliation لم يتم حسمه.
+* Translation-only Domain contract موثق ومتوافق مع الـPackage Standard.
 
 ---
 
