@@ -695,7 +695,51 @@ CategoryStatusEnum
 
 ### Exit Gate
 
-Schema + Core DTOs + Enums مثبتة Unit/Integration، مع إثبات nullable root scope وcreation-time ordering للـroot والـchild.
+COMPLETED / VERIFIED (Final Review: PASSED)
+
+تم توثيق أن Phase 2 implementation كانت موجودة بالفعل في baseline الناتجة من Phase 1 وتم التحقق منها بدل إعادة تنفيذها.
+
+**Verified baseline يشمل:**
+
+* `maa_category_categories`
+* `maa_category_category_translations`
+* types/nullability/defaults/indexes/FKs/constraints/comments
+* InnoDB
+* utf8mb4
+* utf8mb4_unicode_ci
+* unique Category code
+* unique `(category_id, language_code)`
+* application-owned timestamps
+* nullable root scope
+* self-parent triggers:
+  * `AFTER INSERT`
+  * `BEFORE UPDATE`
+* MySQL `8.0.16+`
+* `CategoryDTO`
+* `CategoryTranslationDTO`
+* `CategoryCollectionDTO`
+* `CategoryTranslationCollectionDTO`
+* supporting `CategoryIdDTO`
+* `CategoryStatusEnum`
+
+**Exit Gate evidence (Real MySQL Integration tests تثبت):**
+
+* root creation يحصل على valid scoped position
+* second root يحصل على position التالية
+* child scope مستقل
+* second child يزيد position داخل نفس scope
+* newly-created root/child rows قابلة للحركة مباشرة عبر public mutation API
+* لا يوجد test-side SQL normalization لـ`display_order`
+* schema install/cleanup حقيقي
+* trigger behavior حقيقي
+* storage behavior يستخدم Real MySQL وليس SQLite أو mocks
+
+**Verification provenance:**
+
+* Phase 1 verified content tree: `f282d7fd6c0bab361f05694a472bfda8254cd942`
+* Category Package CI run #22 نجحت على ذلك المحتوى.
+* Phase 2 Draft الحالية تحتوي أيضًا CI Phase-Draft trigger fix عند: `319de8bae4b267f21edfe07f651493a21011b191`
+* لا تعتبر CI #22 بديلًا عن CI الخاصة بالـPR الجديدة.
 
 ---
 
