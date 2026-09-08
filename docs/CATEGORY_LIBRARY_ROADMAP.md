@@ -693,6 +693,54 @@ CategoryStatusEnum
 
 ---
 
+### Phase 2 status
+
+`COMPLETED / VERIFIED`
+
+### Verification result
+
+Phase 2 implementation كانت موجودة بالفعل في baseline المندمج من Phase 1، وتم التحقق منها بدل إعادة إنشائها.
+
+### Verified scope
+
+* `maa_category_categories`
+* `maa_category_category_translations`
+* schema types/nullability/defaults/indexes/FKs/constraints/comments
+* InnoDB
+* utf8mb4 / utf8mb4_unicode_ci
+* unique Category code
+* unique `(category_id, language_code)`
+* application-managed timestamps
+* nullable root scope
+* self-parent triggers:
+  * `AFTER INSERT`
+  * `BEFORE UPDATE`
+* MySQL `8.0.16+`
+* `CategoryDTO`
+* `CategoryTranslationDTO`
+* `CategoryCollectionDTO`
+* `CategoryTranslationCollectionDTO`
+* supporting `CategoryIdDTO`
+* `CategoryStatusEnum`
+
+### Exit Gate evidence
+
+تم توثيق أن Real MySQL integration tests تثبت ما يلي:
+
+* root creation gets valid scoped position
+* second root increments position
+* child scope starts independently
+* second child increments position
+* created root and child rows can be moved immediately through public mutation API
+* no test-side `UPDATE display_order` normalization is required
+* schema install/cleanup and trigger behavior use real MySQL
+
+### Verification provenance
+
+آخر verified content tree قبل Phase 2 Draft كانت:
+`f282d7fd6c0bab361f05694a472bfda8254cd942`
+كما أن Category Package CI run #22 كانت successful على نفس repository tree قبل Phase 2 start.
+
 ### Exit Gate
 
 Schema + Core DTOs + Enums مثبتة Unit/Integration، مع إثبات nullable root scope وcreation-time ordering للـroot والـchild.
