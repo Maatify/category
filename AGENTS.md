@@ -31,7 +31,7 @@ upstream، بما في ذلك `standards/` وملفات الحوكمة والت�
 
 النسخ المعيارية المحلية المثبتة في هذه النسخة:
 
-- `standards/ai/AI_COLLABORATION_WORKFLOW_AR.md` — `3.1.0`
+- `standards/ai/AI_COLLABORATION_WORKFLOW_AR.md` — `4.0.0`
 - `standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md` — `1.0.0`
 - `standards/testing/TESTING_STANDARD.md` — `v1`
 
