@@ -214,23 +214,23 @@ jobs:
       - name: Reject host-coupled runtime declarations
         run: |
           set -euo pipefail
-          if jq -r '.require | keys[]' composer.json | rg -i 'adminkernel|admin-control-panel|catalog|slim|php-di'; then
+          if jq -r '.require | keys[]' composer.json | grep -E -i 'adminkernel|admin-control-panel|catalog|slim|php-di'; then
             echo "A forbidden host/runtime Composer dependency is declared."
             exit 1
           fi
-          if rg -n -i 'adminkernel|admin-control-panel|(^|[^[:alnum:]_])catalog([^[:alnum:]_]|$)|(^|[^[:alnum:]_])slim([^[:alnum:]_]|$)|php-di' composer.json src; then
+          if grep -E -n -i 'adminkernel|admin-control-panel|(^|[^[:alnum:]_])catalog([^[:alnum:]_]|$)|(^|[^[:alnum:]_])slim([^[:alnum:]_]|$)|php-di' composer.json src; then
             echo "A forbidden host/runtime symbol is referenced by the package."
             exit 1
           fi
-          if rg -n -P '^(namespace|use)\s+(App|Host|Admin|Catalog|Slim|DI)(\\|\s|;)' src; then
+          if grep -E -n '^(namespace|use)[[:space:]]+(App|Host|Admin|Catalog|Slim|DI)(\\|[[:space:]]|;)' src; then
             echo "A forbidden host namespace is referenced by package runtime code."
             exit 1
           fi
-          if rg -n -P '\b(require|require_once|include|include_once)\b' src; then
+          if grep -E -n '(^|[^[:alnum:]_])(require|require_once|include|include_once)([^[:alnum:]_]|$)' src; then
             echo "Package runtime code includes a host-owned file."
             exit 1
           fi
-          if rg -n -i 'CREATE TABLE[^\n]*(admin|catalog|host)|REFERENCES[^\n]*(admin|catalog|host)' schema; then
+          if grep -E -n -i 'CREATE TABLE.*(admin|catalog|host)|REFERENCES.*(admin|catalog|host)' schema; then
             echo "The package schema references a forbidden host-owned table."
             exit 1
           fi
@@ -254,7 +254,7 @@ jobs:
           composer dump-autoload --optimize --strict-psr --working-dir="$consumer_dir"
           composer check-platform-reqs --working-dir="$consumer_dir"
           jq -e '.packages[] | select(.name == "maatify/category" and .source.type == "git")' "$consumer_dir/composer.lock"
-          if composer show --tree --working-dir="$consumer_dir" | rg -i '\b(adminkernel|admin-control-panel|catalog|slim|php-di)\b'; then
+          if composer show --tree --working-dir="$consumer_dir" | grep -E -i '(^|[^[:alnum:]_])(adminkernel|admin-control-panel|catalog|slim|php-di)([^[:alnum:]_]|$)'; then
             echo "The clean consumer resolved a forbidden host dependency."
             exit 1
           fi
