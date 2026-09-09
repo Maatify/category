@@ -41,6 +41,21 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         return is_array($row) ? $this->hydrateCategory($row) : null;
     }
 
+    public function findByCodeForUpdate(string $code): ?CategoryDTO
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id`, `parent_id`, `code`, `status`, `display_order`, '
+            . '`created_at`, `updated_at`, `deleted_at` '
+            . 'FROM `' . self::CATEGORY_TABLE . '` '
+            . 'WHERE `code` = :code LIMIT 1 FOR UPDATE',
+        );
+        $statement->execute(['code' => $code]);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateCategory($row) : null;
+    }
+
     public function findActiveById(int $categoryId): ?CategoryDTO
     {
         return $this->findCategory($categoryId, true, false);

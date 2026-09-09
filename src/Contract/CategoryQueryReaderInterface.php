@@ -20,6 +20,8 @@ interface CategoryQueryReaderInterface
     /** Finds both active and soft-deleted rows so stable codes cannot be reused. */
     public function findByCode(string $code): ?CategoryDTO;
 
+    public function findByCodeForUpdate(string $code): ?CategoryDTO;
+
     /** Finds only a non-deleted Category for create and move validation. */
     public function findActiveById(int $categoryId): ?CategoryDTO;
 
