@@ -93,7 +93,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Locked v1 Decisions & Implementation Status:**
 * **PHP Requirement:** PHP 8.4+
 * **Database Requirement:** MySQL 8.0.16+, InnoDB, `utf8mb4_unicode_ci`.
-* **Schema Design:** `maa_category_` and `maa_category_translation_`.
+* **Schema Design:** `maa_category_categories` and `maa_category_category_translations`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
 * **Translation Identity:** (category_id, language_code) uniquely identifies a translation.
 * **Translation Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Translation lifecycle only. Parent inactive or soft-deleted does not block those operations.
@@ -136,7 +136,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 ---
 
 ### Milestone 4: v1.0.0 Readiness & Verification (Completed / Pending Owner Release)
-**Engineering Capability:** التجهيز النهائي للمكتبة للإصدار؛ شامل استقلالية المكتبة، CI/CD، مراجعة API، والوثائق.
+**Engineering Capability:** التجهيز النهائي للمكتبة للإصدار؛ شامل استقلالية المكتبة، CI، مراجعة API، والوثائق.
 **Included Legacy Phases:** Phase 12, 13, 14, 15, 16, 17
 **Locked v1 Decisions & Implementation Status:**
 * **Standalone Proof:** Package works purely via `composer require` without AdminKernel, Slim, PHP-DI or Catalog runtime dependency.
@@ -206,7 +206,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 ## 6. Definition of Done for v1.0.0
 
 الآن، مكتبة Category جاهزة للإصدار الأول v1.0.0 ولم يعد هناك تطوير Runtime مطلوب.
-يعتبر الإصدار الأخير مكتملًا ومستعدًا عندما تتحقق البوابات التالية (وكلها تم التحقق منها حاليًا):
+يعتبر الإصدار الأخير مكتملًا ومستعدًا عندما تتحقق البوابات التالية:
 
 * Architecture Locked.
 * Commands / DTOs Separated & Correct.
@@ -217,7 +217,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 * Documentation Complete.
 * Standalone Consumer Verified.
 * Public API Frozen.
-* Readiness gates fully green.
+* Readiness gates verified fully green on the exact current HEAD.
 
 **ما الذي يتبقى قبل v1.0.0؟**
 فقط موافقة مالك المشروع (Owner Approval) لإطلاق Final RC وتحديد بيانات الـRelease (Metadata/Tag/Date).
