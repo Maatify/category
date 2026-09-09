@@ -181,8 +181,8 @@ final class CategoryCommandServiceTest extends TestCase
 
         self::assertSame(CategoryStatusEnum::INACTIVE, $commandRepository->statusUpdated?->status);
         self::assertSame(3, $commandRepository->displayOrderUpdated?->displayOrder);
-        self::assertSame([5, 5], $queryReader->lockedIds);
-        self::assertSame(2, $transaction->runs);
+        self::assertSame([5], $queryReader->lockedIds);
+        self::assertSame(1, $transaction->runs);
     }
 
     public function testTranslationMutationCannotChangeItsLogicalIdentity(): void

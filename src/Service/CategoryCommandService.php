@@ -120,13 +120,9 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void
     {
-        $this->transaction->run(function () use ($command): void {
-            $this->requireActiveCategoryForUpdate($command->categoryId);
-
-            if (!$this->commandRepository->updateDisplayOrder($command, $this->clock->now())) {
-                throw CategoryNotFoundException::withId($command->categoryId);
-            }
-        });
+        if (!$this->commandRepository->updateDisplayOrder($command, $this->clock->now())) {
+            throw CategoryNotFoundException::withId($command->categoryId);
+        }
     }
 
     public function updateTranslation(UpdateCategoryTranslationCommand $command): void
