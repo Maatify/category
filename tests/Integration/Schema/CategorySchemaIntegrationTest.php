@@ -13,6 +13,7 @@ final class CategorySchemaIntegrationTest extends TestCase
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
+    private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
     private const INSERT_TRIGGER = 'trg_maa_category_categories_parent_not_self_ai';
     private const UPDATE_TRIGGER = 'trg_maa_category_categories_parent_not_self_bu';
 
@@ -57,6 +58,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame([
             self::CATEGORY_TABLE,
             self::CONTENT_TABLE,
+            self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
@@ -66,6 +68,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->assertTrigger(self::UPDATE_TRIGGER, 'BEFORE', 'UPDATE');
         $this->assertTableStorage(self::CATEGORY_TABLE);
         $this->assertTableStorage(self::CONTENT_TABLE);
+        $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
 
         $this->dropSchema();
         self::assertSame([], $this->tableNames());
@@ -75,6 +78,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame([
             self::CATEGORY_TABLE,
             self::CONTENT_TABLE,
+            self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
@@ -82,6 +86,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         ], $this->triggerNames());
         $this->assertTableStorage(self::CATEGORY_TABLE);
         $this->assertTableStorage(self::CONTENT_TABLE);
+        $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
     }
 
     public function testValidCategoryHierarchyAndContentCanBeStored(): void
@@ -90,9 +95,12 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->insertCategory(2, 1, 'shirts', 'inactive');
         $this->insertContent(1, 2, 'en-US');
         $this->insertContent(2, 2, null);
+        $this->insertImageAssignment(1, 2, 100, null, null);
+        $this->insertImageAssignment(2, 2, 100, 'en-US', 'web');
 
         self::assertSame(2, $this->rowCount(self::CATEGORY_TABLE));
         self::assertSame(2, $this->rowCount(self::CONTENT_TABLE));
+        self::assertSame(2, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
     }
 
     public function testCategoryCodeMustBeUnique(): void
@@ -119,6 +127,34 @@ final class CategorySchemaIntegrationTest extends TestCase
 
         $this->expectException(PDOException::class);
         $this->insertContent(2, 1, null);
+    }
+
+    public function testImageAssignmentIdentityMustBeUniqueIncludingNullScopeDimensions(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertImageAssignment(1, 1, 100, null, null);
+
+        $this->expectException(PDOException::class);
+        $this->insertImageAssignment(2, 1, 100, null, null);
+    }
+
+    public function testImageAssignmentAllowsTheSameMediaAssetInAnotherExactScope(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertImageAssignment(1, 1, 100, null, null);
+        $this->insertImageAssignment(2, 1, 100, 'en-US', null);
+        $this->insertImageAssignment(3, 1, 100, null, 'web');
+        $this->insertImageAssignment(4, 1, 100, 'en-US', 'web');
+
+        self::assertSame(4, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
+    }
+
+    public function testEmptyImageAssignmentScopeValuesAreRejected(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $this->expectException(PDOException::class);
+        $this->insertImageAssignment(1, 1, 100, '', null);
     }
 
     public function testEmptyLanguageCodeIsNotAnAlternativeToNull(): void
@@ -173,11 +209,18 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->insertContent(1, 999, 'en-US');
     }
 
+    public function testImageAssignmentForeignKeyRejectsMissingCategory(): void
+    {
+        $this->expectException(PDOException::class);
+        $this->insertImageAssignment(1, 999, 100, null, null);
+    }
+
     public function testParentAndCategoryCannotBeDeletedWhileDependentsExist(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
         $this->insertCategory(2, 1, 'shirts', 'active');
         $this->insertContent(1, 1, 'en-US');
+        $this->insertImageAssignment(1, 1, 100, null, null);
 
         $this->expectException(PDOException::class);
         $this->connection()->exec('DELETE FROM `' . self::CATEGORY_TABLE . '` WHERE `id` = 1');
@@ -232,8 +275,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             PREG_SPLIT_NO_EMPTY,
         );
 
-        if (!is_array($statements) || count($statements) !== 4) {
-            throw new RuntimeException('The canonical Category schema must contain exactly two tables and two triggers.');
+        if (!is_array($statements) || count($statements) !== 5) {
+            throw new RuntimeException('The canonical Category schema must contain exactly three tables and two triggers.');
         }
 
         $tableStatements = 0;
@@ -255,8 +298,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             $this->connection()->exec($statement);
         }
 
-        if ($tableStatements !== 2 || $triggerStatements !== 2) {
-            throw new RuntimeException('The canonical Category schema must contain exactly two tables and two triggers.');
+        if ($tableStatements !== 3 || $triggerStatements !== 2) {
+            throw new RuntimeException('The canonical Category schema must contain exactly three tables and two triggers.');
         }
     }
 
@@ -265,6 +308,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $connection = $this->connection();
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::INSERT_TRIGGER . '`');
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::UPDATE_TRIGGER . '`');
+        $connection->exec('DROP TABLE IF EXISTS `' . self::IMAGE_ASSIGNMENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CATEGORY_TABLE . '`');
     }
@@ -358,6 +402,33 @@ final class CategorySchemaIntegrationTest extends TestCase
         ]);
     }
 
+    private function insertImageAssignment(
+        int $id,
+        int $categoryId,
+        int $mediaAssetId,
+        ?string $languageCode,
+        ?string $platform,
+    ): void {
+        $statement = $this->connection()->prepare(
+            'INSERT INTO `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
+            . '(`id`, `category_id`, `media_asset_id`, `language_code`, `platform`, '
+            . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
+            . 'VALUES (:id, :category_id, :media_asset_id, :language_code, :platform, '
+            . ':display_order, :created_at, :updated_at, :deleted_at)',
+        );
+        $statement->execute([
+            'id' => $id,
+            'category_id' => $categoryId,
+            'media_asset_id' => $mediaAssetId,
+            'language_code' => $languageCode,
+            'platform' => $platform,
+            'display_order' => 1,
+            'created_at' => '2026-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'deleted_at' => null,
+        ]);
+    }
+
     /** @return list<string> */
     private function tableNames(): array
     {
@@ -365,7 +436,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             'SELECT TABLE_NAME FROM information_schema.TABLES '
             . 'WHERE TABLE_SCHEMA = DATABASE() '
             . 'AND TABLE_NAME IN ('
-            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "')"
+            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
             . ' ORDER BY TABLE_NAME',
         );
 

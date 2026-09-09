@@ -8,6 +8,7 @@ use Closure;
 use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
@@ -17,9 +18,11 @@ use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
+use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
@@ -489,6 +492,65 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
+    public function testConcurrentImageAssignmentCreationCannotDuplicateExactNullScopeIdentity(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-category'));
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        $insert = $locker->prepare(
+            'INSERT INTO `maa_category_category_image_assignments` '
+            . '(`category_id`, `media_asset_id`, `language_code`, `platform`, `display_order`, `created_at`, `updated_at`) '
+            . 'VALUES (:category_id, :media_asset_id, NULL, NULL, 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+        );
+        $insert->execute([
+            'category_id' => $categoryId,
+            'media_asset_id' => 700,
+        ]);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $categoryId): void {
+                    $blockedService->createImageAssignment(
+                        new CreateCategoryImageAssignmentCommand($categoryId, 700),
+                    );
+                },
+                $blockedConnection,
+                'A competing Image Assignment creation must wait on its exact identity.',
+            );
+
+            $locker->commit();
+
+            try {
+                $blockedService->createImageAssignment(
+                    new CreateCategoryImageAssignmentCommand($categoryId, 700),
+                );
+                self::fail('A committed Image Assignment identity must not be duplicated.');
+            } catch (CategoryImageAssignmentAlreadyExistsException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $statement = $blockedConnection->prepare(
+                'SELECT COUNT(*) FROM `maa_category_category_image_assignments` '
+                . 'WHERE `category_id` = :category_id AND `media_asset_id` = :media_asset_id '
+                . 'AND `language_code` IS NULL AND `platform` IS NULL',
+            );
+            $statement->execute([
+                'category_id' => $categoryId,
+                'media_asset_id' => 700,
+            ]);
+            self::assertSame(1, (int) $statement->fetchColumn());
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
     public function testRestoreWaitsOnTheExistingRowAndPreservesItsIdentity(): void
     {
         $service = $this->service($this->connection());
@@ -571,6 +633,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryQueryReader($connection),
             new PdoCategoryContentCommandRepository($connection),
+            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryTransaction($connection),
             $clock ?? new FixedCategoryClock(),
         );

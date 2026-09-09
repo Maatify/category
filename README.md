@@ -13,7 +13,8 @@
 [![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 [![Contributing Guide](https://img.shields.io/badge/Contributing-Guide-blue.svg)](CONTRIBUTING.md)
 
-Framework-neutral hierarchical categories and contents for reusable PHP applications.
+Framework-neutral hierarchical categories, contents, and Category-owned image
+assignments for reusable PHP applications.
 
 **Status:** v1.0.0 preparation · owner release metadata pending · not published
 
@@ -25,16 +26,20 @@ Framework-neutral hierarchical categories and contents for reusable PHP applicat
 
 `maatify/category` provides typed Category domain/application contracts, PDO
 adapters, MySQL schema, hierarchy invariants, lifecycle operations, ordering,
+and exact-scope references to host Media Asset identities,
 and separate management and visible query/list behavior. It is independent of
 Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Key Features
 
 - Typed immutable Category and Category Content DTOs.
+- Typed Category Image Assignment DTOs with exact language/platform scopes.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
 - Category and Content create, update, soft-delete, and restore lifecycle
   mutations, plus Category status and display-order mutations.
+- Image Assignment create, exact-scope ordering, soft-delete, and restore
+  mutations; stable identity remains reserved after soft deletion.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
@@ -45,8 +50,8 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes ten typed mutation Commands, immutable Category and
-Content DTOs, three bounded criteria DTOs, two enums, typed service and
+The package exposes fourteen typed mutation Commands, immutable Category,
+Content, and Image Assignment DTOs, four bounded criteria DTOs, two enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
 constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
@@ -60,8 +65,9 @@ get-by-code are deferred from v1.
 Management reads and consumer visibility reads are separate contracts.
 Management criteria can select status and deleted state; consumer criteria
 cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
-bounded to at most 100 rows. Category lists use `display_order, id`, and
-Content lists use `language_code, id`.
+bounded to at most 100 rows. Category lists use `display_order, id`; Content
+lists use `language_code, id`; Image Assignment lists use exact scopes and
+deterministic `display_order, id` ordering.
 
 ## Category Content model
 
@@ -71,6 +77,20 @@ content table. Use `language_code: null` for ordinary unlocalized content, or a
 non-NULL language code for localized content. The schema enforces one NULL row
 per Category and one row per non-NULL language code. The package does not select
 fallback content; the Host owns semantic language validation and locale policy.
+
+## Category Image Assignment model
+
+Category owns a direct relation to host-provided Media Asset identities. Each
+assignment has an immutable stable identity of
+`(category_id, media_asset_id, language_code, platform)`, with all four nullable
+scope combinations supported. NULL is an exact scope value, not fallback;
+empty strings are invalid, no platform enum is hardcoded, and the same Media
+Asset may be used in another scope. Category does not own Media, Platform, or
+Language lifecycle and creates no foreign key to those host concepts.
+
+Consumer reads require an exact scope, exclude deleted assignments, and hide
+assignments when any Category ancestor is inactive or deleted. Management reads
+can omit scope filtering or request exact NULL/NULL scope explicitly.
 
 ## Requirements
 

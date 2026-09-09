@@ -13,6 +13,9 @@ use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
@@ -23,6 +26,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
+    private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
 
     public function __construct(private PDO $pdo) {}
 
@@ -106,6 +110,69 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         return new CategoryContentCollectionDTO($items);
     }
 
+    public function findImageAssignmentById(
+        int $assignmentId,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryImageAssignmentDTO {
+        $where = ['`id` = :assignment_id'];
+        $params = ['assignment_id' => $assignmentId];
+        $this->appendDeletedStateFilter($where, $params, $deletedState, 'assignment');
+
+        $statement = $this->pdo->prepare(
+            $this->imageAssignmentSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
+        );
+        $statement->execute($params);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateImageAssignment($row) : null;
+    }
+
+    public function listImageAssignments(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): CategoryImageAssignmentCollectionDTO {
+        $where = [];
+        $params = [];
+        if ($criteria->categoryId !== null) {
+            $where[] = '`assignment`.`category_id` = :image_category_id';
+            $params['image_category_id'] = $criteria->categoryId;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'assignment');
+
+        if ($criteria->scope !== null) {
+            if ($criteria->scope->languageCode === null) {
+                $where[] = '`assignment`.`language_code` IS NULL';
+            } else {
+                $where[] = '`assignment`.`language_code` = :image_language_code';
+                $params['image_language_code'] = $criteria->scope->languageCode;
+            }
+            if ($criteria->scope->platform === null) {
+                $where[] = '`assignment`.`platform` IS NULL';
+            } else {
+                $where[] = '`assignment`.`platform` = :image_platform';
+                $params['image_platform'] = $criteria->scope->platform;
+            }
+        }
+
+        $statement = $this->pdo->prepare(
+            $this->imageAssignmentSelect()
+            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
+            . ' ORDER BY `assignment`.`category_id` ASC, `assignment`.`ordering_scope` ASC, '
+            . '`assignment`.`display_order` ASC, `assignment`.`id` ASC LIMIT :max_results',
+        );
+        $this->executeBounded($statement, $params, $criteria->maxResults);
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        $items = [];
+        foreach ($rows as $row) {
+            $items[] = $this->hydrateImageAssignment($row);
+        }
+
+        /** @var list<CategoryImageAssignmentDTO> $items */
+        return new CategoryImageAssignmentCollectionDTO($items);
+    }
+
     /**
      * @param list<string> $where
      * @param array<string, int|string> $params
@@ -170,6 +237,15 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             . 'FROM `' . self::CONTENT_TABLE . '` AS `content`';
     }
 
+    private function imageAssignmentSelect(): string
+    {
+        return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
+            . '`assignment`.`media_asset_id`, `assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`display_order`, `assignment`.`created_at`, '
+            . '`assignment`.`updated_at`, `assignment`.`deleted_at` '
+            . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
+    }
+
     /** @param array<string, int|string> $params */
     private function executeBounded(\PDOStatement $statement, array $params, int $maxResults): void
     {
@@ -223,6 +299,22 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             languageCode: $this->nullableStringValue($row, 'language_code'),
             name: $this->stringValue($row, 'name'),
             description: $this->nullableStringValue($row, 'description'),
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateImageAssignment(array $row): CategoryImageAssignmentDTO
+    {
+        return new CategoryImageAssignmentDTO(
+            id: $this->integerValue($row, 'id'),
+            categoryId: $this->integerValue($row, 'category_id'),
+            mediaAssetId: $this->integerValue($row, 'media_asset_id'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
+            platform: $this->nullableStringValue($row, 'platform'),
+            displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
             deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),

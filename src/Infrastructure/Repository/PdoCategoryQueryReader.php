@@ -9,6 +9,7 @@ use DateTimeZone;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
@@ -18,6 +19,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
+    private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
 
     public function __construct(private PDO $pdo) {}
 
@@ -78,6 +80,16 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         return $this->findContent($contentId, true);
     }
 
+    public function findImageAssignmentById(int $assignmentId): ?CategoryImageAssignmentDTO
+    {
+        return $this->findImageAssignment($assignmentId, false);
+    }
+
+    public function findImageAssignmentByIdForUpdate(int $assignmentId): ?CategoryImageAssignmentDTO
+    {
+        return $this->findImageAssignment($assignmentId, true);
+    }
+
     private function findContent(int $contentId, bool $forUpdate): ?CategoryContentDTO
     {
         $statement = $this->pdo->prepare(
@@ -92,6 +104,22 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return is_array($row) ? $this->hydrateContent($row) : null;
+    }
+
+    private function findImageAssignment(int $assignmentId, bool $forUpdate): ?CategoryImageAssignmentDTO
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id`, `category_id`, `media_asset_id`, `language_code`, `platform`, '
+            . '`display_order`, `created_at`, `updated_at`, `deleted_at` '
+            . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
+            . 'WHERE `id` = :id LIMIT 1'
+            . ($forUpdate ? ' FOR UPDATE' : ''),
+        );
+        $statement->execute(['id' => $assignmentId]);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateImageAssignment($row) : null;
     }
 
     private function findCategory(int $categoryId, bool $activeOnly, bool $forUpdate): ?CategoryDTO
@@ -154,6 +182,22 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
             languageCode: $this->nullableStringValue($row, 'language_code'),
             name: $this->stringValue($row, 'name'),
             description: $this->nullableStringValue($row, 'description'),
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateImageAssignment(array $row): CategoryImageAssignmentDTO
+    {
+        return new CategoryImageAssignmentDTO(
+            id: $this->integerValue($row, 'id'),
+            categoryId: $this->integerValue($row, 'category_id'),
+            mediaAssetId: $this->integerValue($row, 'media_asset_id'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
+            platform: $this->nullableStringValue($row, 'platform'),
+            displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
             deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),

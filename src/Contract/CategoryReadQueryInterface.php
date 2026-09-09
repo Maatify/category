@@ -7,6 +7,8 @@ namespace Maatify\Category\Contract;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 
 /** Dedicated public read port for visible Category query behavior. */
@@ -38,4 +40,11 @@ interface CategoryReadQueryInterface
         int $categoryId,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryContentCollectionDTO;
+
+    /** Lists assignments for the exact requested scope, with no fallback. */
+    public function listVisibleImageAssignments(
+        int $categoryId,
+        CategoryImageAssignmentScopeDTO $scope,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryImageAssignmentCollectionDTO;
 }

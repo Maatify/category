@@ -29,5 +29,10 @@ tag, release date, or owner-approved release metadata is claimed.
 - Corrected the previous content model to unified Category Content,
   supporting one unlocalized (`language_code = NULL`) row and localized rows
   under a database-enforced logical identity.
+- Added first-class Category Image Assignments with exact nullable
+  language/platform scopes, stable NULL-safe identity, independent shared
+  ordering, soft-delete/restore lifecycle, management reads, and ancestor-aware
+  consumer reads. Category stores only the host-provided Media Asset identity;
+  Media lifecycle remains outside the package.
 
 [Unreleased]: https://github.com/Maatify/category/compare/main...HEAD

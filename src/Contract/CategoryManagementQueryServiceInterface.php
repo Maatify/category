@@ -10,6 +10,9 @@ use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 
 /** Public application contract for management Category reads. */
@@ -36,4 +39,14 @@ interface CategoryManagementQueryServiceInterface
     public function listContents(
         CategoryContentListCriteriaDTO $criteria,
     ): CategoryContentCollectionDTO;
+
+    /** @throws \Maatify\Category\Exception\CategoryImageAssignmentNotFoundException */
+    public function getImageAssignmentById(
+        int $assignmentId,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryImageAssignmentDTO;
+
+    public function listImageAssignments(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): CategoryImageAssignmentCollectionDTO;
 }

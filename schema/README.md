@@ -3,7 +3,7 @@
 The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../CATEGORY_PACKAGE_REFERENCE.md).
 
 This directory contains the package-owned persistence contract for Categories
-and Category Contents.
+and Category Contents, plus Category Image Assignments.
 
 The package requires MySQL 8.0.16 or later. This minimum is part of the storage
 contract because the database schema relies on enforced `CHECK` constraints.
@@ -13,8 +13,9 @@ Integration verification uses the same required runtime version.
 
 - `maa_category_categories`
 - `maa_category_category_contents`
+- `maa_category_category_image_assignments`
 
-Apply [category.sql](category.sql). It creates exactly the two tables and the
+Apply [category.sql](category.sql). It creates exactly the three tables and the
 package-owned self-parent triggers:
 
 - `trg_maa_category_categories_parent_not_self_ai`
@@ -26,6 +27,15 @@ deletion uses nullable `deleted_at`. Internal foreign keys use `RESTRICT` for
 delete and update operations. Category creation obtains the next positive
 `display_order` for the nullable `parent_id` scope through the shared
 `maatify/persistence` Ordering API inside the application transaction.
+
+Category Image Assignments are owned by Category and store only a validated
+host-provided `media_asset_id`; there is deliberately no Media, Platform, or
+Language foreign key. The exact scope is `(language_code, platform)`, where
+each nullable dimension is a real value and not a fallback request. The stable
+identity `(category_id, media_asset_id, language_code, platform)` remains unique
+across soft deletion through generated NULL-safe identity columns. The
+generated `ordering_scope` lets the application use the shared Ordering API
+independently for each Category and exact scope.
 
 Category Content creation, content updates, soft deletion, and restoration
 are exposed through the package command service; consumers do not need direct
