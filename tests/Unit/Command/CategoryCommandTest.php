@@ -10,14 +10,18 @@ use ReflectionNamedType;
 use ReflectionProperty;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
@@ -41,15 +45,20 @@ final class CategoryCommandTest extends TestCase
         $factories = [
             'CreateCategory.parentId' => static fn (int|string $id): object => new CreateCategoryCommand('code', $id),
             'CreateCategoryContent.categoryId' => static fn (int|string $id): object => new CreateCategoryContentCommand($id, 'en-US', 'Name', null),
+            'CreateCategoryImageAssignment.categoryId' => static fn (int|string $id): object => new CreateCategoryImageAssignmentCommand($id, 100),
+            'CreateCategoryImageAssignment.mediaAssetId' => static fn (int|string $id): object => new CreateCategoryImageAssignmentCommand(1, $id),
             'MoveCategory.categoryId' => static fn (int|string $id): object => new MoveCategoryCommand($id, null),
             'MoveCategory.parentId' => static fn (int|string $id): object => new MoveCategoryCommand(42, $id),
             'RestoreCategory.categoryId' => static fn (int|string $id): object => new RestoreCategoryCommand($id),
             'RestoreCategoryContent.contentId' => static fn (int|string $id): object => new RestoreCategoryContentCommand($id),
+            'RestoreCategoryImageAssignment.assignmentId' => static fn (int|string $id): object => new RestoreCategoryImageAssignmentCommand($id),
             'SoftDeleteCategory.categoryId' => static fn (int|string $id): object => new SoftDeleteCategoryCommand($id),
             'SoftDeleteCategoryContent.contentId' => static fn (int|string $id): object => new SoftDeleteCategoryContentCommand($id),
+            'SoftDeleteCategoryImageAssignment.assignmentId' => static fn (int|string $id): object => new SoftDeleteCategoryImageAssignmentCommand($id),
             'UpdateCategoryDisplayOrder.categoryId' => static fn (int|string $id): object => new UpdateCategoryDisplayOrderCommand($id, 1),
             'UpdateCategoryStatus.categoryId' => static fn (int|string $id): object => new UpdateCategoryStatusCommand($id, CategoryStatusEnum::ACTIVE),
             'UpdateCategoryContent.contentId' => static fn (int|string $id): object => new UpdateCategoryContentCommand($id, 'Name', null),
+            'UpdateCategoryImageAssignment.assignmentId' => static fn (int|string $id): object => new UpdateCategoryImageAssignmentDisplayOrderCommand($id, 1),
         ];
 
         foreach ($factories as $name => $factory) {
@@ -79,15 +88,20 @@ final class CategoryCommandTest extends TestCase
     {
         self::assertSame(42, (new CreateCategoryCommand('code', '42'))->parentId);
         self::assertSame(42, (new CreateCategoryContentCommand('42', 'en-US', 'Name', null))->categoryId);
+        self::assertSame(42, (new CreateCategoryImageAssignmentCommand('42', '43'))->categoryId);
+        self::assertSame(43, (new CreateCategoryImageAssignmentCommand('42', '43'))->mediaAssetId);
         self::assertSame(42, (new MoveCategoryCommand('42', '43'))->categoryId);
         self::assertSame(43, (new MoveCategoryCommand('42', '43'))->parentId);
         self::assertSame(42, (new RestoreCategoryCommand('42'))->categoryId);
         self::assertSame(42, (new RestoreCategoryContentCommand('42'))->contentId);
+        self::assertSame(42, (new RestoreCategoryImageAssignmentCommand('42'))->assignmentId);
         self::assertSame(42, (new SoftDeleteCategoryCommand('42'))->categoryId);
         self::assertSame(42, (new SoftDeleteCategoryContentCommand('42'))->contentId);
+        self::assertSame(42, (new SoftDeleteCategoryImageAssignmentCommand('42'))->assignmentId);
         self::assertSame(42, (new UpdateCategoryDisplayOrderCommand('42', 1))->categoryId);
         self::assertSame(42, (new UpdateCategoryStatusCommand('42', CategoryStatusEnum::ACTIVE))->categoryId);
         self::assertSame(42, (new UpdateCategoryContentCommand('42', 'Name', null))->contentId);
+        self::assertSame(42, (new UpdateCategoryImageAssignmentDisplayOrderCommand('42', 1))->assignmentId);
     }
 
     public function testCreateContentAllowsNullForUnlocalizedContent(): void
@@ -111,6 +125,14 @@ final class CategoryCommandTest extends TestCase
             $this->assertInvalidArgument(
                 static fn (): object => new CreateCategoryContentCommand(1, $value, 'Name', null),
                 sprintf('CreateCategoryContent.languageCode must reject %s input.', $label),
+            );
+            $this->assertInvalidArgument(
+                static fn (): object => new CreateCategoryImageAssignmentCommand(1, 100, $value, null),
+                sprintf('CreateCategoryImageAssignment.languageCode must reject %s input.', $label),
+            );
+            $this->assertInvalidArgument(
+                static fn (): object => new CreateCategoryImageAssignmentCommand(1, 100, null, $value),
+                sprintf('CreateCategoryImageAssignment.platform must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
                 static fn (): object => new CreateCategoryContentCommand(1, 'en-US', $value, null),
@@ -203,6 +225,28 @@ final class CategoryCommandTest extends TestCase
         }
     }
 
+    public function testImageAssignmentCreateUsesExactNullableScopeAndNeverAcceptsDisplayOrder(): void
+    {
+        $command = new CreateCategoryImageAssignmentCommand(42, 900, 'en-US', 'web');
+
+        self::assertSame(42, $command->categoryId);
+        self::assertSame(900, $command->mediaAssetId);
+        self::assertSame('en-US', $command->languageCode);
+        self::assertSame('web', $command->platform);
+        self::assertSame(
+            ['categoryId' => 42, 'mediaAssetId' => 900, 'languageCode' => 'en-US', 'platform' => 'web'],
+            $command->jsonSerialize(),
+        );
+        self::assertSame(
+            ['assignmentId', 'displayOrder'],
+            array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                (new ReflectionMethod(UpdateCategoryImageAssignmentDisplayOrderCommand::class, '__construct'))->getParameters(),
+            ),
+        );
+        self::assertFalse(property_exists(CreateCategoryImageAssignmentCommand::class, 'displayOrder'));
+    }
+
     public function testCreateCategoryHasNoDisplayOrderInput(): void
     {
         $parameters = (new ReflectionMethod(CreateCategoryCommand::class, '__construct'))->getParameters();
@@ -226,6 +270,10 @@ final class CategoryCommandTest extends TestCase
             UpdateCategoryStatusCommand::class,
             UpdateCategoryContentCommand::class,
             CreateCategoryContentCommand::class,
+            CreateCategoryImageAssignmentCommand::class,
+            UpdateCategoryImageAssignmentDisplayOrderCommand::class,
+            RestoreCategoryImageAssignmentCommand::class,
+            SoftDeleteCategoryImageAssignmentCommand::class,
         ];
 
         foreach ($mutationCommands as $commandClass) {
@@ -255,18 +303,22 @@ final class CategoryCommandTest extends TestCase
         $expectedCommands = [
             'create' => CreateCategoryCommand::class,
             'createContent' => CreateCategoryContentCommand::class,
+            'createImageAssignment' => CreateCategoryImageAssignmentCommand::class,
             'move' => MoveCategoryCommand::class,
             'softDelete' => SoftDeleteCategoryCommand::class,
             'softDeleteContent' => SoftDeleteCategoryContentCommand::class,
+            'softDeleteImageAssignment' => SoftDeleteCategoryImageAssignmentCommand::class,
             'restore' => RestoreCategoryCommand::class,
             'restoreContent' => RestoreCategoryContentCommand::class,
+            'restoreImageAssignment' => RestoreCategoryImageAssignmentCommand::class,
             'updateStatus' => UpdateCategoryStatusCommand::class,
             'updateDisplayOrder' => UpdateCategoryDisplayOrderCommand::class,
             'updateContent' => UpdateCategoryContentCommand::class,
+            'updateImageAssignmentDisplayOrder' => UpdateCategoryImageAssignmentDisplayOrderCommand::class,
         ];
 
         $serviceReflection = new ReflectionClass(CategoryCommandServiceInterface::class);
-        self::assertCount(10, $expectedCommands);
+        self::assertCount(14, $expectedCommands);
 
         foreach ($expectedCommands as $methodName => $expectedCommand) {
             $method = $serviceReflection->getMethod($methodName);

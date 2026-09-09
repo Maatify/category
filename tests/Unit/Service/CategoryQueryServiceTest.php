@@ -11,6 +11,9 @@ use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryNotFoundException;
@@ -61,16 +64,23 @@ final class CategoryQueryServiceTest extends TestCase
     {
         $categories = new CategoryCollectionDTO([$this->category(1)]);
         $contents = new CategoryContentCollectionDTO([$this->content(2)]);
+        $imageAssignments = new CategoryImageAssignmentCollectionDTO([$this->imageAssignment(3)]);
+        $scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
         $criteria = new CategoryVisibleListCriteriaDTO(2);
         $reader = $this->createMock(CategoryReadQueryInterface::class);
         $reader->expects(self::once())->method('listVisibleRootCategories')->with($criteria)->willReturn($categories);
         $reader->expects(self::once())->method('listVisibleChildren')->with(1, $criteria)->willReturn($categories);
         $reader->expects(self::once())->method('listVisibleContents')->with(1, $criteria)->willReturn($contents);
+        $reader->expects(self::once())
+            ->method('listVisibleImageAssignments')
+            ->with(1, $scope, $criteria)
+            ->willReturn($imageAssignments);
         $service = new CategoryQueryService($reader);
 
         self::assertSame($categories, $service->listRootCategories($criteria));
         self::assertSame($categories, $service->listChildren(1, $criteria));
         self::assertSame($contents, $service->listContents(1, $criteria));
+        self::assertSame($imageAssignments, $service->listImageAssignments(1, $scope, $criteria));
     }
 
     private function category(int $id): CategoryDTO
@@ -99,6 +109,23 @@ final class CategoryQueryServiceTest extends TestCase
             languageCode: 'en-US',
             name: 'Category',
             description: null,
+            createdAt: $timestamp,
+            updatedAt: $timestamp,
+            deletedAt: null,
+        );
+    }
+
+    private function imageAssignment(int $id): CategoryImageAssignmentDTO
+    {
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+
+        return new CategoryImageAssignmentDTO(
+            id: $id,
+            categoryId: 1,
+            mediaAssetId: 900,
+            languageCode: 'en-US',
+            platform: 'web',
+            displayOrder: 1,
             createdAt: $timestamp,
             updatedAt: $timestamp,
             deletedAt: null,

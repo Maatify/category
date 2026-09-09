@@ -6,6 +6,7 @@ namespace Maatify\Category\Contract;
 
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 
 /** Read port consumed by Category business orchestration. */
 interface CategoryQueryReaderInterface
@@ -56,4 +57,9 @@ interface CategoryQueryReaderInterface
      * CategoryTransactionInterface::run() transaction.
      */
     public function findContentByIdForUpdate(int $contentId): ?CategoryContentDTO;
+
+    public function findImageAssignmentById(int $assignmentId): ?CategoryImageAssignmentDTO;
+
+    /** Finds and locks an Image Assignment regardless of soft-delete state. */
+    public function findImageAssignmentByIdForUpdate(int $assignmentId): ?CategoryImageAssignmentDTO;
 }

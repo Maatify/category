@@ -20,7 +20,7 @@ maatify/category
 * Host-agnostic.
 * Framework-neutral.
 * متوافقة بالكامل مع Maatify Engineering Standards.
-* مكتملة وظيفيًا من ناحية Category وCategory Content lifecycle.
+* مكتملة وظيفيًا من ناحية Category وCategory Content وCategory Image Assignment lifecycle.
 * مكتملة من ناحية CRUD.
 * مكتملة من ناحية Persistence وConcurrency.
 * موثقة ومختبرة وقابلة للإصدار.
@@ -81,6 +81,26 @@ This correction supersedes the prior public inventory and schema wording in
 this roadmap. Its implementation evidence is the current Content unit tests,
 Real MySQL schema/PDO tests, query tests, and standalone consumer coverage.
 
+### 1.3 Current Draft capability — Category Image Assignments
+
+The current Draft also provides first-class Category Image Assignments. Category
+owns the direct relationship to a host-provided `media_asset_id`, but does not
+own Media, Platform, or Language lifecycle and creates no foreign key to those
+host concepts. The immutable identity is
+`(category_id, media_asset_id, language_code, platform)`, including soft-deleted
+rows. `language_code` and `platform` are nullable exact scope dimensions; all
+four combinations are supported, empty strings are invalid, and no fallback or
+hardcoded platform enum exists.
+
+The Runtime exposes typed create, exact-scope ordering, soft-delete, restore,
+management-read, and consumer-read contracts. Consumer reads exclude deleted
+assignments and require the complete Category ancestor chain to be visible.
+Management criteria distinguish no scope filter from exact NULL/NULL scope.
+The MySQL schema uses generated NULL-safe identity columns and a generated
+Category-plus-scope ordering key so creation and movement continue to use the
+shared `maatify/persistence` Ordering API. This capability is covered by unit,
+schema, PDO, visibility, lifecycle, concurrency, and standalone consumer tests.
+
 ---
 
 ## 2. Package Identity & Standards Authority
@@ -114,10 +134,11 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Locked v1 Decisions & Implementation Status:**
 * **PHP Requirement:** PHP 8.4+
 * **Database Requirement:** MySQL 8.0.16+, InnoDB, `utf8mb4_unicode_ci`.
-* **Schema Design:** `maa_category_categories` and `maa_category_category_contents`.
+* **Schema Design:** `maa_category_categories`, `maa_category_category_contents`, and `maa_category_category_image_assignments`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
 * **Content Identity:** (category_id, language_code) uniquely identifies Content; `language_code = NULL` is the single unlocalized identity per Category.
 * **Content Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Content lifecycle only. Parent inactive or soft-deleted does not block those operations.
+* **Image Assignment Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Ordering/soft-delete/restore depend on the assignment lifecycle only; exact identity remains reserved after soft deletion.
 * **Display Order:** No implicit default (like 0) in schema. `CreateCategoryCommand` has no `display_order`. Persistence/shared ordering determines next position.
 **Completion Gates:**
 * Schema creation tests pass.
@@ -213,12 +234,20 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 * `UpdateCategoryContentCommand`
 * `SoftDeleteCategoryContentCommand`
 * `RestoreCategoryContentCommand`
+* `CreateCategoryImageAssignmentCommand`
+* `UpdateCategoryImageAssignmentDisplayOrderCommand`
+* `SoftDeleteCategoryImageAssignmentCommand`
+* `RestoreCategoryImageAssignmentCommand`
 
 ### 5.2 DTOs (Read Models)
 * `CategoryDTO`
 * `CategoryContentDTO`
 * `CategoryCollectionDTO`
 * `CategoryContentCollectionDTO`
+* `CategoryImageAssignmentScopeDTO`
+* `CategoryImageAssignmentDTO`
+* `CategoryImageAssignmentCollectionDTO`
+* `CategoryImageAssignmentListCriteriaDTO`
 
 *(Mutation Commands ممنوع تسميتها DTO.)*
 

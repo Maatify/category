@@ -11,16 +11,23 @@ use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +56,17 @@ final class CategoryContractJsonSerializationTest extends TestCase
             updatedAt: $timestamp,
             deletedAt: null,
         );
+        $imageAssignment = new CategoryImageAssignmentDTO(
+            id: 13,
+            categoryId: 7,
+            mediaAssetId: 900,
+            languageCode: null,
+            platform: 'web',
+            displayOrder: 1,
+            createdAt: $timestamp,
+            updatedAt: $timestamp,
+            deletedAt: null,
+        );
 
         $dtos = [
             new CategoryIdDTO(7),
@@ -56,14 +74,20 @@ final class CategoryContractJsonSerializationTest extends TestCase
             $content,
             new CreateCategoryCommand('shirts', 3, CategoryStatusEnum::INACTIVE),
             new CreateCategoryContentCommand(7, null, 'قمصان', 'وصف'),
+            new CreateCategoryImageAssignmentCommand(7, 900, null, 'web'),
             new MoveCategoryCommand(7, 3),
             new RestoreCategoryCommand(7),
             new RestoreCategoryContentCommand(11),
+            new RestoreCategoryImageAssignmentCommand(13),
             new SoftDeleteCategoryCommand(7),
             new SoftDeleteCategoryContentCommand(11),
+            new SoftDeleteCategoryImageAssignmentCommand(13),
             new UpdateCategoryDisplayOrderCommand(7, 4),
             new UpdateCategoryStatusCommand(7, CategoryStatusEnum::INACTIVE),
             new UpdateCategoryContentCommand(11, 'قمصان', 'وصف'),
+            new UpdateCategoryImageAssignmentDisplayOrderCommand(13, 2),
+            new CategoryImageAssignmentScopeDTO(null, 'web'),
+            $imageAssignment,
         ];
 
         foreach ($dtos as $dto) {
@@ -76,6 +100,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
 
         self::assertInstanceOf(JsonSerializable::class, new CategoryCollectionDTO([$category]));
         self::assertInstanceOf(JsonSerializable::class, new CategoryContentCollectionDTO([$content]));
+        self::assertInstanceOf(JsonSerializable::class, new CategoryImageAssignmentCollectionDTO([$imageAssignment]));
 
         self::assertSame([
             'id' => 7,

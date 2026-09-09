@@ -8,8 +8,8 @@ currently pinned to adoption commit `f386948aa873fef9960680411c8918d095d29b93`.
 
 ## Purpose
 
-`maatify/category` is a reusable Base Module for hierarchical Categories and
-optional Category Content. It can be consumed by a Catalog, a navigation system,
+`maatify/category` is a reusable Base Module for hierarchical Categories,
+optional Category Content, and Category-owned Image Assignments. It can be consumed by a Catalog, a navigation system,
 an access taxonomy, or another Host without knowing the Host's framework or
 schema.
 
@@ -21,7 +21,7 @@ The package owns:
 - Category mutation/query contracts.
 - Business orchestration and domain exceptions.
 - Package-local PDO persistence adapters and transaction boundaries.
-- The two package-owned MySQL tables and their internal constraints.
+- The three package-owned MySQL tables and their internal constraints.
 
 The Package owns the syntactic and storage validation of non-NULL
 `language_code` values required by its contract and Runtime. The Host owns dependency injection, HTTP,
@@ -36,6 +36,15 @@ deletion. Category is structural and does not store `name` or `description`.
 Content is identified logically by `(category_id, language_code)`; a NULL
 language code means unlocalized Content, a non-NULL code means localized
 Content, and content may change while that identity cannot.
+
+Category Image Assignments are direct Category-owned references to a host
+Media Asset identity. Their immutable logical identity is
+`(category_id, media_asset_id, language_code, platform)`. `language_code` and
+`platform` are independent nullable exact scope dimensions, so the supported
+scopes are NULL/NULL, language/NULL, NULL/platform, and language/platform; no
+fallback or hardcoded platform enum is defined. Category does not own the
+Media Asset, Language, or Platform lifecycle and creates no foreign key to
+those host concepts.
 
 `status` (`active`/`inactive`) is independent from `deleted_at`. Query
 visibility excludes inactive or soft-deleted Categories and excludes every
@@ -73,6 +82,16 @@ package-owned command operations. Their immutable `(category_id,
 language_code)` identity is enforced by the schema unique key, including the
 single NULL-language identity, and is never accepted by content-update commands.
 
+### Image Assignment parent-state contract
+
+`createImageAssignment()` requires a Category that exists and is not
+soft-deleted; an inactive Category is allowed. Ordering, soft deletion, and
+restoration use dedicated assignment operations and the assignment's own
+lifecycle. Assignment soft deletion does not release its stable identity, so
+the same exact assignment cannot be recreated; restoration preserves the same
+row and identity. An assignment is not a Category child for Category
+soft-delete blocking purposes.
+
 ### Content parent-state contract
 
 The current Runtime resolves parent state as follows, without introducing a
@@ -102,12 +121,15 @@ The package exposes two separate public query ports:
   `CategoryManagementQueryServiceInterface` expose stored management reads.
   Their typed criteria explicitly select Category status and deleted state,
   and bound each list to at most 100 rows. Category lists are ordered by
-  `display_order, id`; Content lists are ordered by `language_code, id`.
+  `display_order, id`; Content lists are ordered by `language_code, id`; Image
+  Assignment lists are ordered deterministically by Category, exact generated
+  scope, `display_order, id`.
 - `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
   consumer visibility reads and apply the complete ancestor visibility rule.
   Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most
   100 rows without exposing status/deleted-state controls. Category lists use
-  `display_order, id`; Content lists use `language_code, id`.
+  `display_order, id`; Content lists use `language_code, id`; Image Assignment
+  reads require an exact scope and use `display_order, id`.
 
 Management reads do not reuse consumer visibility queries. The v1 contract has
 no public management get-by-code, search, or local pagination implementation.
@@ -122,6 +144,12 @@ unpaginated list to 100 rows, and uses `display_order, id` for Category ordering
 and `language_code, id` for Content ordering. Content lists return the NULL
 language identity alongside any language-specific identities and never perform
 implicit fallback.
+
+Visible Image Assignment reads exclude soft-deleted rows, require the
+requested Category's complete ancestor chain to be active and non-deleted, and
+match language/platform with NULL-safe exact predicates. They never search a
+different scope as fallback. Management criteria distinguish an omitted scope
+filter (`scope = null`) from an exact NULL/NULL scope object.
 
 ## v1 API freeze closure
 

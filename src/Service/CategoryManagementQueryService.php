@@ -13,9 +13,13 @@ use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentNotFoundException;
+use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
 
 /** Coordinates the public management Category read contract. */
 final readonly class CategoryManagementQueryService implements CategoryManagementQueryServiceInterface
@@ -71,5 +75,25 @@ final readonly class CategoryManagementQueryService implements CategoryManagemen
         CategoryContentListCriteriaDTO $criteria,
     ): CategoryContentCollectionDTO {
         return $this->reader->listContents($criteria);
+    }
+
+    public function getImageAssignmentById(
+        int $assignmentId,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryImageAssignmentDTO {
+        $id = (new CategoryIdDTO($assignmentId, 'assignmentId'))->value;
+        $assignment = $this->reader->findImageAssignmentById($id, $deletedState);
+
+        if ($assignment === null) {
+            throw CategoryImageAssignmentNotFoundException::withId($id);
+        }
+
+        return $assignment;
+    }
+
+    public function listImageAssignments(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): CategoryImageAssignmentCollectionDTO {
+        return $this->reader->listImageAssignments($criteria);
     }
 }

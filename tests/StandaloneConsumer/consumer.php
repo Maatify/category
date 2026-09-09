@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
@@ -14,6 +17,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
@@ -204,8 +208,8 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         -1,
         PREG_SPLIT_NO_EMPTY,
     );
-    if (!is_array($statements) || count($statements) !== 4) {
-        standalone_consumer_fail('The installed Category schema must contain two tables and two triggers.');
+    if (!is_array($statements) || count($statements) !== 5) {
+        standalone_consumer_fail('The installed Category schema must contain three tables and two triggers.');
     }
 
     foreach ($statements as $statement) {
@@ -218,6 +222,7 @@ function standalone_consumer_drop_schema(\PDO $pdo): void
     foreach ([
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_ai`',
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_bu`',
+        'DROP TABLE IF EXISTS `maa_category_category_image_assignments`',
         'DROP TABLE IF EXISTS `maa_category_category_contents`',
         'DROP TABLE IF EXISTS `maa_category_categories`',
     ] as $statement) {
@@ -296,8 +301,9 @@ try {
         standalone_consumer_database_objects($pdo, 'tables') === [
             'maa_category_categories',
             'maa_category_category_contents',
+            'maa_category_category_image_assignments',
         ],
-        'The standalone schema did not create exactly its two package-owned tables.',
+        'The standalone schema did not create exactly its three package-owned tables.',
     );
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'triggers') === [
@@ -311,6 +317,7 @@ try {
         new PdoCategoryCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryQueryReader($pdo),
         new PdoCategoryContentCommandRepository($pdo),
+        new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryTransaction($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
     );
@@ -325,8 +332,18 @@ try {
     $localizedContentId = $commandService->createContent(
         new CreateCategoryContentCommand($categoryId, 'en-US', 'Standalone Category English', null),
     );
+    $imageAssignmentId = $commandService->createImageAssignment(
+        new CreateCategoryImageAssignmentCommand($categoryId, 700),
+    );
+    $localizedImageAssignmentId = $commandService->createImageAssignment(
+        new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
+    );
     standalone_consumer_require(
-        $categoryId > 0 && $contentId > 0 && $localizedContentId > 0,
+        $categoryId > 0
+        && $contentId > 0
+        && $localizedContentId > 0
+        && $imageAssignmentId > 0
+        && $localizedImageAssignmentId > 0,
         'Standalone mutation returned invalid IDs.',
     );
 
@@ -344,6 +361,17 @@ try {
     standalone_consumer_require(
         $queryService->listContents($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 2,
         'Standalone query did not return both unlocalized and localized Content.',
+    );
+    standalone_consumer_require(
+        $queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 1,
+        'Standalone exact unlocalized Image Assignment query returned the wrong rows.',
+    );
+    standalone_consumer_require(
+        $queryService->listImageAssignments(
+            $categoryId,
+            new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+        )->count() === 1,
+        'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
     );
 
     $managementCategory = $managementService->getById(
@@ -394,6 +422,16 @@ try {
             ),
         )->count() === 2,
         'Standalone management Content list did not return both Content records.',
+    );
+    standalone_consumer_require(
+        $managementService->getImageAssignmentById($imageAssignmentId)->id === $imageAssignmentId,
+        'Standalone management read service returned the wrong Image Assignment.',
+    );
+    standalone_consumer_require(
+        $managementService->listImageAssignments(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+        )->count() === 2,
+        'Standalone management Image Assignment list did not return both scopes.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);

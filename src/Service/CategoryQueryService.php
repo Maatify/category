@@ -11,6 +11,8 @@ use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Exception\CategoryNotFoundException;
 
 /** Coordinates the public visible Category read contract. */
@@ -55,5 +57,15 @@ final readonly class CategoryQueryService implements CategoryQueryServiceInterfa
         $id = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
 
         return $this->reader->listVisibleContents($id, $criteria);
+    }
+
+    public function listImageAssignments(
+        int $categoryId,
+        CategoryImageAssignmentScopeDTO $scope,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryImageAssignmentCollectionDTO {
+        $id = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
+
+        return $this->reader->listVisibleImageAssignments($id, $scope, $criteria);
     }
 }

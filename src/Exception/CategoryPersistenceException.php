@@ -33,6 +33,11 @@ final class CategoryPersistenceException extends SystemMaatifyException
         return new self('Category Content AUTO_INCREMENT did not return a valid identity.');
     }
 
+    public static function invalidImageAssignmentAutoIncrementIdentity(): self
+    {
+        return new self('Category Image Assignment AUTO_INCREMENT did not return a valid identity.');
+    }
+
     public static function invalidStorageValue(string $column, ?Throwable $previous = null): self
     {
         return new self(

@@ -12,6 +12,9 @@ use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
@@ -59,6 +62,7 @@ final class CategoryManagementQueryServiceTest extends TestCase
     {
         $categories = new CategoryCollectionDTO([$this->category(1)]);
         $contents = new CategoryContentCollectionDTO([$this->content(2)]);
+        $imageAssignments = new CategoryImageAssignmentCollectionDTO([$this->imageAssignment(3)]);
         $categoryCriteria = new CategoryListCriteriaDTO(
             status: CategoryStatusEnum::INACTIVE,
             deletedState: CategoryDeletedStateEnum::INCLUDE_DELETED,
@@ -69,17 +73,26 @@ final class CategoryManagementQueryServiceTest extends TestCase
             deletedState: CategoryDeletedStateEnum::DELETED_ONLY,
             maxResults: 3,
         );
+        $imageCriteria = new CategoryImageAssignmentListCriteriaDTO(
+            categoryId: 1,
+            maxResults: 3,
+        );
         $reader = $this->createMock(CategoryManagementReadQueryInterface::class);
         $reader->expects(self::once())->method('listCategories')->with($categoryCriteria)->willReturn($categories);
         $reader->expects(self::once())->method('listRootCategories')->with($categoryCriteria)->willReturn($categories);
         $reader->expects(self::once())->method('listChildren')->with(1, $categoryCriteria)->willReturn($categories);
         $reader->expects(self::once())->method('listContents')->with($contentCriteria)->willReturn($contents);
+        $reader->expects(self::once())
+            ->method('listImageAssignments')
+            ->with($imageCriteria)
+            ->willReturn($imageAssignments);
         $service = new CategoryManagementQueryService($reader);
 
         self::assertSame($categories, $service->listCategories($categoryCriteria));
         self::assertSame($categories, $service->listRootCategories($categoryCriteria));
         self::assertSame($categories, $service->listChildren(1, $categoryCriteria));
         self::assertSame($contents, $service->listContents($contentCriteria));
+        self::assertSame($imageAssignments, $service->listImageAssignments($imageCriteria));
     }
 
     public function testCriteriaRejectNonPositiveCategoryIds(): void
@@ -122,6 +135,23 @@ final class CategoryManagementQueryServiceTest extends TestCase
             languageCode: 'en-US',
             name: 'Category',
             description: null,
+            createdAt: $timestamp,
+            updatedAt: $timestamp,
+            deletedAt: null,
+        );
+    }
+
+    private function imageAssignment(int $id): CategoryImageAssignmentDTO
+    {
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+
+        return new CategoryImageAssignmentDTO(
+            id: $id,
+            categoryId: 1,
+            mediaAssetId: 900,
+            languageCode: 'en-US',
+            platform: 'web',
+            displayOrder: 1,
             createdAt: $timestamp,
             updatedAt: $timestamp,
             deletedAt: null,

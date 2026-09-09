@@ -11,18 +11,24 @@ use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
@@ -204,6 +210,7 @@ final class CategoryCommandServiceTest extends TestCase
             $commandRepository,
             $queryReader,
             $contentRepository,
+            new InMemoryCategoryImageAssignmentCommandRepository(),
             new InMemoryCategoryTransaction(),
             new FixedClock(),
         );
@@ -239,6 +246,7 @@ final class CategoryCommandServiceTest extends TestCase
             new InMemoryCategoryCommandRepository(),
             $queryReader,
             $contentRepository,
+            new InMemoryCategoryImageAssignmentCommandRepository(),
             $transaction,
             new FixedClock(),
         );
@@ -260,6 +268,57 @@ final class CategoryCommandServiceTest extends TestCase
         self::assertSame(4, $transaction->runs);
     }
 
+    public function testImageAssignmentLifecycleUsesTypedOperationsAndKeepsItsIdentity(): void
+    {
+        $assignment = new CategoryImageAssignmentDTO(
+            id: 77,
+            categoryId: 5,
+            mediaAssetId: 900,
+            languageCode: 'en-US',
+            platform: 'web',
+            displayOrder: 1,
+            createdAt: $this->createdAt(),
+            updatedAt: $this->createdAt(),
+            deletedAt: null,
+        );
+        $queryReader = new InMemoryCategoryQueryReader(
+            [$this->category(5, null)],
+            [],
+            [$assignment],
+        );
+        $imageRepository = new InMemoryCategoryImageAssignmentCommandRepository();
+        $transaction = new InMemoryCategoryTransaction();
+        $service = new CategoryCommandService(
+            new InMemoryCategoryCommandRepository(),
+            $queryReader,
+            new InMemoryCategoryContentCommandRepository(),
+            $imageRepository,
+            $transaction,
+            new FixedClock(),
+        );
+
+        $createdId = $service->createImageAssignment(
+            new CreateCategoryImageAssignmentCommand(5, 900, 'en-US', 'web'),
+        );
+        $service->updateImageAssignmentDisplayOrder(
+            new UpdateCategoryImageAssignmentDisplayOrderCommand($createdId, 2),
+        );
+        $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($createdId));
+        $service->restoreImageAssignment(new RestoreCategoryImageAssignmentCommand($createdId));
+
+        self::assertSame(77, $createdId);
+        self::assertNotNull($imageRepository->created);
+        self::assertNotNull($imageRepository->displayOrderUpdated);
+        self::assertNotNull($imageRepository->softDeleted);
+        self::assertNotNull($imageRepository->restored);
+        self::assertSame(5, $imageRepository->created->categoryId);
+        self::assertSame(900, $imageRepository->created->mediaAssetId);
+        self::assertSame(2, $imageRepository->displayOrderUpdated->displayOrder);
+        self::assertSame($createdId, $imageRepository->softDeleted->assignmentId);
+        self::assertSame($createdId, $imageRepository->restored->assignmentId);
+        self::assertSame(3, $transaction->runs);
+    }
+
     private function service(
         InMemoryCategoryCommandRepository $commandRepository,
         InMemoryCategoryQueryReader $queryReader,
@@ -269,6 +328,7 @@ final class CategoryCommandServiceTest extends TestCase
             $commandRepository,
             $queryReader,
             new InMemoryCategoryContentCommandRepository(),
+            new InMemoryCategoryImageAssignmentCommandRepository(),
             $transaction ?? new InMemoryCategoryTransaction(),
             new FixedClock(),
         );
@@ -311,17 +371,22 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
     /** @var list<CategoryDTO> */
     private array $categories;
 
-    /** @var list<CategoryContentDTO> */
-    private array $contents;
+        /** @var list<CategoryContentDTO> */
+        private array $contents;
+
+    /** @var list<CategoryImageAssignmentDTO> */
+    private array $assignments;
 
     /**
      * @param list<CategoryDTO>            $categories
      * @param list<CategoryContentDTO> $contents
+     * @param list<CategoryImageAssignmentDTO> $assignments
      */
-    public function __construct(array $categories, array $contents = [])
+    public function __construct(array $categories, array $contents = [], array $assignments = [])
     {
         $this->categories = $categories;
         $this->contents = $contents;
+        $this->assignments = $assignments;
     }
 
     public function findById(int $categoryId): ?CategoryDTO
@@ -398,6 +463,22 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
         $this->lockedContentIds[] = $contentId;
 
         return $this->findContentById($contentId);
+    }
+
+    public function findImageAssignmentById(int $assignmentId): ?CategoryImageAssignmentDTO
+    {
+        foreach ($this->assignments as $assignment) {
+            if ($assignment->id === $assignmentId) {
+                return $assignment;
+            }
+        }
+
+        return null;
+    }
+
+    public function findImageAssignmentByIdForUpdate(int $assignmentId): ?CategoryImageAssignmentDTO
+    {
+        return $this->findImageAssignmentById($assignmentId);
     }
 }
 
@@ -495,6 +576,49 @@ final class InMemoryCategoryContentCommandRepository implements CategoryContentC
 
     public function restore(
         RestoreCategoryContentCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->restored = $command;
+
+        return true;
+    }
+}
+
+/** @internal Test-only in-memory image assignment command port. */
+final class InMemoryCategoryImageAssignmentCommandRepository implements CategoryImageAssignmentCommandRepositoryInterface
+{
+    public ?CreateCategoryImageAssignmentCommand $created = null;
+    public ?UpdateCategoryImageAssignmentDisplayOrderCommand $displayOrderUpdated = null;
+    public ?SoftDeleteCategoryImageAssignmentCommand $softDeleted = null;
+    public ?RestoreCategoryImageAssignmentCommand $restored = null;
+
+    public function create(CreateCategoryImageAssignmentCommand $command, DateTimeImmutable $occurredAt): int
+    {
+        $this->created = $command;
+
+        return 77;
+    }
+
+    public function updateDisplayOrder(
+        UpdateCategoryImageAssignmentDisplayOrderCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->displayOrderUpdated = $command;
+
+        return true;
+    }
+
+    public function softDelete(
+        SoftDeleteCategoryImageAssignmentCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->softDeleted = $command;
+
+        return true;
+    }
+
+    public function restore(
+        RestoreCategoryImageAssignmentCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $this->restored = $command;
