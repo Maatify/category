@@ -39,4 +39,13 @@ final class CategoryInvalidArgumentException extends InvalidArgumentMaatifyExcep
     {
         return new self(sprintf('Category [%d] cannot be its own parent.', $categoryId));
     }
+
+    public static function invalidListLimit(int $limit, int $maximum): self
+    {
+        return new self(sprintf(
+            'List maxResults must be between 1 and %d, got %d.',
+            $maximum,
+            $limit,
+        ));
+    }
 }

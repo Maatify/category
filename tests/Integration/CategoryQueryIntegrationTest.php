@@ -9,6 +9,7 @@ use Maatify\Category\Command\CreateCategoryTranslationCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
@@ -49,6 +50,83 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         self::assertNull($reader->findVisibleById($inactiveId));
         self::assertNull($reader->findVisibleById($deletedId));
         self::assertSame([$secondId, $thirdId, $firstId], $this->categoryIds($queryService->listRootCategories()));
+    }
+
+    public function testConsumerVisibilityListsAreBoundedAndRetainVisibilityOrdering(): void
+    {
+        $connection = $this->connection();
+        $commandService = $this->commandService($connection);
+        $firstRootId = $commandService->create(new CreateCategoryCommand('bounded-root-first'));
+        $secondRootId = $commandService->create(new CreateCategoryCommand('bounded-root-second'));
+        $thirdRootId = $commandService->create(new CreateCategoryCommand('bounded-root-third'));
+        $inactiveRootId = $commandService->create(new CreateCategoryCommand('bounded-root-inactive'));
+        $deletedRootId = $commandService->create(new CreateCategoryCommand('bounded-root-deleted'));
+        $firstChildId = $commandService->create(new CreateCategoryCommand('bounded-child-first', $firstRootId));
+        $secondChildId = $commandService->create(new CreateCategoryCommand('bounded-child-second', $firstRootId));
+        $thirdChildId = $commandService->create(new CreateCategoryCommand('bounded-child-third', $firstRootId));
+        $inactiveChildId = $commandService->create(new CreateCategoryCommand('bounded-child-inactive', $firstRootId));
+        $deletedChildId = $commandService->create(new CreateCategoryCommand('bounded-child-deleted', $firstRootId));
+
+        $commandService->createTranslation(
+            new CreateCategoryTranslationCommand($firstRootId, 'en-US', 'Bounded', null),
+        );
+        $commandService->createTranslation(
+            new CreateCategoryTranslationCommand($firstRootId, 'ar-EG', 'محدود', null),
+        );
+        $deletedTranslationId = $commandService->createTranslation(
+            new CreateCategoryTranslationCommand($firstRootId, 'fr-FR', 'Limite', null),
+        );
+
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveRootId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryCommand($deletedRootId));
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($inactiveChildId, CategoryStatusEnum::INACTIVE));
+        $commandService->softDelete(new SoftDeleteCategoryCommand($deletedChildId));
+        $commandService->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($deletedTranslationId));
+
+        $this->setDisplayOrder($connection, $firstRootId, 1);
+        $this->setDisplayOrder($connection, $secondRootId, 1);
+        $this->setDisplayOrder($connection, $thirdRootId, 2);
+        $this->setDisplayOrder($connection, $inactiveRootId, 3);
+        $this->setDisplayOrder($connection, $deletedRootId, 3);
+        $this->setDisplayOrder($connection, $firstChildId, 1);
+        $this->setDisplayOrder($connection, $secondChildId, 1);
+        $this->setDisplayOrder($connection, $thirdChildId, 2);
+
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $bounded = new CategoryVisibleListCriteriaDTO(2);
+        $defaultBound = new CategoryVisibleListCriteriaDTO();
+
+        self::assertSame(
+            [$firstRootId, $secondRootId],
+            $this->categoryIds($queryService->listRootCategories($bounded)),
+        );
+        self::assertSame(
+            [$firstChildId, $secondChildId],
+            $this->categoryIds($queryService->listChildren($firstRootId, $bounded)),
+        );
+        self::assertSame(
+            ['ar-EG', 'en-US'],
+            $this->translationLanguages($queryService->listTranslations($firstRootId, $bounded)),
+        );
+
+        $visibleRoots = $this->categoryIds($queryService->listRootCategories($defaultBound));
+        self::assertSame([$firstRootId, $secondRootId, $thirdRootId], $visibleRoots);
+        self::assertNotContains($inactiveRootId, $visibleRoots);
+        self::assertNotContains($deletedRootId, $visibleRoots);
+
+        $visibleChildren = $this->categoryIds($queryService->listChildren($firstRootId, $defaultBound));
+        self::assertSame([$firstChildId, $secondChildId, $thirdChildId], $visibleChildren);
+        self::assertNotContains($inactiveChildId, $visibleChildren);
+        self::assertNotContains($deletedChildId, $visibleChildren);
+
+        self::assertSame(
+            ['ar-EG', 'en-US'],
+            $this->translationLanguages($queryService->listTranslations($firstRootId, $defaultBound)),
+        );
+
+        $commandService->updateStatus(new UpdateCategoryStatusCommand($firstRootId, CategoryStatusEnum::INACTIVE));
+        self::assertSame([], $this->categoryIds($queryService->listChildren($firstRootId, $defaultBound)));
+        self::assertTrue($queryService->listTranslations($firstRootId, $defaultBound)->isEmpty());
     }
 
     public function testChildrenAreOrderedAndHiddenWhenAnyAncestorIsInactive(): void
@@ -141,6 +219,17 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         }
 
         return $ids;
+    }
+
+    /** @return list<string> */
+    private function translationLanguages(\Maatify\Category\DTO\CategoryTranslationCollectionDTO $translations): array
+    {
+        $languages = [];
+        foreach ($translations as $translation) {
+            $languages[] = $translation->languageCode;
+        }
+
+        return $languages;
     }
 
     private function commandService(PDO $connection): CategoryCommandService
