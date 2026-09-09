@@ -5,10 +5,17 @@
 ![Maatify.dev](https://www.maatify.dev/assets/img/img/maatify_logo_white.svg)
 
 [![Maatify Ecosystem](https://img.shields.io/badge/Maatify-Ecosystem-blueviolet)](https://github.com/Maatify)
+[![PHP](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PHPStan](https://img.shields.io/badge/PHPStan-level%20max-2F9E44.svg)](phpstan.neon)
+[![Changelog](https://img.shields.io/badge/Changelog-View-blue.svg)](CHANGELOG.md)
+[![Package Reference](https://img.shields.io/badge/Reference-Read-blue.svg)](CATEGORY_PACKAGE_REFERENCE.md)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
+[![Contributing Guide](https://img.shields.io/badge/Contributing-Guide-blue.svg)](CONTRIBUTING.md)
 
 Framework-neutral hierarchical categories and translations for reusable PHP applications.
 
-**Status:** Development / pre-1.0.0 · Install after publication with `composer require maatify/category`
+**Status:** v1.0.0 release-candidate preparation · not published
 
 </div>
 
@@ -18,8 +25,8 @@ Framework-neutral hierarchical categories and translations for reusable PHP appl
 
 `maatify/category` provides typed Category domain/application contracts, PDO
 adapters, MySQL schema, hierarchy invariants, lifecycle operations, ordering,
-and separate management and visible query/list behavior. It is independent of Catalog, Product, Admin,
-Slim, HTTP, permissions, and presentation layers.
+and separate management and visible query/list behavior. It is independent of
+Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Key Features
 
@@ -36,9 +43,29 @@ Slim, HTTP, permissions, and presentation layers.
   deleted-state controls while consumer criteria do not.
 - No associative arrays as public or domain contracts.
 
+## Public Runtime API
+
+The package exposes ten typed mutation Commands, immutable Category and
+Translation DTOs, three bounded criteria DTOs, two enums, typed service and
+repository contracts, and framework-neutral PDO adapters. The complete
+constructor and method inventory is maintained in the
+[Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
+
+The internal `findByCode()` mutation-support lookup is deliberately not exposed
+as a management service method. Pagination, search, and public management
+get-by-code are deferred from v1.
+
+## Query and list behavior
+
+Management reads and consumer visibility reads are separate contracts.
+Management criteria can select status and deleted state; consumer criteria
+cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
+bounded to at most 100 rows. Category lists use `display_order, id`, and
+Translation lists use `language_code, id`.
+
 ## Requirements
 
-- PHP 8.4 or later.
+- PHP 8.4 or a compatible later PHP 8.x release, as constrained by Composer.
 - Composer.
 - MySQL 8.0.16 or later, required by the package storage contract because
   enforced `CHECK` constraints are part of the schema behavior.
@@ -89,6 +116,10 @@ envelopes, and presentation formatting.
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
+The standalone consumer verification builds a clean temporary Composer project
+from the package VCS source and exercises installation, optimized PSR-4
+autoloading, platform checks, schema installation, and host-isolation checks.
+
 ## Quality Status
 
 Run the package checks from the repository root:
@@ -99,6 +130,7 @@ composer dump-autoload --optimize --strict-psr
 composer check-platform-reqs
 composer audit --no-interaction --abandoned=fail
 composer analyse
+find src tests -type f -name '*.php' -exec php -l {} \;
 composer test:unit
 composer test:integration
 composer test
@@ -120,6 +152,9 @@ cp env.testing.example env.testing
 composer test:integration
 composer test
 ```
+
+Packagist, tags, GitHub Releases, and a stable `v1.0.0` publication are not
+performed by this repository preparation.
 
 ## License
 

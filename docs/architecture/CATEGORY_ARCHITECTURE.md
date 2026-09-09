@@ -2,6 +2,10 @@
 
 The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../../CATEGORY_PACKAGE_REFERENCE.md).
 
+Normative standards provenance is resolved by
+[`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](../php-engineering-standards/STANDARDS_MANIFEST.md),
+currently pinned to adoption commit `f386948aa873fef9960680411c8918d095d29b93`.
+
 ## Purpose
 
 `maatify/category` is a reusable Base Module for hierarchical Categories and
@@ -85,6 +89,14 @@ The package exposes two separate public query ports:
 Management reads do not reuse consumer visibility queries. The v1 contract has
 no public management get-by-code, search, or local pagination implementation.
 Results are typed DTOs and collections, never associative arrays.
+
+`CategoryQueryReaderInterface::findByCode()` is an internal
+mutation-support lookup only. It is not exposed by either query service and is
+not part of the public management API.
+
+The v1 query contract intentionally defers pagination and search, bounds every
+unpaginated list to 100 rows, and uses `display_order, id` for Category ordering
+and `language_code, id` for Translation ordering.
 
 ## Non-goals
 

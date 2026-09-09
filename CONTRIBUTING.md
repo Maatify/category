@@ -32,6 +32,11 @@ composer test:unit
 composer test
 ```
 
+The CI standalone-consumer check creates a clean temporary Composer project,
+installs this package from its VCS source, verifies optimized PSR-4 loading and
+platform requirements, installs the package schema in isolated MySQL, and
+executes the consumer script without Host-owned files or dependencies.
+
 Integration verification uses real MySQL 8.0.16 or later and requires:
 
 ```bash
