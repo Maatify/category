@@ -69,10 +69,22 @@ accepted by content-update commands.
 
 ## Query contract
 
-The public query port is separate from mutation-support reads. It provides
-identity reads, root lists, direct-child lists, and Translation reads. Lists
-are ordered by `display_order, id`; there is no local pagination or language
-fallback. Results are typed DTOs and collections, never associative arrays.
+The package exposes two separate public query ports:
+
+- `CategoryManagementReadQueryInterface` and
+  `CategoryManagementQueryServiceInterface` expose stored management reads.
+  Their typed criteria explicitly select Category status and deleted state,
+  and bound each list to at most 100 rows. Category lists are ordered by
+  `display_order, id`; Translation lists are ordered by `language_code, id`.
+- `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
+  consumer visibility reads and apply the complete ancestor visibility rule.
+  Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most
+  100 rows without exposing status/deleted-state controls. Category lists use
+  `display_order, id`; Translation lists use `language_code, id`.
+
+Management reads do not reuse consumer visibility queries. The v1 contract has
+no public management get-by-code, search, or local pagination implementation.
+Results are typed DTOs and collections, never associative arrays.
 
 ## Non-goals
 

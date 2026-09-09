@@ -1169,6 +1169,8 @@ Translation mutation CRUD كاملة.
 
 ## 19. Phase 7 — Management Read Model
 
+**Status:** مكتملة ضمن Work Unit `codex/phase-management-query-hardening`.
+
 ### الهدف
 
 إكمال Read من CRUD للـmanagement/use-case APIs.
@@ -1182,7 +1184,7 @@ Translation mutation CRUD كاملة.
 على الأقل:
 
 * Get Category by ID.
-* Get Category by code إذا كان contract النهائي يحتاجه.
+* لا يضاف public management get-by-code في `v1`.
 * List Categories.
 * List roots.
 * List direct children.
@@ -1244,6 +1246,9 @@ Deleted only
 ### Exit Gate
 
 الإدارة تستطيع قراءة الحالة الفعلية للـCategory/Translations بدون استخدام Consumer Visibility queries.
+
+تم تثبيت أن Management Read Model لا يضيف public get-by-code أو Search، وأن
+كل list تستخدم Criteria DTO وحالة deleted صريحة وحدًا أقصى آمنًا.
 
 ---
 
@@ -1311,6 +1316,8 @@ Management reads وConsumer reads منفصلين تمامًا.
 
 ## 21. Phase 9 — Pagination, Ordering & Query Hardening
 
+**Status:** مكتملة ضمن Work Unit `codex/phase-management-query-hardening`.
+
 ### الهدف
 
 منع وجود list APIs غير production-ready أو implementation مكرر.
@@ -1364,7 +1371,15 @@ Standard.
 
 ### Exit Gate
 
-كل list contract deterministic ومحدودة/موثقة بشكل production-safe، مع قرار صريح بشأن Pagination وSearch وGet-by-code قبل بدء التنفيذ.
+كل Management وConsumer list contract deterministic ومحدودة/موثقة بشكل
+production-safe. Consumer visibility تستخدم `CategoryVisibleListCriteriaDTO`
+المنفصلة، وتحافظ على filtering الخاص بالحالة والحذف وقاعدة ancestor visibility؛
+لا توجد صلاحية لتجاوزها. Pagination وSearch وGet-by-code مؤجلة/غير مضافة في
+`v1` بقرار صريح.
+
+قرار `v1`: Pagination وSearch وpublic management get-by-code مؤجلة/غير معلنة.
+القوائم غير المرقمة bounded بحد أقصى 100 صف، وترتيب Category هو
+`display_order, id`، ولا تنفذ الحزمة local pagination أو local ordering engine.
 
 ---
 

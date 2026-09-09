@@ -53,6 +53,9 @@ The production namespace is `Maatify\Category\`.
 
 Status is independent from soft deletion.
 
+`Maatify\Category\Enum\CategoryDeletedStateEnum` explicitly selects
+`non_deleted`, `include_deleted`, or `deleted_only` for management reads.
+
 ### DTOs
 
 The immutable record DTOs are:
@@ -62,6 +65,9 @@ The immutable record DTOs are:
 - `CategoryTranslationDTO`
 - `CategoryCollectionDTO`
 - `CategoryTranslationCollectionDTO`
+- `CategoryListCriteriaDTO`
+- `CategoryTranslationListCriteriaDTO`
+- `CategoryVisibleListCriteriaDTO`
 
 ### Commands
 
@@ -96,6 +102,8 @@ the stable Category code remains immutable after creation.
   restore, status, and display order.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
   identity and list reads.
+- `CategoryManagementQueryServiceInterface` and
+  `CategoryManagementQueryService` expose management identity and list reads.
 - `CategoryCommandRepositoryInterface` is the Category write port.
 - `CategoryTranslationCommandRepositoryInterface` is the Translation
   lifecycle write port.
@@ -105,11 +113,27 @@ the stable Category code remains immutable after creation.
   application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
+- Consumer visibility list methods accept only the typed
+  `CategoryVisibleListCriteriaDTO`, which bounds each call to 1–100 rows. It
+  exposes no status or deleted-state override, preserving consumer visibility
+  semantics and the complete ancestor rule.
+- `CategoryManagementReadQueryInterface` is the dedicated management read port
+  and is separate from both mutation-support reads and consumer visibility
+  reads.
 - `CategoryTransactionInterface` defines the transaction boundary used by the
   application service.
 
-Root and child lists are ordered by `display_order, id`. The package does not
-add local pagination or language fallback.
+Management Category lists accept `CategoryListCriteriaDTO`, apply an optional
+status filter and an explicit `CategoryDeletedStateEnum`, and are bounded to
+at most 100 rows per call. Management Translation lists accept
+`CategoryTranslationListCriteriaDTO`, optionally filter by Category, apply an
+explicit deleted state, and use the same bound. Category lists are ordered by
+`display_order, id`; Translation lists are ordered by `language_code, id`.
+The package does not add local pagination, search, or language fallback.
+Consumer Category lists use the same maximum of 100 through their separate
+criteria DTO; root and child lists use `display_order, id`, and Translation
+lists use `language_code, id`. The bound is applied by the persistence query
+with a typed integer parameter; pagination and search remain deferred.
 
 ## Business invariants
 
@@ -128,6 +152,14 @@ add local pagination or language fallback.
 
 ## Query visibility contract
 
+Management query methods expose stored Category and Translation state for
+management/use-case consumers. They do not apply consumer ancestor visibility
+rules. Management reads provide Category get-by-ID, bounded all/root/child
+lists, Translation get-by-ID, and bounded Translation lists. Deleted records
+are returned only when the caller explicitly selects `include_deleted` or
+`deleted_only`; management get-by-code, search, and pagination are not part of
+the v1 public contract.
+
 Visible query methods:
 
 - Read one Category by identity.
@@ -137,7 +169,8 @@ Visible query methods:
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
 any ancestor in its complete parent path is inactive or soft-deleted. Query
-methods return typed DTOs and do not select a language or apply fallback.
+methods return typed DTOs and do not select a language or apply fallback. Their
+criteria cannot opt out of inactive/deleted filtering.
 
 ## Persistence contract
 
@@ -209,4 +242,5 @@ including CI's isolated MySQL configuration.
 - HTTP/API routes, controllers, middleware, permissions, Twig, and JavaScript.
 - Presentation serialization and response envelopes.
 - Local pagination or host language fallback.
+- Management search and public management get-by-code.
 - A separate Catalog entity or Catalog identity.
