@@ -77,9 +77,14 @@ schema أو Composer أو CI أو tests أو الوثائق الأخرى لمج�
 `git add .` أو `git add -A`.
 
 تُطبق دورة Phase Stack على العمل ذي التغيير: يبدأ من أحدث `main` موثق، ثم Phase
-Draft، ثم Work Units وComponent PRs إلى الـDraft. لا تُدمج Component PR أو Phase
-Draft إلى `main` دون تصريح مستقل، ولا تعتبر Verification أو Final Review
-Component ما لم تنتج تغييرًا مستودعيًا مستقلًا.
+Draft، ثم Work Units وComponent PRs إلى الـDraft. تُدار Component PRs وGitHub
+Squash Merge إلى الـPhase Draft وفق Standing Execution Authority المحددة في
+المعايير المحلية بعد اعتماد Scope واجتياز المراجعة والـGates، ولا تحتاج تأكيدًا
+جديدًا من المالك لكل Component. يظل دمج الـPhase Draft إلى `main` قرارًا مستقلًا
+ومحصورًا بمالك المشروع. تبقى عمليات Git المحلية، ومنها `git merge`، خاضعة
+لصلاحياتها الصريحة ولا يُستنتج تصريحها من Standing Execution Authority. ولا
+تعتبر Verification أو Final Review Component ما لم تنتج تغييرًا مستودعيًا
+مستقلًا.
 
 لغة التعاون والتقارير العربية افتراضيًا، مع إبقاء أسماء الملفات والأوامر وGit
 SHAs والمصطلحات التقنية بصيغتها الأصلية عند الحاجة للدقة.
