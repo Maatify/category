@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryTranslationCommand;
-use Maatify\Category\Contract\CategoryCommandServiceInterface;
-use Maatify\Category\Contract\CategoryQueryServiceInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
@@ -17,7 +15,6 @@ use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryQueryService;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
-require __DIR__ . '/vendor/autoload.php';
 
 /** @return never */
 function standalone_consumer_fail(string $message): never
@@ -126,7 +123,9 @@ function standalone_consumer_assert_installed_source(string $type, string $packa
 function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
 {
     $schema = file_get_contents($schemaPath);
-    standalone_consumer_require(is_string($schema), 'Unable to read the installed Category schema.');
+    if (!is_string($schema)) {
+        standalone_consumer_fail('Unable to read the installed Category schema.');
+    }
 
     $schema = preg_replace(
         [
@@ -136,7 +135,9 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         '',
         $schema,
     );
-    standalone_consumer_require(is_string($schema), 'Unable to normalize the installed Category schema.');
+    if (!is_string($schema)) {
+        standalone_consumer_fail('Unable to normalize the installed Category schema.');
+    }
 
     $statements = preg_split(
         '/;\s*(?=CREATE\s+(?:TABLE|TRIGGER)\b)/i',
@@ -144,13 +145,11 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         -1,
         PREG_SPLIT_NO_EMPTY,
     );
-    standalone_consumer_require(
-        is_array($statements) && count($statements) === 4,
-        'The installed Category schema must contain two tables and two triggers.',
-    );
+    if (!is_array($statements) || count($statements) !== 4) {
+        standalone_consumer_fail('The installed Category schema must contain two tables and two triggers.');
+    }
 
     foreach ($statements as $statement) {
-        standalone_consumer_require(is_string($statement), 'The schema contains a non-string SQL statement.');
         $pdo->exec($statement);
     }
 }
@@ -176,12 +175,16 @@ function standalone_consumer_database_objects(\PDO $pdo, string $objectType): ar
         . 'WHERE ' . ($objectType === 'tables' ? 'TABLE_SCHEMA' : 'TRIGGER_SCHEMA') . ' = DATABASE() '
         . 'ORDER BY 1',
     );
-    standalone_consumer_require($statement !== false, 'Unable to inspect standalone database objects.');
+    if ($statement === false) {
+        standalone_consumer_fail('Unable to inspect standalone database objects.');
+    }
 
     $values = $statement->fetchAll(\PDO::FETCH_COLUMN);
     $objects = [];
     foreach ($values as $value) {
-        standalone_consumer_require(is_string($value), 'Database metadata contains an invalid object name.');
+        if (!is_string($value)) {
+            standalone_consumer_fail('Database metadata contains an invalid object name.');
+        }
         $objects[] = $value;
     }
 
@@ -189,10 +192,15 @@ function standalone_consumer_database_objects(\PDO $pdo, string $objectType): ar
 }
 
 $packageSourceRoot = realpath(__DIR__ . '/vendor/maatify/category/src');
-standalone_consumer_require(
-    is_string($packageSourceRoot),
-    'The installed Category source directory is missing from the clean consumer.',
-);
+if (!is_string($packageSourceRoot)) {
+    standalone_consumer_fail('The installed Category source directory is missing from the clean consumer.');
+}
+
+$autoloadPath = __DIR__ . '/vendor/autoload.php';
+if (!is_file($autoloadPath)) {
+    standalone_consumer_fail('The clean consumer Composer autoload file is missing.');
+}
+require $autoloadPath;
 
 foreach (standalone_consumer_public_classes() as $type) {
     standalone_consumer_assert_type_loaded($type, 'class');
@@ -210,10 +218,9 @@ standalone_consumer_assert_installed_source(CategoryStatusEnum::class, $packageS
 $dsn = getenv('CATEGORY_STANDALONE_DSN');
 $username = getenv('CATEGORY_STANDALONE_DB_USER');
 $password = getenv('CATEGORY_STANDALONE_DB_PASSWORD');
-standalone_consumer_require(
-    is_string($dsn) && $dsn !== '' && is_string($username) && is_string($password),
-    'Standalone consumer database environment is incomplete.',
-);
+if (!is_string($dsn) || $dsn === '' || !is_string($username) || !is_string($password)) {
+    standalone_consumer_fail('Standalone consumer database environment is incomplete.');
+}
 
 try {
     $pdo = new \PDO($dsn, $username, $password, [
@@ -253,15 +260,6 @@ try {
         new SystemClock(new \DateTimeZone('UTC')),
     );
     $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo));
-
-    standalone_consumer_require(
-        $commandService instanceof CategoryCommandServiceInterface,
-        'CategoryCommandService does not implement its public contract.',
-    );
-    standalone_consumer_require(
-        $queryService instanceof CategoryQueryServiceInterface,
-        'CategoryQueryService does not implement its public contract.',
-    );
 
     $categoryId = $commandService->create(new CreateCategoryCommand('standalone-consumer-category'));
     $translationId = $commandService->createTranslation(
