@@ -12,7 +12,7 @@ use RuntimeException;
 abstract class CategoryMySqlIntegrationTestCase extends TestCase
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
     private const INSERT_TRIGGER = 'trg_maa_category_categories_parent_not_self_ai';
     private const UPDATE_TRIGGER = 'trg_maa_category_categories_parent_not_self_bu';
 
@@ -125,7 +125,7 @@ abstract class CategoryMySqlIntegrationTestCase extends TestCase
         }
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::INSERT_TRIGGER . '`');
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::UPDATE_TRIGGER . '`');
-        $connection->exec('DROP TABLE IF EXISTS `' . self::TRANSLATION_TABLE . '`');
+        $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CATEGORY_TABLE . '`');
     }
 }

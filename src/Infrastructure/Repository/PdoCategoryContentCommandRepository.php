@@ -5,28 +5,28 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
-use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
-use Maatify\Category\Command\RestoreCategoryTranslationCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
-use Maatify\Category\Command\UpdateCategoryTranslationCommand;
+use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
+use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Exception\CategoryPersistenceException;
-use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
+use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
 use PDO;
 use PDOException;
 
-/** PDO write adapter for Category translation content. */
-final readonly class PdoCategoryTranslationCommandRepository implements CategoryTranslationCommandRepositoryInterface
+/** PDO write adapter for Category Content. */
+final readonly class PdoCategoryContentCommandRepository implements CategoryContentCommandRepositoryInterface
 {
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
 
     public function __construct(private PDO $pdo) {}
 
-    public function create(CreateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): int
+    public function create(CreateCategoryContentCommand $command, DateTimeImmutable $occurredAt): int
     {
         try {
             $statement = $this->pdo->prepare(
-                'INSERT INTO `' . self::TRANSLATION_TABLE . '` '
+                'INSERT INTO `' . self::CONTENT_TABLE . '` '
                 . '(`category_id`, `language_code`, `name`, `description`, '
                 . '`created_at`, `updated_at`, `deleted_at`) '
                 . 'VALUES (:category_id, :language_code, :name, :description, '
@@ -44,7 +44,7 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
         } catch (PDOException $exception) {
             $driverCode = $exception->errorInfo[1] ?? null;
             if ((is_int($driverCode) || is_string($driverCode)) && (int) $driverCode === 1062) {
-                throw CategoryTranslationAlreadyExistsException::withIdentity(
+                throw CategoryContentAlreadyExistsException::withIdentity(
                     $command->categoryId,
                     $command->languageCode,
                     $exception,
@@ -56,16 +56,16 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
 
         $id = $this->pdo->lastInsertId();
         if ($id === false || !ctype_digit($id) || (int) $id < 1) {
-            throw CategoryPersistenceException::invalidTranslationAutoIncrementIdentity();
+            throw CategoryPersistenceException::invalidContentAutoIncrementIdentity();
         }
 
         return (int) $id;
     }
 
-    public function update(UpdateCategoryTranslationCommand $command, DateTimeImmutable $occurredAt): bool
+    public function update(UpdateCategoryContentCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $statement = $this->pdo->prepare(
-            'UPDATE `' . self::TRANSLATION_TABLE . '` '
+            'UPDATE `' . self::CONTENT_TABLE . '` '
             . 'SET `name` = :name, `description` = :description, `updated_at` = :updated_at '
             . 'WHERE `id` = :id AND `deleted_at` IS NULL',
         );
@@ -73,18 +73,18 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
             'name' => $command->name,
             'description' => $command->description,
             'updated_at' => $this->formatTimestamp($occurredAt),
-            'id' => $command->translationId,
+            'id' => $command->contentId,
         ]);
 
         return $statement->rowCount() > 0;
     }
 
     public function softDelete(
-        SoftDeleteCategoryTranslationCommand $command,
+        SoftDeleteCategoryContentCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $statement = $this->pdo->prepare(
-            'UPDATE `' . self::TRANSLATION_TABLE . '` '
+            'UPDATE `' . self::CONTENT_TABLE . '` '
             . 'SET `deleted_at` = :deleted_at, `updated_at` = :updated_at '
             . 'WHERE `id` = :id AND `deleted_at` IS NULL',
         );
@@ -92,24 +92,24 @@ final readonly class PdoCategoryTranslationCommandRepository implements Category
         $statement->execute([
             'deleted_at' => $timestamp,
             'updated_at' => $timestamp,
-            'id' => $command->translationId,
+            'id' => $command->contentId,
         ]);
 
         return $statement->rowCount() > 0;
     }
 
     public function restore(
-        RestoreCategoryTranslationCommand $command,
+        RestoreCategoryContentCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $statement = $this->pdo->prepare(
-            'UPDATE `' . self::TRANSLATION_TABLE . '` '
+            'UPDATE `' . self::CONTENT_TABLE . '` '
             . 'SET `deleted_at` = NULL, `updated_at` = :updated_at '
             . 'WHERE `id` = :id AND `deleted_at` IS NOT NULL',
         );
         $statement->execute([
             'updated_at' => $this->formatTimestamp($occurredAt),
-            'id' => $command->translationId,
+            'id' => $command->contentId,
         ]);
 
         return $statement->rowCount() > 0;

@@ -6,7 +6,7 @@ namespace Maatify\Category\Contract;
 
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 
 /** Dedicated public read port for visible Category query behavior. */
@@ -30,12 +30,12 @@ interface CategoryReadQueryInterface
     ): CategoryCollectionDTO;
 
     /**
-     * Lists non-deleted translations for a visible Category in language-code
+     * Lists non-deleted contents for a visible Category in language-code
      * order. The Package validates the syntactic/storage contract; the Host
      * validates semantic language support and owns fallback/locale policy.
      */
-    public function listVisibleTranslations(
+    public function listVisibleContents(
         int $categoryId,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryTranslationCollectionDTO;
+    ): CategoryContentCollectionDTO;
 }

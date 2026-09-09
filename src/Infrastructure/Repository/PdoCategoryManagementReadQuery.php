@@ -10,9 +10,9 @@ use Maatify\Category\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
@@ -22,7 +22,7 @@ use PDO;
 final readonly class PdoCategoryManagementReadQuery implements CategoryManagementReadQueryInterface
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
 
     public function __construct(private PDO $pdo) {}
 
@@ -59,37 +59,37 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         ], ['parent_id' => $parentId]);
     }
 
-    public function findTranslationById(
-        int $translationId,
+    public function findContentById(
+        int $contentId,
         CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryTranslationDTO {
-        $where = ['`id` = :translation_id'];
-        $params = ['translation_id' => $translationId];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'translation');
+    ): ?CategoryContentDTO {
+        $where = ['`id` = :content_id'];
+        $params = ['content_id' => $contentId];
+        $this->appendDeletedStateFilter($where, $params, $deletedState, 'content');
 
         $statement = $this->pdo->prepare(
-            $this->translationSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
+            $this->contentSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
         );
         $statement->execute($params);
         /** @var array<string, mixed>|false $row */
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
-        return is_array($row) ? $this->hydrateTranslation($row) : null;
+        return is_array($row) ? $this->hydrateContent($row) : null;
     }
 
-    public function listTranslations(
-        CategoryTranslationListCriteriaDTO $criteria,
-    ): CategoryTranslationCollectionDTO {
+    public function listContents(
+        CategoryContentListCriteriaDTO $criteria,
+    ): CategoryContentCollectionDTO {
         $where = [];
         $params = [];
         if ($criteria->categoryId !== null) {
-            $where[] = '`category_id` = :translation_category_id';
-            $params['translation_category_id'] = $criteria->categoryId;
+            $where[] = '`category_id` = :content_category_id';
+            $params['content_category_id'] = $criteria->categoryId;
         }
-        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'translation');
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'content');
 
         $statement = $this->pdo->prepare(
-            $this->translationSelect()
+            $this->contentSelect()
             . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
             . ' ORDER BY `language_code` ASC, `id` ASC LIMIT :max_results',
         );
@@ -99,11 +99,11 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
 
         $items = [];
         foreach ($rows as $row) {
-            $items[] = $this->hydrateTranslation($row);
+            $items[] = $this->hydrateContent($row);
         }
 
-        /** @var list<CategoryTranslationDTO> $items */
-        return new CategoryTranslationCollectionDTO($items);
+        /** @var list<CategoryContentDTO> $items */
+        return new CategoryContentCollectionDTO($items);
     }
 
     /**
@@ -163,11 +163,11 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             . 'FROM `' . self::CATEGORY_TABLE . '` AS `category`';
     }
 
-    private function translationSelect(): string
+    private function contentSelect(): string
     {
         return 'SELECT `id`, `category_id`, `language_code`, `name`, `description`, '
             . '`created_at`, `updated_at`, `deleted_at` '
-            . 'FROM `' . self::TRANSLATION_TABLE . '` AS `translation`';
+            . 'FROM `' . self::CONTENT_TABLE . '` AS `content`';
     }
 
     /** @param array<string, int|string> $params */
@@ -215,12 +215,12 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
     }
 
     /** @param array<string, mixed> $row */
-    private function hydrateTranslation(array $row): CategoryTranslationDTO
+    private function hydrateContent(array $row): CategoryContentDTO
     {
-        return new CategoryTranslationDTO(
+        return new CategoryContentDTO(
             id: $this->integerValue($row, 'id'),
             categoryId: $this->integerValue($row, 'category_id'),
-            languageCode: $this->stringValue($row, 'language_code'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
             name: $this->stringValue($row, 'name'),
             description: $this->nullableStringValue($row, 'description'),
             createdAt: $this->timestampValue($row, 'created_at'),

@@ -9,7 +9,7 @@ use Maatify\Category\Contract\CategoryQueryServiceInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Exception\CategoryNotFoundException;
 
@@ -47,13 +47,13 @@ final readonly class CategoryQueryService implements CategoryQueryServiceInterfa
         return $this->reader->listVisibleChildren($id, $criteria);
     }
 
-    public function listTranslations(
+    public function listContents(
         int $categoryId,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryTranslationCollectionDTO
+    ): CategoryContentCollectionDTO
     {
         $id = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
 
-        return $this->reader->listVisibleTranslations($id, $criteria);
+        return $this->reader->listVisibleContents($id, $criteria);
     }
 }

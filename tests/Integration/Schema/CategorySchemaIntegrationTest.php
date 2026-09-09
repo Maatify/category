@@ -12,7 +12,7 @@ use RuntimeException;
 final class CategorySchemaIntegrationTest extends TestCase
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
     private const INSERT_TRIGGER = 'trg_maa_category_categories_parent_not_self_ai';
     private const UPDATE_TRIGGER = 'trg_maa_category_categories_parent_not_self_bu';
 
@@ -56,7 +56,7 @@ final class CategorySchemaIntegrationTest extends TestCase
     {
         self::assertSame([
             self::CATEGORY_TABLE,
-            self::TRANSLATION_TABLE,
+            self::CONTENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
@@ -65,7 +65,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->assertTrigger(self::INSERT_TRIGGER, 'AFTER', 'INSERT');
         $this->assertTrigger(self::UPDATE_TRIGGER, 'BEFORE', 'UPDATE');
         $this->assertTableStorage(self::CATEGORY_TABLE);
-        $this->assertTableStorage(self::TRANSLATION_TABLE);
+        $this->assertTableStorage(self::CONTENT_TABLE);
 
         $this->dropSchema();
         self::assertSame([], $this->tableNames());
@@ -74,24 +74,25 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->installSchema();
         self::assertSame([
             self::CATEGORY_TABLE,
-            self::TRANSLATION_TABLE,
+            self::CONTENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
             self::UPDATE_TRIGGER,
         ], $this->triggerNames());
         $this->assertTableStorage(self::CATEGORY_TABLE);
-        $this->assertTableStorage(self::TRANSLATION_TABLE);
+        $this->assertTableStorage(self::CONTENT_TABLE);
     }
 
-    public function testValidCategoryHierarchyAndTranslationCanBeStored(): void
+    public function testValidCategoryHierarchyAndContentCanBeStored(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
         $this->insertCategory(2, 1, 'shirts', 'inactive');
-        $this->insertTranslation(1, 2, 'en-US');
+        $this->insertContent(1, 2, 'en-US');
+        $this->insertContent(2, 2, null);
 
         self::assertSame(2, $this->rowCount(self::CATEGORY_TABLE));
-        self::assertSame(1, $this->rowCount(self::TRANSLATION_TABLE));
+        self::assertSame(2, $this->rowCount(self::CONTENT_TABLE));
     }
 
     public function testCategoryCodeMustBeUnique(): void
@@ -102,13 +103,30 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->insertCategory(2, null, 'clothing', 'active');
     }
 
-    public function testTranslationIdentityMustBeUnique(): void
+    public function testContentIdentityMustBeUnique(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
-        $this->insertTranslation(1, 1, 'en-US');
+        $this->insertContent(1, 1, 'en-US');
 
         $this->expectException(PDOException::class);
-        $this->insertTranslation(2, 1, 'en-US');
+        $this->insertContent(2, 1, 'en-US');
+    }
+
+    public function testUnlocalizedContentIdentityMustBeUnique(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertContent(1, 1, null);
+
+        $this->expectException(PDOException::class);
+        $this->insertContent(2, 1, null);
+    }
+
+    public function testEmptyLanguageCodeIsNotAnAlternativeToNull(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $this->expectException(PDOException::class);
+        $this->insertContent(1, 1, '');
     }
 
     public function testStatusCheckRejectsUnknownValues(): void
@@ -149,17 +167,17 @@ final class CategorySchemaIntegrationTest extends TestCase
         );
     }
 
-    public function testTranslationForeignKeyRejectsMissingCategory(): void
+    public function testContentForeignKeyRejectsMissingCategory(): void
     {
         $this->expectException(PDOException::class);
-        $this->insertTranslation(1, 999, 'en-US');
+        $this->insertContent(1, 999, 'en-US');
     }
 
     public function testParentAndCategoryCannotBeDeletedWhileDependentsExist(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
         $this->insertCategory(2, 1, 'shirts', 'active');
-        $this->insertTranslation(1, 1, 'en-US');
+        $this->insertContent(1, 1, 'en-US');
 
         $this->expectException(PDOException::class);
         $this->connection()->exec('DELETE FROM `' . self::CATEGORY_TABLE . '` WHERE `id` = 1');
@@ -247,7 +265,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $connection = $this->connection();
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::INSERT_TRIGGER . '`');
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::UPDATE_TRIGGER . '`');
-        $connection->exec('DROP TABLE IF EXISTS `' . self::TRANSLATION_TABLE . '`');
+        $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CATEGORY_TABLE . '`');
     }
 
@@ -321,10 +339,10 @@ final class CategorySchemaIntegrationTest extends TestCase
         return $nextId;
     }
 
-    private function insertTranslation(int $id, int $categoryId, string $languageCode): void
+    private function insertContent(int $id, int $categoryId, ?string $languageCode): void
     {
         $statement = $this->connection()->prepare(
-            'INSERT INTO `' . self::TRANSLATION_TABLE . '` '
+            'INSERT INTO `' . self::CONTENT_TABLE . '` '
             . '(`id`, `category_id`, `language_code`, `name`, `description`, `created_at`, `updated_at`, `deleted_at`) '
             . 'VALUES (:id, :category_id, :language_code, :name, :description, :created_at, :updated_at, :deleted_at)',
         );
@@ -347,7 +365,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             'SELECT TABLE_NAME FROM information_schema.TABLES '
             . 'WHERE TABLE_SCHEMA = DATABASE() '
             . 'AND TABLE_NAME IN ('
-            . "'" . self::CATEGORY_TABLE . "', '" . self::TRANSLATION_TABLE . "')"
+            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "')"
             . ' ORDER BY TABLE_NAME',
         );
 

@@ -7,20 +7,24 @@ namespace Maatify\Category\Exception;
 use Maatify\Exceptions\Exception\Conflict\GenericConflictMaatifyException;
 use Throwable;
 
-final class CategoryTranslationAlreadyExistsException extends GenericConflictMaatifyException
+final class CategoryContentAlreadyExistsException extends GenericConflictMaatifyException
     implements CategoryExceptionInterface
 {
     public static function withIdentity(
         int $categoryId,
-        string $languageCode,
+        ?string $languageCode,
         ?Throwable $previous = null,
     ): self
     {
+        $identity = $languageCode === null
+            ? 'the unlocalized language identity'
+            : sprintf('language "%s"', $languageCode);
+
         return new self(
             sprintf(
-                'Category Translation for Category %d and language "%s" already exists.',
+                'Category Content for Category %d and %s already exists.',
                 $categoryId,
-                $languageCode,
+                $identity,
             ),
             0,
             $previous,

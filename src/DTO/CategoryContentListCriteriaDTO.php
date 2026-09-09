@@ -7,8 +7,8 @@ namespace Maatify\Category\DTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Typed, bounded criteria for management Category Translation list reads. */
-final readonly class CategoryTranslationListCriteriaDTO implements \JsonSerializable
+/** Typed, bounded criteria for management Category Content list reads. */
+final readonly class CategoryContentListCriteriaDTO implements \JsonSerializable
 {
     public const DEFAULT_MAX_RESULTS = 100;
     public const MAX_MAX_RESULTS = 100;

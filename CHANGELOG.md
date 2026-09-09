@@ -12,8 +12,8 @@ tag, release date, or owner-approved release metadata is claimed.
 
 ### Added
 
-- Initial standalone extraction of the reusable Category and Category
-  Translation domain/application contracts.
+- Initial standalone extraction of the reusable Category and optional Category
+  Content domain/application contracts.
 - MySQL schema, PDO repositories, transaction adapter, and real-engine
   Integration tests for hierarchy, lifecycle, ordering, and visibility.
 - Root Package Reference and standards-aligned Composer/CI configuration.
@@ -26,5 +26,8 @@ tag, release date, or owner-approved release metadata is claimed.
   unpaginated lists, deterministic ordering, and deferred pagination/search.
 - Prepared release-facing documentation for owner approval without creating a
   tag, release, or Packagist publication.
+- Corrected the previous content model to unified Category Content,
+  supporting one unlocalized (`language_code = NULL`) row and localized rows
+  under a database-enforced logical identity.
 
 [Unreleased]: https://github.com/Maatify/category/compare/main...HEAD

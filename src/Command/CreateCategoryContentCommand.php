@@ -7,25 +7,25 @@ namespace Maatify\Category\Command;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Validated command for creating a Category Translation with a stable identity. */
-final readonly class CreateCategoryTranslationCommand implements \JsonSerializable
+/** Validated command for creating a Category Content with a stable identity. */
+final readonly class CreateCategoryContentCommand implements \JsonSerializable
 {
     public int $categoryId;
-    public string $languageCode;
+    public ?string $languageCode;
     public string $name;
     public ?string $description;
 
     public function __construct(
         int|string $categoryId,
-        string $languageCode,
+        ?string $languageCode,
         string $name,
         ?string $description,
     ) {
-        if (trim($languageCode) === '') {
+        if ($languageCode !== null && trim($languageCode) === '') {
             throw CategoryInvalidArgumentException::emptyField('languageCode');
         }
 
-        if (mb_strlen($languageCode) > 16) {
+        if ($languageCode !== null && mb_strlen($languageCode) > 16) {
             throw CategoryInvalidArgumentException::fieldTooLong('languageCode', 16);
         }
 
@@ -43,7 +43,7 @@ final readonly class CreateCategoryTranslationCommand implements \JsonSerializab
         $this->description = $description;
     }
 
-    /** @return array{categoryId: int, languageCode: string, name: string, description: ?string} */
+    /** @return array{categoryId: int, languageCode: ?string, name: string, description: ?string} */
     public function jsonSerialize(): mixed
     {
         return [

@@ -10,12 +10,12 @@ use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationNotFoundException;
+use Maatify\Category\Exception\CategoryContentNotFoundException;
 
 /** Coordinates the public management Category read contract. */
 final readonly class CategoryManagementQueryService implements CategoryManagementQueryServiceInterface
@@ -53,23 +53,23 @@ final readonly class CategoryManagementQueryService implements CategoryManagemen
         return $this->reader->listChildren($id, $criteria);
     }
 
-    public function getTranslationById(
-        int $translationId,
+    public function getContentById(
+        int $contentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
-    ): CategoryTranslationDTO {
-        $id = (new CategoryIdDTO($translationId, 'translationId'))->value;
-        $translation = $this->reader->findTranslationById($id, $deletedState);
+    ): CategoryContentDTO {
+        $id = (new CategoryIdDTO($contentId, 'contentId'))->value;
+        $content = $this->reader->findContentById($id, $deletedState);
 
-        if ($translation === null) {
-            throw CategoryTranslationNotFoundException::withId($id);
+        if ($content === null) {
+            throw CategoryContentNotFoundException::withId($id);
         }
 
-        return $translation;
+        return $content;
     }
 
-    public function listTranslations(
-        CategoryTranslationListCriteriaDTO $criteria,
-    ): CategoryTranslationCollectionDTO {
-        return $this->reader->listTranslations($criteria);
+    public function listContents(
+        CategoryContentListCriteriaDTO $criteria,
+    ): CategoryContentCollectionDTO {
+        return $this->reader->listContents($criteria);
     }
 }

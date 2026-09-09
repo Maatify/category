@@ -28,9 +28,9 @@ final class CategoryPersistenceException extends SystemMaatifyException
         return new self('Category AUTO_INCREMENT did not return a valid identity.');
     }
 
-    public static function invalidTranslationAutoIncrementIdentity(): self
+    public static function invalidContentAutoIncrementIdentity(): self
     {
-        return new self('Category Translation AUTO_INCREMENT did not return a valid identity.');
+        return new self('Category Content AUTO_INCREMENT did not return a valid identity.');
     }
 
     public static function invalidStorageValue(string $column, ?Throwable $previous = null): self

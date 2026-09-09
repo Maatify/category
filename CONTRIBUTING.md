@@ -3,7 +3,7 @@
 ## Scope
 
 Keep this repository framework-neutral and focused on reusable Category and
-Category Translation behavior. Do not add Catalog, Product, Admin/Slim,
+optional Category Content behavior. Do not add Catalog, Product, Admin/Slim,
 presentation, or Host-specific integrations to this package.
 
 The stable package contract is [CATEGORY_PACKAGE_REFERENCE.md](CATEGORY_PACKAGE_REFERENCE.md).

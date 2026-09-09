@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Integration;
 
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationNotFoundException;
+use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
@@ -106,52 +106,52 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         );
     }
 
-    public function testTranslationManagementReadsFilterByCategoryAndDeletedState(): void
+    public function testContentManagementReadsFilterByCategoryAndDeletedState(): void
     {
         $connection = $this->connection();
         $commandService = $this->commandService($connection);
-        $categoryId = $commandService->create(new CreateCategoryCommand('management-translations'));
-        $otherCategoryId = $commandService->create(new CreateCategoryCommand('management-other-translations'));
-        $englishId = $commandService->createTranslation(
-            new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Shirts', null),
+        $categoryId = $commandService->create(new CreateCategoryCommand('management-contents'));
+        $otherCategoryId = $commandService->create(new CreateCategoryCommand('management-other-contents'));
+        $englishId = $commandService->createContent(
+            new CreateCategoryContentCommand($categoryId, 'en-US', 'Shirts', null),
         );
-        $arabicId = $commandService->createTranslation(
-            new CreateCategoryTranslationCommand($categoryId, 'ar-EG', 'قمصان', null),
+        $arabicId = $commandService->createContent(
+            new CreateCategoryContentCommand($categoryId, 'ar-EG', 'قمصان', null),
         );
-        $deletedId = $commandService->createTranslation(
-            new CreateCategoryTranslationCommand($categoryId, 'fr-FR', 'Chemises', null),
+        $deletedId = $commandService->createContent(
+            new CreateCategoryContentCommand($categoryId, 'fr-FR', 'Chemises', null),
         );
-        $commandService->createTranslation(
-            new CreateCategoryTranslationCommand($otherCategoryId, 'en-US', 'Other', null),
+        $commandService->createContent(
+            new CreateCategoryContentCommand($otherCategoryId, 'en-US', 'Other', null),
         );
-        $commandService->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($deletedId));
+        $commandService->softDeleteContent(new SoftDeleteCategoryContentCommand($deletedId));
 
         $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
-        $categoryCriteria = new CategoryTranslationListCriteriaDTO(categoryId: $categoryId);
-        $activeIds = $this->translationIds($service->listTranslations($categoryCriteria));
+        $categoryCriteria = new CategoryContentListCriteriaDTO(categoryId: $categoryId);
+        $activeIds = $this->contentIds($service->listContents($categoryCriteria));
 
         self::assertSame([$arabicId, $englishId], $activeIds);
         self::assertSame(
             [$deletedId],
-            $this->translationIds($service->listTranslations(new CategoryTranslationListCriteriaDTO(
+            $this->contentIds($service->listContents(new CategoryContentListCriteriaDTO(
                 categoryId: $categoryId,
                 deletedState: CategoryDeletedStateEnum::DELETED_ONLY,
             ))),
         );
         self::assertSame(
             [$arabicId, $englishId, $deletedId],
-            $this->translationIds($service->listTranslations(new CategoryTranslationListCriteriaDTO(
+            $this->contentIds($service->listContents(new CategoryContentListCriteriaDTO(
                 categoryId: $categoryId,
                 deletedState: CategoryDeletedStateEnum::INCLUDE_DELETED,
             ))),
         );
-        self::assertSame($deletedId, $service->getTranslationById(
+        self::assertSame($deletedId, $service->getContentById(
             $deletedId,
             CategoryDeletedStateEnum::DELETED_ONLY,
         )->id);
 
-        $this->expectException(CategoryTranslationNotFoundException::class);
-        $service->getTranslationById($deletedId);
+        $this->expectException(CategoryContentNotFoundException::class);
+        $service->getContentById($deletedId);
     }
 
     /** @return list<int> */
@@ -166,11 +166,11 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
     }
 
     /** @return list<int> */
-    private function translationIds(\Maatify\Category\DTO\CategoryTranslationCollectionDTO $translations): array
+    private function contentIds(\Maatify\Category\DTO\CategoryContentCollectionDTO $contents): array
     {
         $ids = [];
-        foreach ($translations as $translation) {
-            $ids[] = $translation->id;
+        foreach ($contents as $content) {
+            $ids[] = $content->id;
         }
 
         return $ids;
@@ -181,7 +181,7 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryQueryReader($connection),
-            new PdoCategoryTranslationCommandRepository($connection),
+            new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryTransaction($connection),
             new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
         );

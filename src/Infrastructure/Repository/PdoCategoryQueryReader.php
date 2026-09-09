@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
@@ -17,7 +17,7 @@ use PDO;
 final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterface
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
 
     public function __construct(private PDO $pdo) {}
 
@@ -68,30 +68,30 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         return $statement->fetch(PDO::FETCH_ASSOC) !== false;
     }
 
-    public function findTranslationById(int $translationId): ?CategoryTranslationDTO
+    public function findContentById(int $contentId): ?CategoryContentDTO
     {
-        return $this->findTranslation($translationId, false);
+        return $this->findContent($contentId, false);
     }
 
-    public function findTranslationByIdForUpdate(int $translationId): ?CategoryTranslationDTO
+    public function findContentByIdForUpdate(int $contentId): ?CategoryContentDTO
     {
-        return $this->findTranslation($translationId, true);
+        return $this->findContent($contentId, true);
     }
 
-    private function findTranslation(int $translationId, bool $forUpdate): ?CategoryTranslationDTO
+    private function findContent(int $contentId, bool $forUpdate): ?CategoryContentDTO
     {
         $statement = $this->pdo->prepare(
             'SELECT `id`, `category_id`, `language_code`, `name`, `description`, '
             . '`created_at`, `updated_at`, `deleted_at` '
-            . 'FROM `' . self::TRANSLATION_TABLE . '` '
+            . 'FROM `' . self::CONTENT_TABLE . '` '
             . 'WHERE `id` = :id LIMIT 1'
             . ($forUpdate ? ' FOR UPDATE' : ''),
         );
-        $statement->execute(['id' => $translationId]);
+        $statement->execute(['id' => $contentId]);
         /** @var array<string, mixed>|false $row */
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
-        return is_array($row) ? $this->hydrateTranslation($row) : null;
+        return is_array($row) ? $this->hydrateContent($row) : null;
     }
 
     private function findCategory(int $categoryId, bool $activeOnly, bool $forUpdate): ?CategoryDTO
@@ -146,12 +146,12 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     }
 
     /** @param array<string, mixed> $row */
-    private function hydrateTranslation(array $row): CategoryTranslationDTO
+    private function hydrateContent(array $row): CategoryContentDTO
     {
-        return new CategoryTranslationDTO(
+        return new CategoryContentDTO(
             id: $this->integerValue($row, 'id'),
             categoryId: $this->integerValue($row, 'category_id'),
-            languageCode: $this->stringValue($row, 'language_code'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
             name: $this->stringValue($row, 'name'),
             description: $this->nullableStringValue($row, 'description'),
             createdAt: $this->timestampValue($row, 'created_at'),

@@ -8,8 +8,8 @@ use DateTimeImmutable;
 use Maatify\Category\Contract\CategoryReadQueryInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
@@ -60,17 +60,17 @@ final class CategoryQueryServiceTest extends TestCase
     public function testListOperationsReturnTypedCollectionsFromTheReader(): void
     {
         $categories = new CategoryCollectionDTO([$this->category(1)]);
-        $translations = new CategoryTranslationCollectionDTO([$this->translation(2)]);
+        $contents = new CategoryContentCollectionDTO([$this->content(2)]);
         $criteria = new CategoryVisibleListCriteriaDTO(2);
         $reader = $this->createMock(CategoryReadQueryInterface::class);
         $reader->expects(self::once())->method('listVisibleRootCategories')->with($criteria)->willReturn($categories);
         $reader->expects(self::once())->method('listVisibleChildren')->with(1, $criteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listVisibleTranslations')->with(1, $criteria)->willReturn($translations);
+        $reader->expects(self::once())->method('listVisibleContents')->with(1, $criteria)->willReturn($contents);
         $service = new CategoryQueryService($reader);
 
         self::assertSame($categories, $service->listRootCategories($criteria));
         self::assertSame($categories, $service->listChildren(1, $criteria));
-        self::assertSame($translations, $service->listTranslations(1, $criteria));
+        self::assertSame($contents, $service->listContents(1, $criteria));
     }
 
     private function category(int $id): CategoryDTO
@@ -89,11 +89,11 @@ final class CategoryQueryServiceTest extends TestCase
         );
     }
 
-    private function translation(int $id): CategoryTranslationDTO
+    private function content(int $id): CategoryContentDTO
     {
         $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
 
-        return new CategoryTranslationDTO(
+        return new CategoryContentDTO(
             id: $id,
             categoryId: 1,
             languageCode: 'en-US',

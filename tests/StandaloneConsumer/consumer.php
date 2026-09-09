@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
@@ -13,7 +13,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
@@ -218,7 +218,7 @@ function standalone_consumer_drop_schema(\PDO $pdo): void
     foreach ([
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_ai`',
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_bu`',
-        'DROP TABLE IF EXISTS `maa_category_category_translations`',
+        'DROP TABLE IF EXISTS `maa_category_category_contents`',
         'DROP TABLE IF EXISTS `maa_category_categories`',
     ] as $statement) {
         $pdo->exec($statement);
@@ -295,7 +295,7 @@ try {
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'tables') === [
             'maa_category_categories',
-            'maa_category_category_translations',
+            'maa_category_category_contents',
         ],
         'The standalone schema did not create exactly its two package-owned tables.',
     );
@@ -310,7 +310,7 @@ try {
     $commandService = new CategoryCommandService(
         new PdoCategoryCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryQueryReader($pdo),
-        new PdoCategoryTranslationCommandRepository($pdo),
+        new PdoCategoryContentCommandRepository($pdo),
         new PdoCategoryTransaction($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
     );
@@ -319,10 +319,16 @@ try {
     $managementService = new CategoryManagementQueryService($managementReader);
 
     $categoryId = $commandService->create(new CreateCategoryCommand('standalone-consumer-category'));
-    $translationId = $commandService->createTranslation(
-        new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Standalone Category', null),
+    $contentId = $commandService->createContent(
+        new CreateCategoryContentCommand($categoryId, null, 'Standalone Category', null),
     );
-    standalone_consumer_require($categoryId > 0 && $translationId > 0, 'Standalone mutation returned invalid IDs.');
+    $localizedContentId = $commandService->createContent(
+        new CreateCategoryContentCommand($categoryId, 'en-US', 'Standalone Category English', null),
+    );
+    standalone_consumer_require(
+        $categoryId > 0 && $contentId > 0 && $localizedContentId > 0,
+        'Standalone mutation returned invalid IDs.',
+    );
 
     $category = $queryService->getById($categoryId);
     standalone_consumer_require($category->id === $categoryId, 'Standalone query returned the wrong Category.');
@@ -336,8 +342,8 @@ try {
         'Standalone visible child query returned an unexpected Category.',
     );
     standalone_consumer_require(
-        $queryService->listTranslations($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
-        'Standalone query did not return the stored translation.',
+        $queryService->listContents($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 2,
+        'Standalone query did not return both unlocalized and localized Content.',
     );
 
     $managementCategory = $managementService->getById(
@@ -367,23 +373,27 @@ try {
         $managementService->listChildren($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
         'Standalone management child list returned an unexpected Category.',
     );
-    $managementTranslation = $managementService->getTranslationById(
-        $translationId,
+    $managementContent = $managementService->getContentById(
+        $contentId,
         CategoryDeletedStateEnum::NON_DELETED,
     );
     standalone_consumer_require(
-        $managementTranslation->id === $translationId,
-        'Standalone management read service returned the wrong Translation.',
+        $managementContent->id === $contentId,
+        'Standalone management read service returned the wrong Content.',
     );
     standalone_consumer_require(
-        $managementService->listTranslations(
-            new CategoryTranslationListCriteriaDTO(
+        $managementContent->languageCode === null,
+        'Standalone management read did not preserve the unlocalized NULL language identity.',
+    );
+    standalone_consumer_require(
+        $managementService->listContents(
+            new CategoryContentListCriteriaDTO(
                 categoryId: $categoryId,
                 deletedState: CategoryDeletedStateEnum::NON_DELETED,
                 maxResults: 10,
             ),
-        )->count() === 1,
-        'Standalone management Translation list did not return the stored translation.',
+        )->count() === 2,
+        'Standalone management Content list did not return both Content records.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);

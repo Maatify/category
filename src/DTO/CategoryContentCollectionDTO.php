@@ -9,14 +9,14 @@ use Countable;
 use IteratorAggregate;
 
 /**
- * Typed Category Translation query result collection.
+ * Typed Category Content query result collection.
  *
- * @implements IteratorAggregate<int, CategoryTranslationDTO>
+ * @implements IteratorAggregate<int, CategoryContentDTO>
  */
-final readonly class CategoryTranslationCollectionDTO implements IteratorAggregate, Countable, \JsonSerializable
+final readonly class CategoryContentCollectionDTO implements IteratorAggregate, Countable, \JsonSerializable
 {
     /**
-     * @param list<CategoryTranslationDTO> $items
+     * @param list<CategoryContentDTO> $items
      */
     public function __construct(private array $items) {}
 
@@ -26,7 +26,7 @@ final readonly class CategoryTranslationCollectionDTO implements IteratorAggrega
     }
 
     /**
-     * @return ArrayIterator<int, CategoryTranslationDTO>
+     * @return ArrayIterator<int, CategoryContentDTO>
      */
     public function getIterator(): ArrayIterator
     {
@@ -38,7 +38,7 @@ final readonly class CategoryTranslationCollectionDTO implements IteratorAggrega
         return $this->items === [];
     }
 
-    /** @return list<CategoryTranslationDTO> */
+    /** @return list<CategoryContentDTO> */
     public function jsonSerialize(): mixed
     {
         return $this->items;

@@ -7,11 +7,11 @@ namespace Maatify\Category\Exception;
 use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\NotFound\ResourceNotFoundMaatifyException;
 
-final class CategoryTranslationNotFoundException extends ResourceNotFoundMaatifyException
+final class CategoryContentNotFoundException extends ResourceNotFoundMaatifyException
     implements CategoryExceptionInterface
 {
-    public static function withId(int $translationId): self
+    public static function withId(int $contentId): self
     {
-        return new self(sprintf('Category Translation with id %d was not found.', $translationId));
+        return new self(sprintf('Category Content with id %d was not found.', $contentId));
     }
 }

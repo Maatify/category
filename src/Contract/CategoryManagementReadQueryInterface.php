@@ -7,9 +7,9 @@ namespace Maatify\Category\Contract;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 
 /** Dedicated management read port, separate from consumer visibility reads. */
@@ -27,14 +27,14 @@ interface CategoryManagementReadQueryInterface
     /** Lists direct children in display-order/id order, bounded by the criteria. */
     public function listChildren(int $parentId, CategoryListCriteriaDTO $criteria): CategoryCollectionDTO;
 
-    /** Finds a Translation using the requested explicit soft-deletion state. */
-    public function findTranslationById(
-        int $translationId,
+    /** Finds a Content using the requested explicit soft-deletion state. */
+    public function findContentById(
+        int $contentId,
         CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryTranslationDTO;
+    ): ?CategoryContentDTO;
 
-    /** Lists Translations in language-code/id order, bounded by the criteria. */
-    public function listTranslations(
-        CategoryTranslationListCriteriaDTO $criteria,
-    ): CategoryTranslationCollectionDTO;
+    /** Lists Contents in language-code/id order, bounded by the criteria. */
+    public function listContents(
+        CategoryContentListCriteriaDTO $criteria,
+    ): CategoryContentCollectionDTO;
 }

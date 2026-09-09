@@ -9,18 +9,18 @@ use JsonSerializable;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryIdDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Command\UpdateCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use PHPUnit\Framework\TestCase;
 
@@ -39,10 +39,10 @@ final class CategoryContractJsonSerializationTest extends TestCase
             updatedAt: $timestamp,
             deletedAt: null,
         );
-        $translation = new CategoryTranslationDTO(
+        $content = new CategoryContentDTO(
             id: 11,
             categoryId: 7,
-            languageCode: 'ar-EG',
+            languageCode: null,
             name: 'قمصان',
             description: 'وصف',
             createdAt: $timestamp,
@@ -53,17 +53,17 @@ final class CategoryContractJsonSerializationTest extends TestCase
         $dtos = [
             new CategoryIdDTO(7),
             $category,
-            $translation,
+            $content,
             new CreateCategoryCommand('shirts', 3, CategoryStatusEnum::INACTIVE),
-            new CreateCategoryTranslationCommand(7, 'ar-EG', 'قمصان', 'وصف'),
+            new CreateCategoryContentCommand(7, null, 'قمصان', 'وصف'),
             new MoveCategoryCommand(7, 3),
             new RestoreCategoryCommand(7),
-            new RestoreCategoryTranslationCommand(11),
+            new RestoreCategoryContentCommand(11),
             new SoftDeleteCategoryCommand(7),
-            new SoftDeleteCategoryTranslationCommand(11),
+            new SoftDeleteCategoryContentCommand(11),
             new UpdateCategoryDisplayOrderCommand(7, 4),
             new UpdateCategoryStatusCommand(7, CategoryStatusEnum::INACTIVE),
-            new UpdateCategoryTranslationCommand(11, 'قمصان', 'وصف'),
+            new UpdateCategoryContentCommand(11, 'قمصان', 'وصف'),
         ];
 
         foreach ($dtos as $dto) {
@@ -75,7 +75,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
         }
 
         self::assertInstanceOf(JsonSerializable::class, new CategoryCollectionDTO([$category]));
-        self::assertInstanceOf(JsonSerializable::class, new CategoryTranslationCollectionDTO([$translation]));
+        self::assertInstanceOf(JsonSerializable::class, new CategoryContentCollectionDTO([$content]));
 
         self::assertSame([
             'id' => 7,
@@ -108,7 +108,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
             [
                 'id' => 11,
                 'categoryId' => 7,
-                'languageCode' => 'ar-EG',
+                'languageCode' => null,
                 'name' => 'قمصان',
                 'description' => 'وصف',
                 'createdAt' => '2026-01-01T00:00:00+00:00',
@@ -116,7 +116,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
                 'deletedAt' => null,
             ],
         ], json_decode(
-            json_encode(new CategoryTranslationCollectionDTO([$translation]), JSON_THROW_ON_ERROR),
+            json_encode(new CategoryContentCollectionDTO([$content]), JSON_THROW_ON_ERROR),
             true,
             512,
             JSON_THROW_ON_ERROR,
