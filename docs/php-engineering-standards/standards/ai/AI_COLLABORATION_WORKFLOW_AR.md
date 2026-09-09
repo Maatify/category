@@ -2,7 +2,7 @@
 
 ## بيانات المعيار
 
-- **الإصدار:** `4.0.0`
+- **الإصدار:** `5.1.0`
 - **اللغة المعتمدة:** العربية.
 - **حالة الاعتماد:** يصبح معتمدًا عند دمجه في الفرع الافتراضي للمشروع.
 - **مالك المعيار:** مالك المشروع.
@@ -156,15 +156,42 @@
 - لا يقرر المنفذ السياسة أو المعمارية من نفسه، ولا يحول ملاحظة تنفيذية أو تعليق مراجعة إلى قرار أعلى من صلاحياته.
 - أي Final Review أو Independent Review إضافي هو طبقة تحقق إضافية، ولا يلغي مسؤولية المساعد القائد عن مراجعته المباشرة للكود أو التوثيق والـ diff والـ PR قبل القبول.
 
-### 3.2.2 حدود تنفيذ المساعد القائد
+### 3.2.2 سلطة التنفيذ داخل الـPhase
+
+بعد اعتماد Scope الـPhase صراحة من مالك المشروع، يملك المساعد القائد **Standing Execution Authority داخل الـPhase**، عندما تكون الأدوات والصلاحيات متاحة، لإدارة دورة التنفيذ دون الرجوع للمالك عند كل Micro-step.
+
+تشمل هذه السلطة:
+
+- تقسيم Work Units وتحديد dependency graph وExecution Waves.
+- اختيار المنفذين وتشغيل Work Units المستقلة بالتوازي عندما تثبت شروط التوازي.
+- فتح وإدارة Component PRs ومراجعتها وطلب التصحيحات.
+- إعادة Verification واعتماد Component.
+- **GitHub Squash Merge عبر Component PR إلى Phase Draft** بعد اعتماد Scope الـPhase، وفقط بعد:
+  - direct review للكود أو التوثيق والـdiff والـPR.
+  - اجتياز Component Gate المطلوبة.
+  - التحقق من صحة PR base/head ومن عدم وجود blocker.
+  - التحقق من توافق Component مع أحدث Phase Draft HEAD.
+
+لا يحتاج هذا الـComponent Merge إلى confirmation جديدة من المالك لكل Component، لأنه داخل Standing Execution Authority المحددة بعد اعتماد Scope الـPhase.
+
+ولا تشمل:
+
+- تغيير Architecture أو Policy أو Public Contract جوهري.
+- توسيع Scope توسعًا مؤثرًا.
+- دمج Phase Draft إلى `main`.
+- Tag أو Release أو Publish.
+
+لا تلغي Standing Execution Authority مسؤولية المساعد القائد عن الأدلة والمراجعة المباشرة، ولا تمنح المنفذ Merge Authority تلقائية.
+
+### 3.2.3 حدود تنفيذ المساعد القائد
 
 لا يفرض هذا المعيار منفذًا ثابتًا لنوع معين من المهام. يحدد المشروع أو المرحلة أو المهمة أو مالك المشروع المنفذ المناسب، ويظل المساعد القائد مسؤولًا عن ملاءمة التعيين وحدود المهمة ومراجعة الناتج.
 
 - تعديل PR metadata ومراجعة GitHub جزء من دور المساعد القائد عند توفر الصلاحية.
-- لا ينفذ المساعد القائد تغييرات داخل المستودع إلا بتكليف صريح من مالك المشروع أو وفق صلاحية تنفيذ محددة في تعليمات المشروع أو المهمة.
+- لا ينفذ المساعد القائد تغييرات داخل المستودع إلا بتكليف صريح من مالك المشروع، أو وفق صلاحية تنفيذ محددة في تعليمات المشروع أو المهمة، أو وفق Standing Execution Authority داخل Phase بعد اعتماد Scope.
 - عند تكليفه بالتنفيذ، يخضع لنفس قواعد النطاق والتحقق وصلاحيات Git المطبقة على أي منفذ.
 
-### 3.2.3 استلام PR من Jules
+### 3.2.4 استلام PR من Jules
 
 بعد أن ينهي Jules مهمته ويكتب على branch جديدة خاصة بالمهمة الحالية (Jules task branch)، تصبح بيانات الـ PR النهائية مسؤولية المساعد القائد:
 
@@ -353,16 +380,16 @@ Jules لا يقرر سياسة أو معمارية من نفسه، ولا يحو
 
 ## 5.9 التوثيق الخفيف لا يعطل Runtime سليمًا
 
-إذا كان الـ Component قيد العمل يحتوي على Runtime واختبارات سليمة، ولكن التوثيق المرتبط بـ acceptance الخاص به لم يكتمل:
-- **لا يجوز** فصل التوثيق لدمج الـ Runtime؛ يجب استكمال الـ Component بالكامل قبل دمجه إلى الـ Phase Draft.
-- لا يمكن أن يكون التوثيق Component مستقلًا إلا إذا كان معرّفًا هكذا في خطة الـ Phase Stack من البداية، وليس كمتبقيات لـ acceptance من Component سابقة.
-- **يُمنع قطعيًا** دمج Phase Draft إلى `main` قبل اكتمال كافة الـ Documentation / Verification / Final Reviews المطلوبة للـ Phase.
+إذا كان الـWork Unit قيد العمل يحتوي على Runtime واختبارات سليمة، ولكن التوثيق المرتبط مباشرة بـAcceptance الخاصة به لم يكتمل:
+- **لا يجوز** فصل التوثيق لتجاوز Acceptance الـRuntime؛ يجب استكمال الـWork Unit بالكامل قبل دمجها إلى الـPhase Draft.
+- لا ينشأ Documentation Work Unit مستقلة إلا عند وجود احتياج cross-cutting حقيقي أو ownership أو dependency مستقلة، وليس كمتبقيات لـAcceptance سابقة.
+- **يُمنع قطعيًا** دمج Phase Draft إلى `main` قبل اكتمال Documentation وVerification وFinal Review المطلوبة للـPhase.
 
 ---
 
 # 6. نموذج صلاحيات Git
 
-> **تنويه إلزامي:** يخضع أي عمل هندسي (Phase) على هذا المشروع لنظام Phase Stack الموثق بشكل إلزامي في [`../GITHUB_PHASE_STACK_WORKFLOW_AR.md`](../GITHUB_PHASE_STACK_WORKFLOW_AR.md). يجب تطبيق صلاحيات وعمليات Git المذكورة أدناه بما يتوافق تامًا مع هيكل وقيود نظام الـ Phase Stack المذكور هناك، ولا يجوز لأي قاعدة هنا تجاوز شرط التسلسل الصارم وعدم الدمج الجزئي.
+> **تنويه إلزامي:** يخضع أي عمل هندسي (Phase) على هذا المشروع لنظام Phase Stack الموثق بشكل إلزامي في [`../GITHUB_PHASE_STACK_WORKFLOW_AR.md`](../GITHUB_PHASE_STACK_WORKFLOW_AR.md). يجب تطبيق صلاحيات وعمليات Git المذكورة أدناه بما يتوافق تامًا مع Dependency-Aware Execution وقيود الـPhase Draft، ولا يجوز لأي قاعدة هنا تجاوز شرط اكتمال الـPhase أو الدمج الجزئي.
 
 ## 6.1 أوامر القراءة
 
@@ -410,7 +437,14 @@ Review Staging مسموح افتراضيًا ما لم يمنعه التوجيه
 - Commit لا يعني Push.
 - Push لا يعني فتح PR.
 - فتح PR لا يعني Merge.
-- Merge يظل قرار مالك المشروع.
+- Merge إلى `main` يظل قرار مالك المشروع.
+- يجوز للمساعد القائد **GitHub Squash Merge عبر Component PR إلى Phase Draft** بعد اعتماد Scope الـPhase، وفق Standing Execution Authority وGates وقواعد Git.
+
+ولرفع الالتباس الاصطلاحي، يقصد بـ`Merge` في هذا السياق ثلاث عمليات مختلفة:
+
+- **Component Merge:** GitHub Squash Merge لـComponent PR إلى Phase Draft، وهو داخل Standing Execution Authority بعد اعتماد Scope واجتياز المراجعة وComponent Gate.
+- **Local `git merge`:** عملية Git محلية لتغيير تاريخ Branch أو مزامنتها، وتظل خاضعة للقسم §6.4 ولا يمنحها Standing Execution Authority تلقائيًا.
+- **Phase-to-main Merge:** GitHub Squash Merge للـPhase Draft إلى `main`، ويظل قرارًا مستقلًا لمالك المشروع.
 
 ### التنفيذ حتى النهاية (Delivery Completion)
 - تحديد العملية بأنها `YES` أو التصريح بها صراحة هو **تصريح تنفيذي كامل** لهذه العملية.
@@ -427,7 +461,8 @@ Review Staging مسموح افتراضيًا ما لم يمنعه التوجيه
   - تعارض مع مصدر أعلى.
   - فشل بوابة قبول مطلوبة.
 - العملية المحددة بـ `NO` أو غير المصرح بها لا تُنفذ.
-- Merge يظل قرارًا مستقلًا لمالك المشروع ولا يُنفذ دون تصريح مباشر خاص بالدمج.
+- Merge إلى `main` يظل قرارًا مستقلًا لمالك المشروع ولا يُنفذ دون تصريح مباشر خاص بالدمج.
+- Component Merge إلى Phase Draft لا يحتاج تأكيدًا جديدًا عند شمول العملية في Standing Execution Authority المعتمدة للـPhase، ولا يتجاوز ذلك صلاحية الدمج إلى `main`.
 
 ## 6.4 العمليات التي تحتاج تصريحًا صريحًا
 
@@ -453,6 +488,8 @@ git branch -D
 git push --force
 git push --force-with-lease
 ```
+
+حظر `git merge` المحلي أعلاه لا يمنع **GitHub Squash Merge عبر Component PR إلى Phase Draft** عندما تكون العملية مشمولة بStanding Execution Authority واجتازت بوابات القبول. لكن Standing Execution Authority لا تمنح تلقائيًا تصريحًا عامًا لأي عملية Git محلية واردة في القائمة، مثل `git rebase` أو `git cherry-pick` أو `git reset` أو `git restore`؛ تظل كل واحدة منها محتاجة إلى الصلاحية المناسبة. وبالعكس، فإن التصريح بعملية Git محلية أو باستخدام `git merge` في تكليف محدد لا يمنح صلاحية GitHub Merge، ولا صلاحية الدمج إلى `main`.
 
 الأمر `git switch -c` أو `git checkout -b` مسموح فقط عندما ينص التوجيه على إنشاء branch بعد نجاح baseline verification.
 
@@ -576,7 +613,7 @@ git diff --stat
 - **لا يُنشأ** Component جديد لاستكمال بقية الـ acceptance؛ يظل الـ Component الحالي يعتبر فاشلًا وغير مكتمل.
 - تُغلق أو تُستبدل الـ PR أو الـ branch الفاشلة حسب القواعد.
 - تبدأ محاولة بديلة وجديدة لنفس الـ Component بأكمله انطلاقًا من أحدث Phase Draft HEAD المعتمد (الـ baseline المعتمدة السابقة).
-- لا يدخل إلى Phase Draft إلا Component مكتمل بالكامل وفق تسلسل الـ Stack.
+- لا يدخل إلى Phase Draft إلا Component مكتمل بالكامل وفق dependency graph وGates المعتمدة.
 
 ---
 
@@ -628,7 +665,7 @@ git diff --stat
 
 ## المرحلة 8 — Commit وPush وPR
 
-تحدث فقط وفق تصريح مكتوب من مالك المشروع أو تصريح واضح داخل المهمة، وكل تصحيح بعد Commit يُضاف في Commit جديد. نشر Jules واختيار Publish Branch أو Publish PR يخضعان للقسم `6.7`.
+تحدث وفق صلاحيات Git المحددة في التوجيه، أو وفق Standing Execution Authority المعتمدة للـPhase بالنسبة لوحدات العمل و**GitHub Squash Merge عبر Component PR إلى Phase Draft**، وكل تصحيح بعد Commit يُضاف في Commit جديد. **GitHub Squash Merge للـPhase Draft إلى `main`** يظل قرار مالك المشروع. نشر Jules واختيار Publish Branch أو Publish PR يخضعان للقسم `6.7`.
 
 ## المرحلة 9 — مراجعة PR وmetadata handoff
 
@@ -644,7 +681,7 @@ git diff --stat
 
 ## المرحلة 11 — follow-up
 
-تُعزل الملاحظات كـ Component مستقل يُعمل له Squash Merge في الـ Phase Draft ضمن التسلسل الصارم. لا يجوز أبدًا استخدامها لتمرير Phase Draft إلى `main` قبل اكتمال جميع متطلباتها.
+تُعالج الملاحظات داخل Work Unit المفتوحة إن كانت تخص Acceptance الخاصة بها، أو تُجمع في Consolidated Required-Fix Component عند الحاجة إلى تغيير مستقل. تُراجع وتُدمج إلى Phase Draft وفق dependency graph وGates، ولا يجوز أبدًا استخدامها لتمرير Phase Draft إلى `main` قبل اكتمال جميع متطلباتها.
 
 ---
 
@@ -867,7 +904,7 @@ Jules يكتب فقط على branch **خاصة بمهمته الحالية (Jule
 لا يُسمح بتفعيلها إلا بقرار صريح من مالك المشروع، ويجب ألا تتجاوز في عملها:
 - النطاق المحدد للمهمة (task scope).
 - قواعد ملكية الـ Branch.
-- التسلسل الصارم لنظام Phase Stack.
+- dependency graph وExecution Waves لنظام Phase Stack.
 - سلطة الدمج (merge authority) الخاصة بالمالك.
 
 ## 11.5 سياق وذاكرة Jules (Jules Memory)
@@ -992,15 +1029,14 @@ Jules يكتب فقط على branch **خاصة بمهمته الحالية (Jule
 
 ## 14.1 Follow-up مناسبة
 
-إذا ظهرت ملاحظات أثناء مراجعة Phase تقتضي Follow-up، تُعزل في مكوّن مستقل (Component) يُدمج حصريًا إلى الـ Phase Draft ضمن التسلسل الصارم عندما تكون:
+إذا ظهرت ملاحظات أثناء مراجعة Phase تقتضي Follow-up، تُعالج داخل Work Unit المفتوحة أو تُجمع في Consolidated Required-Fix Component عند الحاجة إلى تغيير مستقل، وتُدمج إلى الـPhase Draft وفق dependency graph عندما تكون:
 
 - صغيرة.
 - غير مانعة لصحة الـ Draft.
 - خارج الـ acceptance criteria الأساسية للـ Components السابقة (لا تُستخدم كعذر لتمرير Component غير مكتمل).
-- لا تسبب تداخلًا مع مكوّن لاحق في الـ Stack.
+- لا تسبب تداخلًا مؤثرًا مع Work Unit أخرى أو Gate لاحقة.
 
-يجب أن يكتمل الـ Follow-up Component، يُراجع، ويتم عمل Squash Merge له إلى Phase Draft. وبعدها فقط يمكن إنشاء الـ Component التالي.
-ممنوع استخدام الـ follow-up لتجاوز شرط اكتمال الـ Phase بالكامل قبل دمج الـ Draft إلى `main`. ولا تستخدم لإخفاء test failure أو Runtime bug أو contract مكسور.
+يجب أن يكتمل التغيير، يُراجع، وتجتاز Work Unit أو Consolidated Required-Fix Component الـGates المطلوبة قبل دمجه إلى Phase Draft. لا تستخدم Follow-up لتجاوز شرط اكتمال الـPhase قبل دمج الـDraft إلى `main`، ولا لإخفاء test failure أو Runtime bug أو contract مكسور.
 
 ## 14.2 أنماط مرفوضة
 
@@ -1009,6 +1045,7 @@ Jules يكتب فقط على branch **خاصة بمهمته الحالية (Jule
 - تكرار القاعدة نفسها في عدة أقسام.
 - إضافة أقسام لا تخص المهمة.
 - دمج gaps غير مترابطة.
+- فرض Strict Sequential Stack عالميًا رغم غياب dependency أو overlap مؤثر.
 - الوثوق في التقرير دون patch.
 - قبول ناتج لم يراجعه المساعد القائد مباشرة لمجرد وجود تقرير نجاح أو Final/Independent Review.
 - ملء معلومة غير مثبتة بالتخمين بدل تصنيفها كغير محسومة.
@@ -1035,38 +1072,13 @@ Jules يكتب فقط على branch **خاصة بمهمته الحالية (Jule
 
 # 15. اعتماد المعيار في أي مشروع
 
-يعتمد المعيار نموذج **Central Canonical + Pinned Local Copy**:
+آلية اختيار وتوزيع وتثبيت المعايير مملوكة حصريًا لـ [STANDARDS_ADOPTION_STANDARD_AR.md](../STANDARDS_ADOPTION_STANDARD_AR.md). لا يعيد هذا المعيار نسخ قواعد Adoption العامة، بل يوضح فقط علاقة AI Collaboration بعقد الاعتماد.
 
-1. بما أن نموذج Git الأساسي مرتبط بنظام الـ Phase Stack، **يجب أن يُحفظ المعياران معًا كنسخة محلية مثبتة** في المشروع التابع للحفاظ على سلامة الروابط النسبية (Relative Links) بينهما. الهيكل المحلي المطلوب هو:
+عند استخدام نظام Selective Adoption، توجد `STANDARDS_ADOPTION_STANDARD_AR.md` دائمًا ضمن **Pinned Adoption Control Set** المحلية، وتوجد معها Profile manifests المفعلة وكل Profile manifests الموروثة اللازمة لحل inheritance. هذه الملفات ليست اختيارية ولا تُضاف إلى `Required Standards` الخاصة بأي Profile.
 
-```text
-standards/
-├── GITHUB_PHASE_STACK_WORKFLOW_AR.md
-└── ai/
-    └── AI_COLLABORATION_WORKFLOW_AR.md
-```
+عند تفعيل Profile `repository-governance` على Scope معين، تدخل AI Collaboration وPhase Stack في **Pinned Applicable Standards Set** لذلك الـ Scope؛ ولا يعني ذلك أن Package أو Module standards تصبح منطبقة تلقائيًا. يظل `STANDARDS_MANIFEST.md` هو **Local Resolver Record** الذي يصف النتيجة.
 
-*(ملاحظة: إذا كان المشروع التابع يستخدم مجلد `docs/standards/`، فيجب وضع كلا الملفين داخله بنفس الترتيب الهرمي أعلاه، بحيث يبقى رابط `../GITHUB_PHASE_STACK_WORKFLOW_AR.md` صحيحًا دائمًا).*
-
-2. يجب أن تبدأ كل نسخة محلية بترويسة (metadata) واضحة ومستقلة تسجل بياناتها الخاصة:
-
-**لـ AI Collaboration:**
-   - Upstream Repository: Maatify/php-engineering-standards
-   - Upstream Path: standards/ai/AI_COLLABORATION_WORKFLOW_AR.md
-   - Upstream Version: 4.0.0 (أو الإصدار المثبت الأحدث)
-
-**لـ Phase Stack:**
-   - Upstream Repository: Maatify/php-engineering-standards
-   - Upstream Path: standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md
-   - Upstream Version: 1.0.0 (أو الإصدار المثبت الأحدث)
-3. يمنع الاعتماد على floating `main` من المستودع المركزي.
-4. تتم أي ترقية للإصدار عبر PR مستقلة تراجع أثر التغيير على المشروع.
-5. أضف في `AGENTS.md` الجذري إشارة إلزامية لقراءة وتطبيق **كلا المعيارين**.
-6. ضع القواعد الخاصة بالمشروع فقط داخل `AGENTS.md`.
-7. اعتمد Review Staging أو سجل استثناء المشروع بوضوح.
-8. لا تنسخ القواعد العامة في ملفات متعددة.
-9. اجعل الـ Prompts تشير إلى المسارات المرجعية بدل نسخ محتواها.
-10. تأكد أن أي Prompt يستخدم النسخة المدموجة والمثبتة من المعيار.
+يطبق الوكيل إجراءات Normal Engineering Task أو Adoption / Upgrade / Manifest Validation كما يحددها [STANDARDS_ADOPTION_STANDARD_AR.md](../STANDARDS_ADOPTION_STANDARD_AR.md)، ويقرأ Applicable Standards فقط. لا يغير هذا العقد منع floating `main` أو اعتماد same exact upstream commit الافتراضي.
 
 ---
 
@@ -1091,6 +1103,19 @@ standards/
 ---
 
 # 17. سجل تغييرات المعيار
+
+## `5.1.0`
+
+- استبدال عقد `Central Canonical + Pinned Local Copy` العام في قسم الاعتماد بإحالة إلى `STANDARDS_ADOPTION_STANDARD_AR.md`.
+- مواءمة اعتماد AI Collaboration مع Profile `repository-governance` وScope-aware Profile Resolution و`STANDARDS_MANIFEST.md`.
+- تثبيت أن هذا التغيير لا يغير Roles أو Merge Authority أو Git Model أو إصدار Phase Stack.
+
+## `5.0.0`
+
+- مواءمة صلاحيات ودورة عمل المساعد القائد مع Dependency-Aware Phase Train وExecution Waves بدل Strict Sequential Stack.
+- تثبيت Standing Execution Authority داخل الـPhase بعد اعتماد Scope، بما يشمل إدارة Work Units وGates وSquash Merge إلى Phase Draft، مع إبقاء `main` وTag وRelease وPublish ضمن سلطة المالك.
+- مواءمة قواعد التوثيق وFollow-up وRequired Fixes مع Vertical Work Units وConsolidated Required Fixes وGates غير المنشئة لـPR عند عدم وجود تغيير مستودع.
+- تثبيت أن Phase Stack الإصدار `2.0.0` هو المرجع الحالي لدورة حياة Phase Draft والـWaves والدمج.
 
 ## `4.0.0`
 
@@ -1165,6 +1190,8 @@ standards/
 
 - **مالك المشروع:** يقرر الهدف والأولوية والنطاق والسياسات والدمج.
 - **المساعد القائد:** يعيد بناء الحالة الفعلية، يكتشف الـ gaps والتعارضات، يصمم الحل داخل العقود، يكتب Prompt بالحد الأدنى الكافي، ويراجع الكود أو التوثيق والـ diff والـ PR بنفسه قبل قبول أي ناتج.
+- **Phase Execution:** تُدار عبر dependency graph وExecution Waves؛ التوازي مسموح عندما تثبت شروطه، ولا يدخل `main` إلا Phase اجتازت Phase Integration Gate.
+- **Standing Execution Authority:** بعد اعتماد Scope الـPhase، يدير المساعد القائد الوحدات والـGates ودمجها إلى Phase Draft دون رجوع عند كل Micro-step، مع بقاء الدمج إلى `main` للمالك.
 - **المنفذ المكلّف:** ينفذ النطاق المحدد ويعرض الأدلة، ولا يقرر السياسة أو المعمارية من نفسه؛ يحدد المشروع أو المرحلة أو المهمة أو مالك المشروع من ينفذ كل نوع من العمل.
 - **Jules عند تكليفه:** يبدأ من Repository وStarting branch محددتين قبل الـ Prompt، وينفذ على branch خاصة بمهمته الحالية (Jules task branch).
 - **نشر Jules:** Publish Branch للـ base غير `main`؛ Publish PR فقط عند استهداف `main`.
