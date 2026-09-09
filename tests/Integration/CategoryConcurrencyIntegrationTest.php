@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Integration;
 
 use Closure;
+use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryTranslationCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
@@ -371,51 +372,61 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
-    public function testConcurrentCategoryCodeCreationCannotReuseTheReservedIdentity(): void
+    public function testConcurrentCategoryCodeCreationUsesUniqueConstraintAfterBothFlowsObserveAbsence(): void
     {
-        $locker = $this->newConnection();
-        $locker->beginTransaction();
-        $insert = $locker->prepare(
-            'INSERT INTO `maa_category_categories` '
-            . '(`code`, `status`, `display_order`, `created_at`, `updated_at`) '
-            . 'VALUES (:code, :status, :display_order, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
-        );
-        $insert->execute([
-            'code' => 'concurrent-reserved-code',
-            'status' => 'active',
-            'display_order' => 1,
-        ]);
+        $bootstrapService = $this->service($this->connection());
+        $leftParentId = $bootstrapService->create(new CreateCategoryCommand('code-race-left-parent'));
+        $rightParentId = $bootstrapService->create(new CreateCategoryCommand('code-race-right-parent'));
 
-        $blockedConnection = $this->newConnection();
-        $this->setLockWaitTimeout($blockedConnection);
-        $blockedService = $this->service($blockedConnection);
+        $leftConnection = $this->newConnection();
+        $rightConnection = $this->newConnection();
+        $leftReader = new PdoCategoryQueryReader($leftConnection);
+        $rightReader = new PdoCategoryQueryReader($rightConnection);
+        $leftRepository = new PdoCategoryCommandRepository($leftConnection, new ScopedOrderingManager());
+        $rightRepository = new PdoCategoryCommandRepository($rightConnection, new ScopedOrderingManager());
+        $code = 'concurrent-absent-code';
+        $occurredAt = new DateTimeImmutable('2026-02-12 00:00:00 UTC');
 
         try {
-            $this->assertLockWaitTimeout(
-                function () use ($blockedService): void {
-                    $blockedService->create(new CreateCategoryCommand('concurrent-reserved-code'));
-                },
-                $blockedConnection,
-                'A competing code creation must wait on the reserved unique identity.',
-            );
+            // Both independent flows observe the same code as absent before either insert.
+            $leftConnection->beginTransaction();
+            self::assertNull($leftReader->findByCode($code));
 
-            $locker->commit();
+            $rightConnection->beginTransaction();
+            self::assertNull($rightReader->findByCode($code));
+
+            $winnerId = $leftRepository->create(
+                new CreateCategoryCommand($code, $leftParentId),
+                $occurredAt,
+            );
+            $leftConnection->commit();
 
             try {
-                $blockedService->create(new CreateCategoryCommand('concurrent-reserved-code'));
-                self::fail('A committed Category code must not be reused.');
-            } catch (CategoryCodeAlreadyExistsException) {
-                self::assertFalse($blockedConnection->inTransaction());
+                $rightRepository->create(
+                    new CreateCategoryCommand($code, $rightParentId),
+                    $occurredAt,
+                );
+                self::fail('The losing creation flow must fail on the Category code unique key.');
+            } catch (CategoryCodeAlreadyExistsException $exception) {
+                self::assertInstanceOf(PDOException::class, $exception->getPrevious());
+                self::assertTrue($rightConnection->inTransaction());
+                $rightConnection->rollBack();
             }
 
-            $reader = new PdoCategoryQueryReader($blockedConnection);
+            self::assertFalse($rightConnection->inTransaction());
+            $reader = new PdoCategoryQueryReader($this->connection());
             self::assertSame(
-                'concurrent-reserved-code',
-                $reader->findByCode('concurrent-reserved-code')?->code,
+                $winnerId,
+                $reader->findByCode($code)?->id,
             );
+            $countStatement = $this->connection()->prepare(
+                'SELECT COUNT(*) FROM `maa_category_categories` WHERE `code` = :code',
+            );
+            $countStatement->execute(['code' => $code]);
+            self::assertSame(1, (int) $countStatement->fetchColumn());
         } finally {
-            $this->closeConnection($locker);
-            $this->closeConnection($blockedConnection);
+            $this->closeConnection($leftConnection);
+            $this->closeConnection($rightConnection);
         }
     }
 

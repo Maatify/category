@@ -12,10 +12,12 @@ use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingConfig;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
 use PDO;
+use PDOException;
 
 /** PDO write adapter for the Category persistence port. */
 final readonly class PdoCategoryCommandRepository implements CategoryCommandRepositoryInterface
@@ -42,14 +44,23 @@ final readonly class PdoCategoryCommandRepository implements CategoryCommandRepo
             . 'VALUES (:parent_id, :code, :status, :display_order, :created_at, :updated_at, NULL)',
         );
         $timestamp = $this->formatTimestamp($occurredAt);
-        $statement->execute([
-            'parent_id' => $command->parentId,
-            'code' => $command->code,
-            'status' => $command->status->value,
-            'display_order' => $displayOrder,
-            'created_at' => $timestamp,
-            'updated_at' => $timestamp,
-        ]);
+        try {
+            $statement->execute([
+                'parent_id' => $command->parentId,
+                'code' => $command->code,
+                'status' => $command->status->value,
+                'display_order' => $displayOrder,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+        } catch (PDOException $exception) {
+            $driverCode = $exception->errorInfo[1] ?? null;
+            if ((is_int($driverCode) || is_string($driverCode)) && (int) $driverCode === 1062) {
+                throw CategoryCodeAlreadyExistsException::withCode($command->code, $exception);
+            }
+
+            throw $exception;
+        }
 
         $id = $this->pdo->lastInsertId();
         if ($id === false || !ctype_digit($id) || (int) $id < 1) {

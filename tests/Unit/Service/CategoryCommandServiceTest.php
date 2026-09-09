@@ -335,11 +335,6 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
         return null;
     }
 
-    public function findByCodeForUpdate(string $code): ?CategoryDTO
-    {
-        return $this->findByCode($code);
-    }
-
     public function findByCode(string $code): ?CategoryDTO
     {
         foreach ($this->categories as $category) {

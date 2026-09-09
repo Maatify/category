@@ -42,8 +42,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
     public function create(CreateCategoryCommand $command): int
     {
         return $this->transaction->run(function () use ($command): int {
-            // Must use FOR UPDATE here to prevent concurrent creates bypassing code uniqueness check
-            if ($this->queryReader->findByCodeForUpdate($command->code) !== null) {
+            if ($this->queryReader->findByCode($command->code) !== null) {
                 throw CategoryCodeAlreadyExistsException::withCode($command->code);
             }
 
@@ -120,6 +119,8 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void
     {
+        $this->requireActiveCategory($command->categoryId);
+
         if (!$this->commandRepository->updateDisplayOrder($command, $this->clock->now())) {
             throw CategoryNotFoundException::withId($command->categoryId);
         }
@@ -156,6 +157,17 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
                 throw CategoryTranslationNotFoundException::withId($command->translationId);
             }
         });
+    }
+
+    private function requireActiveCategory(int $categoryId): CategoryDTO
+    {
+        $category = $this->queryReader->findActiveById($categoryId);
+
+        if ($category === null) {
+            throw CategoryNotFoundException::withId($categoryId);
+        }
+
+        return $category;
     }
 
     private function requireActiveCategoryForUpdate(int $categoryId): CategoryDTO
