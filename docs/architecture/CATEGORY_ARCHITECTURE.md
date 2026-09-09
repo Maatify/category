@@ -98,6 +98,22 @@ The v1 query contract intentionally defers pagination and search, bounds every
 unpaginated list to 100 rows, and uses `display_order, id` for Category ordering
 and `language_code, id` for Translation ordering.
 
+## v1 API freeze closure
+
+The Final API Freeze audit on baseline
+`f29af0d65728c7c252b57f7b1def8e7a56d6b38d` found no known blocking Runtime gap.
+The audit covered the `Maatify\Category\` namespace, all Commands, DTOs,
+criteria DTOs, enums, contracts, services, PDO adapters, constructors, method
+signatures, return types, exception hierarchy, package-owned table/column
+contracts, indexes and constraints, Composer dependencies, PHP/MySQL support,
+and Host-boundary rules. No speculative public API, duplicate contract,
+legacy Catalog runtime naming, or undeclared Host dependency was found.
+
+The freeze consequence is documentation-only: the stable inventory is recorded
+in the root Package Reference, while `findByCode()` remains internal
+mutation-support only and pagination, search, and public management get-by-code
+remain deferred or absent as stated above.
+
 ## Non-goals
 
 The package does not define a Catalog entity, Product/Pricing/Inventory/Media
