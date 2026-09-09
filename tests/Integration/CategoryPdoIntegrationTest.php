@@ -160,18 +160,26 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $inactiveTranslationId = $service->createTranslation(
             new CreateCategoryTranslationCommand($inactiveCategoryId, 'en-US', 'Inactive parent', null),
         );
-        self::assertSame($inactiveCategoryId, $queryReader->findTranslationById($inactiveTranslationId)?->categoryId);
+        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
+        self::assertNotNull($inactiveTranslation);
+        self::assertSame($inactiveCategoryId, $inactiveTranslation->categoryId);
 
         $service->updateTranslation(
             new UpdateCategoryTranslationCommand($inactiveTranslationId, 'Updated inactive parent', null),
         );
-        self::assertSame('Updated inactive parent', $queryReader->findTranslationById($inactiveTranslationId)?->name);
+        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
+        self::assertNotNull($inactiveTranslation);
+        self::assertSame('Updated inactive parent', $inactiveTranslation->name);
 
         $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($inactiveTranslationId));
-        self::assertNotNull($queryReader->findTranslationById($inactiveTranslationId)?->deletedAt);
+        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
+        self::assertNotNull($inactiveTranslation);
+        self::assertNotNull($inactiveTranslation->deletedAt);
 
         $service->restoreTranslation(new RestoreCategoryTranslationCommand($inactiveTranslationId));
-        self::assertNull($queryReader->findTranslationById($inactiveTranslationId)?->deletedAt);
+        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
+        self::assertNotNull($inactiveTranslation);
+        self::assertNull($inactiveTranslation->deletedAt);
 
         $deletedCategoryId = $service->create(new CreateCategoryCommand('deleted-translation-parent'));
         $deletedTranslationId = $service->createTranslation(
@@ -191,10 +199,14 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $service->updateTranslation(
             new UpdateCategoryTranslationCommand($deletedTranslationId, 'Updated deleted parent', null),
         );
-        self::assertSame('Updated deleted parent', $queryReader->findTranslationById($deletedTranslationId)?->name);
+        $deletedTranslation = $queryReader->findTranslationById($deletedTranslationId);
+        self::assertNotNull($deletedTranslation);
+        self::assertSame('Updated deleted parent', $deletedTranslation->name);
 
         $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($deletedTranslationId));
-        self::assertNotNull($queryReader->findTranslationById($deletedTranslationId)?->deletedAt);
+        $deletedTranslation = $queryReader->findTranslationById($deletedTranslationId);
+        self::assertNotNull($deletedTranslation);
+        self::assertNotNull($deletedTranslation->deletedAt);
 
         $service->restoreTranslation(new RestoreCategoryTranslationCommand($deletedTranslationId));
         $restored = $queryReader->findTranslationById($deletedTranslationId);
