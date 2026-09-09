@@ -253,6 +253,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --working-dir="$consumer_dir"
           composer dump-autoload --optimize --strict-psr --working-dir="$consumer_dir"
           composer check-platform-reqs --working-dir="$consumer_dir"
+          composer audit --no-interaction --abandoned=fail --working-dir="$consumer_dir"
           jq -e '.packages[] | select(.name == "maatify/category" and .source.type == "git")' "$consumer_dir/composer.lock"
           if composer show --tree --working-dir="$consumer_dir" | grep -E -i '(^|[^[:alnum:]_])(adminkernel|admin-control-panel|catalog|slim|php-di)([^[:alnum:]_]|$)'; then
             echo "The clean consumer resolved a forbidden host dependency."
@@ -287,7 +288,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Validate GitHub Actions workflows
-        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo rhysd/actionlint:1.7.7
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
 
   whitespace-check:
     name: Package whitespace verification
