@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
@@ -14,7 +13,6 @@ use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;

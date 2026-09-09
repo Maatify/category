@@ -154,6 +154,50 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame(4, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
     }
 
+    public function testContentFieldFormatCheckRequiresExactLowercaseValues(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $collationStatement = $this->connection()->prepare(
+            'SELECT COLLATION_NAME FROM information_schema.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column',
+        );
+        $collationStatement->execute([
+            'table' => self::CONTENT_FIELD_TABLE,
+            'column' => 'format',
+        ]);
+        self::assertSame('utf8mb4_bin', $collationStatement->fetchColumn());
+
+        /** @var list<array{string, string, string}> $variants */
+        $variants = [
+            ['json-uppercase', 'JSON', '{}'],
+            ['text-uppercase', 'TEXT', 'plain'],
+            ['html-uppercase', 'HTML', '<p>plain</p>'],
+            ['json-trailing-space', 'json ', '{}'],
+            ['text-trailing-space', 'text ', 'plain'],
+        ];
+        foreach ($variants as [$fieldKey, $format, $value]) {
+            $this->assertContentFieldInsertRejected(
+                $fieldKey,
+                $format,
+                $value,
+                sprintf('The database must reject uppercase Content Field format %s.', $format),
+            );
+        }
+    }
+
+    public function testContentFieldJsonCheckRejectsInvalidJson(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $this->assertContentFieldInsertRejected(
+            'invalid-json',
+            'json',
+            '{invalid',
+            'The database must reject invalid JSON for the json Content Field format.',
+        );
+    }
+
     public function testEmptyImageAssignmentScopeValuesAreRejected(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
@@ -428,6 +472,44 @@ final class CategorySchemaIntegrationTest extends TestCase
             'media_asset_id' => $mediaAssetId,
             'language_code' => $languageCode,
             'platform' => $platform,
+            'display_order' => 1,
+            'created_at' => '2026-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'deleted_at' => null,
+        ]);
+    }
+
+    private function assertContentFieldInsertRejected(
+        string $fieldKey,
+        string $format,
+        string $value,
+        string $message,
+    ): void {
+        try {
+            $this->insertContentField($fieldKey, $format, $value);
+        } catch (PDOException) {
+            return;
+        }
+
+        self::fail($message);
+    }
+
+    private function insertContentField(string $fieldKey, string $format, string $value): void
+    {
+        $statement = $this->connection()->prepare(
+            'INSERT INTO `' . self::CONTENT_FIELD_TABLE . '` '
+            . '(`category_id`, `field_key`, `language_code`, `platform`, `format`, `value`, '
+            . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
+            . 'VALUES (:category_id, :field_key, :language_code, :platform, :format, :value, '
+            . ':display_order, :created_at, :updated_at, :deleted_at)',
+        );
+        $statement->execute([
+            'category_id' => 1,
+            'field_key' => $fieldKey,
+            'language_code' => null,
+            'platform' => null,
+            'format' => $format,
+            'value' => $value,
             'display_order' => 1,
             'created_at' => '2026-01-01 00:00:00',
             'updated_at' => '2026-01-01 00:00:00',

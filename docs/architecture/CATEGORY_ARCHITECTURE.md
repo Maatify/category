@@ -50,11 +50,12 @@ those host concepts.
 Category Content Fields are arbitrary Host-defined key/value records. Their
 immutable logical identity is `(category_id, field_key, language_code, platform)`
 and their exact scope supports NULL/NULL, language/NULL, NULL/platform, and
-language/platform without fallback. Category stores `text`, `html`, and `json`
-values in `LONGTEXT`; it validates JSON syntax for JSON fields but does not
-sanitize/render HTML or interpret `field_key` semantics. The Host owns editor,
-sanitization, rendering, JSON semantics, and semantic language/platform
-validation.
+language/platform without fallback. Category stores exact lowercase `text`,
+`html`, and `json` values in `LONGTEXT`; the binary `utf8mb4_bin` format
+collation aligns the database invariant with the PHP enum. It validates JSON
+syntax for JSON fields but does not sanitize/render HTML or interpret
+`field_key` semantics. The Host owns editor, sanitization, rendering, JSON
+semantics, and semantic language/platform validation.
 
 `status` (`active`/`inactive`) is independent from `deleted_at`. Query
 visibility excludes inactive or soft-deleted Categories and excludes every
@@ -143,7 +144,7 @@ The package exposes two separate public query ports:
   `display_order, id`; Content lists are ordered by `language_code, id`; Image
   Assignment lists are ordered deterministically by Category, exact generated
   scope, `display_order, id`; Content Field lists are ordered by Category, exact
-  generated scope, field key, `display_order, id`.
+  generated scope, `display_order, id`.
 - `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
   consumer visibility reads and apply the complete ancestor visibility rule.
   Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most

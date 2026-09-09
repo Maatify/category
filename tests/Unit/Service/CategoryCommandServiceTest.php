@@ -36,7 +36,6 @@ use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
 use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;

@@ -104,8 +104,9 @@ Category Content Fields are arbitrary Host-defined key/value records separate
 from the fixed `CategoryContent` name/description model. Their stable identity
 is `(category_id, field_key, language_code, platform)`, including soft-deleted
 rows. `NULL` language/platform values are exact neutral dimensions, not
-fallbacks; all four scope combinations are supported. Values use `text`,
-`html`, or `json` formats and are stored without HTML sanitization or rendering.
+fallbacks; all four scope combinations are supported. Values use exact
+lowercase `text`, `html`, or `json` formats and are stored without HTML
+sanitization or rendering. The database enforces the format case exactly.
 The Host owns the meaning of `field_key`, WYSIWYG policy, rendering, and JSON
 semantics. Consumer reads require the exact scope and complete ancestor
 visibility.

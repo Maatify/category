@@ -48,9 +48,10 @@
 -- Content Field contract:
 --   - Category Content Fields are arbitrary Host-defined key/value content;
 --     Category does not interpret field_key semantics.
---   - format is text, html, or json. The value is LONGTEXT so WYSIWYG HTML
---     and structured content are not truncated; Category does not sanitize or
---     render HTML.
+--   - format is exactly lowercase text, html, or json. Its binary column
+--     collation keeps the database invariant aligned with the PHP enum. The
+--     value is LONGTEXT so WYSIWYG HTML and structured content are not
+--     truncated; Category does not sanitize or render HTML.
 --   - (category_id, field_key, language_code, platform) is immutable and
 --     unique, including soft-deleted rows. NULL scope dimensions are mapped
 --     to generated identity columns for NULL-safe uniqueness.
@@ -191,7 +192,7 @@ CREATE TABLE `maa_category_category_content_fields`
             END
         )
     ) STORED COMMENT 'Generated exact Category plus language/platform ordering scope for maatify/persistence',
-    `format`                 VARCHAR(10) NOT NULL COMMENT 'Typed stored content format: text, html, or json',
+    `format`                 VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Typed stored content format: exact lowercase text, html, or json',
     `value`                  LONGTEXT NOT NULL COMMENT 'Required Host-defined content value; Category stores raw text/HTML/JSON without rendering or sanitization',
     `display_order`          INT NOT NULL COMMENT 'Business-controlled positive order within the exact Category and scope; assigned through maatify/persistence',
     `created_at`             DATETIME NOT NULL COMMENT 'UTC timestamp assigned by the Category application when the field is created',
@@ -217,7 +218,9 @@ CREATE TABLE `maa_category_category_content_fields`
         `platform` IS NULL
         OR (CHAR_LENGTH(TRIM(`platform`)) > 0 AND CHAR_LENGTH(`platform`) <= 255)
     ),
-    CONSTRAINT `chk_maa_category_category_content_fields_format` CHECK (`format` IN ('text', 'html', 'json')),
+    CONSTRAINT `chk_maa_category_category_content_fields_format` CHECK (
+        BINARY `format` IN (BINARY 'text', BINARY 'html', BINARY 'json')
+    ),
     CONSTRAINT `chk_maa_category_category_content_fields_json` CHECK (
         `format` <> 'json' OR JSON_VALID(`value`)
     ),

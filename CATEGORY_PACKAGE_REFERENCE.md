@@ -79,12 +79,13 @@ NULL/NULL, language/NULL, NULL/platform, and language/platform. Empty strings
 are invalid, no fallback is performed, and the Host owns the semantic meaning
 of each key.
 
-Each field declares `text`, `html`, or `json` format and stores its value as
-`LONGTEXT`. The package validates JSON syntax when the declared format is
-`json`; HTML sanitization/rendering and JSON schema validation remain Host
-responsibilities. Display order is independent for each Category and exact
-scope, with deterministic `display_order, id` reads and explicit reorder
-commands.
+Each field declares an exact lowercase `text`, `html`, or `json` format and
+stores its value as `LONGTEXT`. The database format column uses the
+case-sensitive `utf8mb4_bin` collation, and the package validates JSON syntax
+when the declared format is `json`; HTML sanitization/rendering and JSON schema
+validation remain Host responsibilities. Display order is independent for each
+Category and exact scope, with deterministic `display_order, id` reads and
+explicit reorder commands.
 
 ## Runtime API
 
@@ -463,7 +464,7 @@ Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
 deleted rows, and apply complete ancestor visibility with no fallback.
 Management Content Field lists accept `CategoryContentFieldListCriteriaDTO`,
 apply an optional exact nullable scope predicate, and are ordered by Category,
-exact scope, field key, and `display_order, id`. Visible Content Field lists
+exact scope, and `display_order, id`. Visible Content Field lists
 require an exact `CategoryContentFieldScopeDTO`, exclude deleted rows, and
 apply complete ancestor visibility with no fallback. In management criteria,
 `scope = null` means no scope filter; `new CategoryContentFieldScopeDTO()`
@@ -523,7 +524,7 @@ ancestor path to be active and non-deleted.
   NULL-safe database identity values.
 - Content Field keys support all four exact nullable language/platform scopes;
   the same key may exist in different scopes without fallback between them.
-- Content Field formats are `text`, `html`, and `json`; declared JSON values
+- Content Field formats are exact lowercase `text`, `html`, and `json`; declared JSON values
   must be syntactically valid, while Host HTML/semantic validation is outside
   the package.
 - Content Field ordering is independent per Category and exact scope, uses
@@ -579,8 +580,9 @@ NULL to one uniqueness value, so MySQL enforces both the single unlocalized
 row and the per-language uniqueness. Content Fields use generated
 NULL-normalized language/platform identities for their immutable four-part
 identity, and a generated exact-scope ordering key for locking and ordering.
-Their declared format is checked, and `JSON_VALID(value)` is enforced for
-`json` rows. MySQL 8.0.16 or later is required because
+Their declared format is checked with a case-sensitive `utf8mb4_bin` column
+collation, and `JSON_VALID(value)` is enforced for exact lowercase `json` rows.
+MySQL 8.0.16 or later is required because
 earlier MySQL 8 releases accepted but did not enforce `CHECK` constraints.
 
 Timestamps are application-managed UTC values. PDO repositories persist the

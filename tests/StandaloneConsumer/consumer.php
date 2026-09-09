@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
@@ -342,12 +346,23 @@ try {
     $localizedImageAssignmentId = $commandService->createImageAssignment(
         new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
     );
+    $contentFieldId = $commandService->createContentField(
+        new CreateCategoryContentFieldCommand(
+            $categoryId,
+            'badge_config',
+            'en-US',
+            'web',
+            CategoryContentFieldFormatEnum::JSON,
+            '{"enabled":true}',
+        ),
+    );
     standalone_consumer_require(
         $categoryId > 0
         && $contentId > 0
         && $localizedContentId > 0
         && $imageAssignmentId > 0
-        && $localizedImageAssignmentId > 0,
+        && $localizedImageAssignmentId > 0
+        && $contentFieldId > 0,
         'Standalone mutation returned invalid IDs.',
     );
 
@@ -376,6 +391,19 @@ try {
             new CategoryImageAssignmentScopeDTO('en-US', 'web'),
         )->count() === 1,
         'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
+    );
+    $visibleContentFields = $queryService->listContentFields(
+        $categoryId,
+        new CategoryContentFieldScopeDTO('en-US', 'web'),
+        new CategoryVisibleListCriteriaDTO(maxResults: 10),
+    );
+    $visibleContentFieldId = null;
+    foreach ($visibleContentFields as $visibleContentField) {
+        $visibleContentFieldId = $visibleContentField->id;
+    }
+    standalone_consumer_require(
+        $visibleContentFields->count() === 1 && $visibleContentFieldId === $contentFieldId,
+        'Standalone exact Content Field consumer query returned the wrong rows.',
     );
 
     $managementCategory = $managementService->getById(
@@ -436,6 +464,23 @@ try {
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
         )->count() === 2,
         'Standalone management Image Assignment list did not return both scopes.',
+    );
+    $managementContentField = $managementService->getContentFieldById($contentFieldId);
+    standalone_consumer_require(
+        $managementContentField->id === $contentFieldId
+        && $managementContentField->fieldKey === 'badge_config'
+        && $managementContentField->format === CategoryContentFieldFormatEnum::JSON,
+        'Standalone management read service returned the wrong Content Field.',
+    );
+    standalone_consumer_require(
+        $managementService->listContentFields(
+            new CategoryContentFieldListCriteriaDTO(
+                categoryId: $categoryId,
+                scope: new CategoryContentFieldScopeDTO('en-US', 'web'),
+                maxResults: 10,
+            ),
+        )->count() === 1,
+        'Standalone management Content Field list did not return the exact scope.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);

@@ -53,8 +53,10 @@ Category Content Fields are Host-defined key/value records with immutable
 `(category_id, field_key, language_code, platform)` identity. The four exact
 scope combinations are supported independently; management criteria distinguish
 an omitted scope filter from an exact NULL/NULL scope, while consumer reads
-require one exact scope and never fallback. `format` is `text`, `html`, or
-`json`; values use `LONGTEXT`, JSON syntax is enforced for JSON fields, and
+require one exact scope and never fallback. `format` is exactly lowercase
+`text`, `html`, or `json` through its case-sensitive `utf8mb4_bin` column
+collation; values use `LONGTEXT`, JSON syntax is enforced for exact lowercase
+`json` fields, and
 Category does not sanitize, render, or interpret Host-defined keys. Field
 ordering is independent per Category and exact scope through the shared
 `maatify/persistence` Ordering API. The generated NULL-safe identity remains
