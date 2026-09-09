@@ -1855,6 +1855,26 @@ final Batch HEAD؛ هذه الجاهزية لا تنفذ Tag أو Release أو P
 Real MySQL Integration، كل PHP minors المعتمدة، مراجعة API/Architecture،
 documentation sweep، clean repository، وstandalone installation test.
 
+بوابة هذه Batch النهائية تُشغّل مرة واحدة على exact final HEAD بعد اكتمال
+كل Commits:
+
+```text
+composer validate --strict
+composer dump-autoload --optimize --strict-psr
+composer check-platform-reqs
+composer audit --no-interaction --abandoned=fail
+PHP syntax validation for all package-owned PHP paths
+PHPStan level max
+Unit tests
+Real MySQL Integration tests
+Full PHPUnit suite
+standalone consumer verification
+```
+
+لا تُعلن Phase 17 `READY FOR OWNER APPROVAL` إلا إذا نجحت هذه البوابة كاملة.
+وتظل `v1.0.0` وموعد الإصدار وعمليات Merge/Tag/Release/Publish خارج التنفيذ
+حتى يعتمدها المالك.
+
 ---
 
 ### Release Files
