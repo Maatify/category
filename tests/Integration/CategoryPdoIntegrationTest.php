@@ -6,23 +6,23 @@ namespace Maatify\Category\Tests\Integration;
 
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Command\UpdateCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
+use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
@@ -102,130 +102,130 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         ], $this->ordersForScope($connection, $firstRootId));
     }
 
-    public function testTranslationLifecycleIsPackageOwnedAndPreservesLogicalIdentity(): void
+    public function testContentLifecycleIsPackageOwnedAndPreservesLogicalIdentity(): void
     {
         $connection = $this->connection();
         $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 UTC'));
         $queryReader = new PdoCategoryQueryReader($connection);
-        $categoryId = $service->create(new CreateCategoryCommand('translation-lifecycle-category'));
+        $categoryId = $service->create(new CreateCategoryCommand('content-lifecycle-category'));
 
-        $translationId = $service->createTranslation(
-            new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Shirts', 'Base description'),
+        $contentId = $service->createContent(
+            new CreateCategoryContentCommand($categoryId, null, 'Shirts', 'Base description'),
         );
-        $created = $queryReader->findTranslationById($translationId);
+        $created = $queryReader->findContentById($contentId);
         self::assertNotNull($created);
-        self::assertSame($translationId, $created->id);
+        self::assertSame($contentId, $created->id);
         self::assertSame($categoryId, $created->categoryId);
-        self::assertSame('en-US', $created->languageCode);
+        self::assertNull($created->languageCode);
 
-        $service->updateTranslation(new UpdateCategoryTranslationCommand(
-            $translationId,
+        $service->updateContent(new UpdateCategoryContentCommand(
+            $contentId,
             'قمصان',
             'وصف',
         ));
-        $updated = $queryReader->findTranslationById($translationId);
+        $updated = $queryReader->findContentById($contentId);
         self::assertNotNull($updated);
-        self::assertSame($translationId, $updated->id);
+        self::assertSame($contentId, $updated->id);
         self::assertSame($categoryId, $updated->categoryId);
-        self::assertSame('en-US', $updated->languageCode);
+        self::assertNull($updated->languageCode);
         self::assertSame('قمصان', $updated->name);
 
-        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($translationId));
-        $deleted = $queryReader->findTranslationById($translationId);
+        $service->softDeleteContent(new SoftDeleteCategoryContentCommand($contentId));
+        $deleted = $queryReader->findContentById($contentId);
         self::assertNotNull($deleted);
         self::assertNotNull($deleted->deletedAt);
-        self::assertSame($translationId, $deleted->id);
+        self::assertSame($contentId, $deleted->id);
 
-        $service->restoreTranslation(new RestoreCategoryTranslationCommand($translationId));
-        $restored = $queryReader->findTranslationById($translationId);
+        $service->restoreContent(new RestoreCategoryContentCommand($contentId));
+        $restored = $queryReader->findContentById($contentId);
         self::assertNotNull($restored);
-        self::assertSame($translationId, $restored->id);
+        self::assertSame($contentId, $restored->id);
         self::assertSame($categoryId, $restored->categoryId);
-        self::assertSame('en-US', $restored->languageCode);
+        self::assertNull($restored->languageCode);
         self::assertNull($restored->deletedAt);
         self::assertSame('قمصان', $restored->name);
     }
 
-    public function testTranslationMutationsFollowParentLifecycleStateContractOnMySql(): void
+    public function testContentMutationsFollowParentLifecycleStateContractOnMySql(): void
     {
         $connection = $this->connection();
         $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 UTC'));
         $queryReader = new PdoCategoryQueryReader($connection);
 
-        $inactiveCategoryId = $service->create(new CreateCategoryCommand('inactive-translation-parent'));
+        $inactiveCategoryId = $service->create(new CreateCategoryCommand('inactive-content-parent'));
         $service->updateStatus(
             new UpdateCategoryStatusCommand($inactiveCategoryId, CategoryStatusEnum::INACTIVE),
         );
 
-        $inactiveTranslationId = $service->createTranslation(
-            new CreateCategoryTranslationCommand($inactiveCategoryId, 'en-US', 'Inactive parent', null),
+        $inactiveContentId = $service->createContent(
+            new CreateCategoryContentCommand($inactiveCategoryId, 'en-US', 'Inactive parent', null),
         );
-        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
-        self::assertNotNull($inactiveTranslation);
-        self::assertSame($inactiveCategoryId, $inactiveTranslation->categoryId);
+        $inactiveContent = $queryReader->findContentById($inactiveContentId);
+        self::assertNotNull($inactiveContent);
+        self::assertSame($inactiveCategoryId, $inactiveContent->categoryId);
 
-        $service->updateTranslation(
-            new UpdateCategoryTranslationCommand($inactiveTranslationId, 'Updated inactive parent', null),
+        $service->updateContent(
+            new UpdateCategoryContentCommand($inactiveContentId, 'Updated inactive parent', null),
         );
-        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
-        self::assertNotNull($inactiveTranslation);
-        self::assertSame('Updated inactive parent', $inactiveTranslation->name);
+        $inactiveContent = $queryReader->findContentById($inactiveContentId);
+        self::assertNotNull($inactiveContent);
+        self::assertSame('Updated inactive parent', $inactiveContent->name);
 
-        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($inactiveTranslationId));
-        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
-        self::assertNotNull($inactiveTranslation);
-        self::assertNotNull($inactiveTranslation->deletedAt);
+        $service->softDeleteContent(new SoftDeleteCategoryContentCommand($inactiveContentId));
+        $inactiveContent = $queryReader->findContentById($inactiveContentId);
+        self::assertNotNull($inactiveContent);
+        self::assertNotNull($inactiveContent->deletedAt);
 
-        $service->restoreTranslation(new RestoreCategoryTranslationCommand($inactiveTranslationId));
-        $inactiveTranslation = $queryReader->findTranslationById($inactiveTranslationId);
-        self::assertNotNull($inactiveTranslation);
-        self::assertNull($inactiveTranslation->deletedAt);
+        $service->restoreContent(new RestoreCategoryContentCommand($inactiveContentId));
+        $inactiveContent = $queryReader->findContentById($inactiveContentId);
+        self::assertNotNull($inactiveContent);
+        self::assertNull($inactiveContent->deletedAt);
 
-        $deletedCategoryId = $service->create(new CreateCategoryCommand('deleted-translation-parent'));
-        $deletedTranslationId = $service->createTranslation(
-            new CreateCategoryTranslationCommand($deletedCategoryId, 'en-US', 'Deleted parent', null),
+        $deletedCategoryId = $service->create(new CreateCategoryCommand('deleted-content-parent'));
+        $deletedContentId = $service->createContent(
+            new CreateCategoryContentCommand($deletedCategoryId, 'en-US', 'Deleted parent', null),
         );
         $service->softDelete(new SoftDeleteCategoryCommand($deletedCategoryId));
 
         try {
-            $service->createTranslation(
-                new CreateCategoryTranslationCommand($deletedCategoryId, 'ar-EG', 'Rejected', null),
+            $service->createContent(
+                new CreateCategoryContentCommand($deletedCategoryId, 'ar-EG', 'Rejected', null),
             );
-            self::fail('A Translation must not be created under a soft-deleted Category.');
+            self::fail('A Content must not be created under a soft-deleted Category.');
         } catch (CategoryNotFoundException) {
             // Creation requires a non-deleted parent Category.
         }
 
-        $service->updateTranslation(
-            new UpdateCategoryTranslationCommand($deletedTranslationId, 'Updated deleted parent', null),
+        $service->updateContent(
+            new UpdateCategoryContentCommand($deletedContentId, 'Updated deleted parent', null),
         );
-        $deletedTranslation = $queryReader->findTranslationById($deletedTranslationId);
-        self::assertNotNull($deletedTranslation);
-        self::assertSame('Updated deleted parent', $deletedTranslation->name);
+        $deletedContent = $queryReader->findContentById($deletedContentId);
+        self::assertNotNull($deletedContent);
+        self::assertSame('Updated deleted parent', $deletedContent->name);
 
-        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($deletedTranslationId));
-        $deletedTranslation = $queryReader->findTranslationById($deletedTranslationId);
-        self::assertNotNull($deletedTranslation);
-        self::assertNotNull($deletedTranslation->deletedAt);
+        $service->softDeleteContent(new SoftDeleteCategoryContentCommand($deletedContentId));
+        $deletedContent = $queryReader->findContentById($deletedContentId);
+        self::assertNotNull($deletedContent);
+        self::assertNotNull($deletedContent->deletedAt);
 
-        $service->restoreTranslation(new RestoreCategoryTranslationCommand($deletedTranslationId));
-        $restored = $queryReader->findTranslationById($deletedTranslationId);
+        $service->restoreContent(new RestoreCategoryContentCommand($deletedContentId));
+        $restored = $queryReader->findContentById($deletedContentId);
         self::assertNotNull($restored);
         self::assertNull($restored->deletedAt);
         self::assertSame($deletedCategoryId, $restored->categoryId);
     }
 
-    public function testTranslationCreationRejectsDuplicateLogicalIdentityIncludingSoftDeletedRows(): void
+    public function testContentCreationRejectsDuplicateLogicalIdentityIncludingSoftDeletedRows(): void
     {
         $service = $this->service($this->connection(), new FixedCategoryClock());
-        $categoryId = $service->create(new CreateCategoryCommand('translation-identity-category'));
-        $command = new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Shirts', null);
+        $categoryId = $service->create(new CreateCategoryCommand('content-identity-category'));
+        $command = new CreateCategoryContentCommand($categoryId, null, 'Shirts', null);
 
-        $translationId = $service->createTranslation($command);
-        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($translationId));
+        $contentId = $service->createContent($command);
+        $service->softDeleteContent(new SoftDeleteCategoryContentCommand($contentId));
 
-        $this->expectException(CategoryTranslationAlreadyExistsException::class);
-        $service->createTranslation($command);
+        $this->expectException(CategoryContentAlreadyExistsException::class);
+        $service->createContent($command);
     }
 
     public function testSoftDeleteChecksNonDeletedChildrenAndAllowsTheParentAfterChildDeletion(): void
@@ -451,7 +451,7 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryQueryReader($connection),
-            new PdoCategoryTranslationCommandRepository($connection),
+            new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryTransaction($connection),
             $clock,
         );

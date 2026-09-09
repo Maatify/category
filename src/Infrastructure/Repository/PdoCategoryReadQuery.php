@@ -9,8 +9,8 @@ use DateTimeZone;
 use Maatify\Category\Contract\CategoryReadQueryInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
@@ -21,7 +21,7 @@ use PDOStatement;
 final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const TRANSLATION_TABLE = 'maa_category_category_translations';
+    private const CONTENT_TABLE = 'maa_category_category_contents';
 
     public function __construct(private PDO $pdo) {}
 
@@ -135,53 +135,53 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         return $this->hydrateCategories($rows);
     }
 
-    public function listVisibleTranslations(
+    public function listVisibleContents(
         int $categoryId,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryTranslationCollectionDTO
+    ): CategoryContentCollectionDTO
     {
         $statement = $this->pdo->prepare(
             'WITH RECURSIVE `category_ancestors` AS ('
             . 'SELECT `id`, `parent_id`, `status`, `deleted_at` '
             . 'FROM `' . self::CATEGORY_TABLE . '` '
-            . 'WHERE `id` = :translation_ancestor_start_id '
+            . 'WHERE `id` = :content_ancestor_start_id '
             . 'UNION ALL '
             . 'SELECT `parent`.`id`, `parent`.`parent_id`, `parent`.`status`, `parent`.`deleted_at` '
             . 'FROM `' . self::CATEGORY_TABLE . '` AS `parent` '
             . 'INNER JOIN `category_ancestors` AS `child` '
             . 'ON `child`.`parent_id` = `parent`.`id`'
             . ') '
-            . 'SELECT `translation`.`id`, `translation`.`category_id`, '
-            . '`translation`.`language_code`, `translation`.`name`, `translation`.`description`, '
-            . '`translation`.`created_at`, `translation`.`updated_at`, `translation`.`deleted_at` '
-            . 'FROM `' . self::TRANSLATION_TABLE . '` AS `translation` '
-            . 'WHERE `translation`.`category_id` = :translation_category_id '
-            . 'AND `translation`.`deleted_at` IS NULL '
+            . 'SELECT `content`.`id`, `content`.`category_id`, '
+            . '`content`.`language_code`, `content`.`name`, `content`.`description`, '
+            . '`content`.`created_at`, `content`.`updated_at`, `content`.`deleted_at` '
+            . 'FROM `' . self::CONTENT_TABLE . '` AS `content` '
+            . 'WHERE `content`.`category_id` = :content_category_id '
+            . 'AND `content`.`deleted_at` IS NULL '
             . 'AND EXISTS ('
             . 'SELECT 1 FROM `category_ancestors` AS `visible_category` '
-            . 'WHERE `visible_category`.`id` = :visible_translation_category_id'
+            . 'WHERE `visible_category`.`id` = :visible_content_category_id'
             . ') '
             . 'AND NOT EXISTS ('
             . 'SELECT 1 FROM `category_ancestors` AS `ancestor` '
             . 'WHERE `ancestor`.`status` <> \'active\' '
             . 'OR `ancestor`.`deleted_at` IS NOT NULL'
             . ') '
-            . 'ORDER BY `translation`.`language_code` ASC, `translation`.`id` ASC '
+            . 'ORDER BY `content`.`language_code` ASC, `content`.`id` ASC '
             . 'LIMIT :max_results',
         );
         $this->executeBounded(
             $statement,
             $criteria,
             [
-                'translation_ancestor_start_id' => $categoryId,
-                'translation_category_id' => $categoryId,
-                'visible_translation_category_id' => $categoryId,
+                'content_ancestor_start_id' => $categoryId,
+                'content_category_id' => $categoryId,
+                'visible_content_category_id' => $categoryId,
             ],
         );
         /** @var list<array<string, mixed>> $rows */
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        return $this->hydrateTranslations($rows);
+        return $this->hydrateContents($rows);
     }
 
     /** @param array<string, int|string> $params */
@@ -244,12 +244,12 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
     }
 
     /** @param array<string, mixed> $row */
-    private function hydrateTranslation(array $row): CategoryTranslationDTO
+    private function hydrateContent(array $row): CategoryContentDTO
     {
-        return new CategoryTranslationDTO(
+        return new CategoryContentDTO(
             id: $this->integerValue($row, 'id'),
             categoryId: $this->integerValue($row, 'category_id'),
-            languageCode: $this->stringValue($row, 'language_code'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
             name: $this->stringValue($row, 'name'),
             description: $this->nullableStringValue($row, 'description'),
             createdAt: $this->timestampValue($row, 'created_at'),
@@ -259,15 +259,15 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
     }
 
     /** @param list<array<string, mixed>> $rows */
-    private function hydrateTranslations(array $rows): CategoryTranslationCollectionDTO
+    private function hydrateContents(array $rows): CategoryContentCollectionDTO
     {
         $items = [];
         foreach ($rows as $row) {
-            $items[] = $this->hydrateTranslation($row);
+            $items[] = $this->hydrateContent($row);
         }
 
-        /** @var list<CategoryTranslationDTO> $items */
-        return new CategoryTranslationCollectionDTO($items);
+        /** @var list<CategoryContentDTO> $items */
+        return new CategoryContentCollectionDTO($items);
     }
 
     /** @param array<string, mixed> $row */

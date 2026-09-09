@@ -7,12 +7,12 @@ namespace Maatify\Category\DTO;
 use DateTimeImmutable;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-final readonly class CategoryTranslationDTO implements \JsonSerializable
+final readonly class CategoryContentDTO implements \JsonSerializable
 {
     public function __construct(
         public int $id,
         public int $categoryId,
-        public string $languageCode,
+        public ?string $languageCode,
         public string $name,
         public ?string $description,
         public DateTimeImmutable $createdAt,
@@ -27,11 +27,11 @@ final readonly class CategoryTranslationDTO implements \JsonSerializable
             throw CategoryInvalidArgumentException::nonPositiveId('categoryId');
         }
 
-        if (trim($languageCode) === '') {
+        if ($languageCode !== null && trim($languageCode) === '') {
             throw CategoryInvalidArgumentException::emptyField('languageCode');
         }
 
-        if (mb_strlen($languageCode) > 16) {
+        if ($languageCode !== null && mb_strlen($languageCode) > 16) {
             throw CategoryInvalidArgumentException::fieldTooLong('languageCode', 16);
         }
 
@@ -48,7 +48,7 @@ final readonly class CategoryTranslationDTO implements \JsonSerializable
      * @return array{
      *     id: int,
      *     categoryId: int,
-     *     languageCode: string,
+     *     languageCode: ?string,
      *     name: string,
      *     description: ?string,
      *     createdAt: string,

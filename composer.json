@@ -1,11 +1,11 @@
 {
   "name": "maatify/category",
-  "description": "Framework-neutral hierarchical category and translation domain with PDO persistence.",
+  "description": "Framework-neutral hierarchical category and content domain with PDO persistence.",
   "keywords": [
     "category",
     "taxonomy",
     "hierarchy",
-    "translations",
+    "content",
     "mysql",
     "pdo",
     "php",

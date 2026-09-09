@@ -1,13 +1,13 @@
 # Category Package Reference
 
 `maatify/category` is the canonical, framework-neutral package for reusable
-hierarchical categories and category translations. This file is the package's
+hierarchical categories and optional Category Content. This file is the package's
 single stable contract reference. Detailed implementation notes belong under
 `docs/` and must link back here.
 
 ## Scope and boundaries
 
-The package owns Category and Category Translation behavior only. It does not
+The package owns Category and Category Content behavior only. It does not
 own Catalog identity, Product, Pricing, Inventory, Media, HTTP, framework
 integration, permissions, presentation, or dependency-injection bindings.
 
@@ -15,10 +15,11 @@ The package is host-agnostic:
 
 - Host-owned identities are accepted as validated scalar IDs and are never
   joined to or constrained by package-owned tables.
-- Internal Category and Translation relationships use package-owned foreign
+- Internal Category and Content relationships use package-owned foreign
   keys only.
-- Category owns the syntactic and storage validation of `language_code` required
-  by its contract, including the constraints enforced by the Runtime.
+- Category owns the syntactic and storage validation of non-NULL `language_code`
+  values required by its contract, including the constraints enforced by the
+  Runtime.
 - The Host owns semantic language validation, such as confirming that a language
   is supported or known, together with fallback and locale policy.
 - Public read contracts use typed DTOs and collections, while mutation
@@ -32,20 +33,23 @@ Its exact adoption commit is `f386948aa873fef9960680411c8918d095d29b93`.
 The manifest, not a floating upstream branch or a historical roadmap claim,
 resolves the active and inherited profiles for this package.
 
-## Standards Applicability Decision
+## Domain Content model
 
-The Category domain is translation-only. The base Category table does not own a
-localized `name`; localized `name` and `description` values are owned by
-Category Translation rows.
+Category is the structural entity. Its identity, stable `code`, hierarchy,
+status, ordering, timestamps, and soft-deletion lifecycle are independent from
+human-readable content; `name` and `description` are not copied into the
+Category table.
 
-The logical identity of a translation is `(category_id, language_code)`. The
-Host remains responsible for semantic language validation and fallback
-behavior.
+Category Content is the single content persistence concept. Its
+`(category_id, language_code)` identity supports both forms:
 
-The Translation-only architecture is part of the current Domain contract and
-is not described as a local exception. Earlier standards SHAs that may appear
-in historical roadmap evidence are provenance only; they are not the current
-normative adoption for this package.
+- `language_code = NULL` is ordinary, unlocalized Category Content.
+- A non-NULL `language_code` is localized Content for that language.
+
+The database enforces at most one unlocalized row per Category and at most one
+row for each non-NULL language code. The Package applies only syntactic/storage
+validation; the Host owns semantic language availability, fallback, and locale
+policy. The Package performs no implicit fallback.
 
 ## Runtime API
 
@@ -69,11 +73,11 @@ The immutable record DTOs are:
 
 - `CategoryIdDTO`
 - `CategoryDTO`
-- `CategoryTranslationDTO`
+- `CategoryContentDTO`
 - `CategoryCollectionDTO`
-- `CategoryTranslationCollectionDTO`
+- `CategoryContentCollectionDTO`
 - `CategoryListCriteriaDTO`
-- `CategoryTranslationListCriteriaDTO`
+- `CategoryContentListCriteriaDTO`
 - `CategoryVisibleListCriteriaDTO`
 
 ### Commands
@@ -84,10 +88,10 @@ The immutable record DTOs are:
 - `RestoreCategoryCommand`
 - `UpdateCategoryStatusCommand`
 - `UpdateCategoryDisplayOrderCommand`
-- `CreateCategoryTranslationCommand`
-- `UpdateCategoryTranslationCommand`
-- `SoftDeleteCategoryTranslationCommand`
-- `RestoreCategoryTranslationCommand`
+- `CreateCategoryContentCommand`
+- `UpdateCategoryContentCommand`
+- `SoftDeleteCategoryContentCommand`
+- `RestoreCategoryContentCommand`
 
 Every public DTO and collection DTO is immutable and implements
 `JsonSerializable`. Collections also retain typed `IteratorAggregate` behavior.
@@ -95,16 +99,16 @@ Date-time fields serialize as RFC 3339 strings; enum fields serialize using
 their backing values.
 
 Commands and DTOs validate their input/domain invariants. `CategoryDTO` and
-`CategoryTranslationDTO` require canonical positive identities. A Category
-cannot use itself as its parent. `UpdateCategoryTranslationCommand` accepts only
-translation content, preserving the logical identity
+`CategoryContentDTO` require canonical positive identities. A Category
+cannot use itself as its parent. `UpdateCategoryContentCommand` accepts only
+  content fields, preserving the logical identity
 `(category_id, language_code)`. Category mutation Commands do not expose `code`, so
 the stable Category code remains immutable after creation.
 
 ### Services and contracts
 
 - `CategoryCommandServiceInterface` and `CategoryCommandService` own mutation
-  orchestration for creation, translation creation/content update/soft
+  orchestration for creation, content creation/content update/soft
   delete/restore, parent movement, cycle prevention, Category soft delete,
   restore, status, and display order.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
@@ -112,11 +116,11 @@ the stable Category code remains immutable after creation.
 - `CategoryManagementQueryServiceInterface` and
   `CategoryManagementQueryService` expose management identity and list reads.
 - `CategoryCommandRepositoryInterface` is the Category write port.
-- `CategoryTranslationCommandRepositoryInterface` is the Translation
+- `CategoryContentCommandRepositoryInterface` is the Content
   lifecycle write port.
 - `CategoryQueryReaderInterface` is the mutation-support read port. Its
   `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock Category and Translation rows inside the
+  explicit `ForUpdate` methods lock Category and Content rows inside the
   application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
@@ -146,14 +150,14 @@ UpdateCategoryDisplayOrderCommand(string|int $categoryId, int $displayOrder)
 SoftDeleteCategoryCommand(string|int $categoryId)
 RestoreCategoryCommand(string|int $categoryId)
 
-CreateCategoryTranslationCommand(string|int $categoryId, string $languageCode, string $name, ?string $description)
-UpdateCategoryTranslationCommand(string|int $translationId, string $name, ?string $description)
-SoftDeleteCategoryTranslationCommand(string|int $translationId)
-RestoreCategoryTranslationCommand(string|int $translationId)
+CreateCategoryContentCommand(string|int $categoryId, ?string $languageCode, string $name, ?string $description)
+UpdateCategoryContentCommand(string|int $contentId, string $name, ?string $description)
+SoftDeleteCategoryContentCommand(string|int $contentId)
+RestoreCategoryContentCommand(string|int $contentId)
 ```
 
 Commands are `final readonly` and implement `JsonSerializable`. Category code,
-translation `categoryId`, and translation `languageCode` are not mutable through
+content `categoryId`, and content `languageCode` are not mutable through
 an update command.
 
 #### DTOs and criteria constructors
@@ -163,17 +167,17 @@ CategoryIdDTO(string|int $value, string $field = 'id')
 CategoryDTO(int $id, ?int $parentId, string $code, CategoryStatusEnum $status,
             int $displayOrder, DateTimeImmutable $createdAt,
             DateTimeImmutable $updatedAt, ?DateTimeImmutable $deletedAt)
-CategoryTranslationDTO(int $id, int $categoryId, string $languageCode,
-                       string $name, ?string $description,
-                       DateTimeImmutable $createdAt,
-                       DateTimeImmutable $updatedAt,
-                       ?DateTimeImmutable $deletedAt)
+CategoryContentDTO(int $id, int $categoryId, ?string $languageCode,
+                   string $name, ?string $description,
+                   DateTimeImmutable $createdAt,
+                   DateTimeImmutable $updatedAt,
+                   ?DateTimeImmutable $deletedAt)
 CategoryCollectionDTO(array $items)
-CategoryTranslationCollectionDTO(array $items)
+CategoryContentCollectionDTO(array $items)
 CategoryListCriteriaDTO(?CategoryStatusEnum $status = null,
                         CategoryDeletedStateEnum $deletedState = NON_DELETED,
                         int $maxResults = 100)
-CategoryTranslationListCriteriaDTO(?int $categoryId = null,
+CategoryContentListCriteriaDTO(?int $categoryId = null,
                                    CategoryDeletedStateEnum $deletedState = NON_DELETED,
                                    int $maxResults = 100)
 CategoryVisibleListCriteriaDTO(int $maxResults = 100)
@@ -197,29 +201,29 @@ CategoryDeletedStateEnum: NON_DELETED = 'non_deleted',
 ```text
 CategoryCommandServiceInterface
   create(CreateCategoryCommand): int
-  createTranslation(CreateCategoryTranslationCommand): int
+  createContent(CreateCategoryContentCommand): int
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
   restore(RestoreCategoryCommand): void
   updateStatus(UpdateCategoryStatusCommand): void
   updateDisplayOrder(UpdateCategoryDisplayOrderCommand): void
-  updateTranslation(UpdateCategoryTranslationCommand): void
-  softDeleteTranslation(SoftDeleteCategoryTranslationCommand): void
-  restoreTranslation(RestoreCategoryTranslationCommand): void
+  updateContent(UpdateCategoryContentCommand): void
+  softDeleteContent(SoftDeleteCategoryContentCommand): void
+  restoreContent(RestoreCategoryContentCommand): void
 
 CategoryQueryServiceInterface
   getById(int): CategoryDTO
   listRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listTranslations(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+  listContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
 
 CategoryManagementQueryServiceInterface
   getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
   listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
-  getTranslationById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryTranslationDTO
-  listTranslations(CategoryTranslationListCriteriaDTO): CategoryTranslationCollectionDTO
+  getContentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
+  listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
 
 CategoryCommandRepositoryInterface
   create(CreateCategoryCommand, DateTimeImmutable): int
@@ -229,25 +233,25 @@ CategoryCommandRepositoryInterface
   updateStatus(UpdateCategoryStatusCommand, DateTimeImmutable): bool
   updateDisplayOrder(UpdateCategoryDisplayOrderCommand, DateTimeImmutable): bool
 
-CategoryTranslationCommandRepositoryInterface
-  create(CreateCategoryTranslationCommand, DateTimeImmutable): int
-  update(UpdateCategoryTranslationCommand, DateTimeImmutable): bool
-  softDelete(SoftDeleteCategoryTranslationCommand, DateTimeImmutable): bool
-  restore(RestoreCategoryTranslationCommand, DateTimeImmutable): bool
+CategoryContentCommandRepositoryInterface
+  create(CreateCategoryContentCommand, DateTimeImmutable): int
+  update(UpdateCategoryContentCommand, DateTimeImmutable): bool
+  softDelete(SoftDeleteCategoryContentCommand, DateTimeImmutable): bool
+  restore(RestoreCategoryContentCommand, DateTimeImmutable): bool
 
 CategoryReadQueryInterface
   findVisibleById(int): ?CategoryDTO
   listVisibleRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listVisibleChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listVisibleTranslations(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+  listVisibleContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
 
 CategoryManagementReadQueryInterface
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
   listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
-  findTranslationById(int, CategoryDeletedStateEnum): ?CategoryTranslationDTO
-  listTranslations(CategoryTranslationListCriteriaDTO): CategoryTranslationCollectionDTO
+  findContentById(int, CategoryDeletedStateEnum): ?CategoryContentDTO
+  listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
 
 CategoryQueryReaderInterface [internal mutation-support port]
   findById(int): ?CategoryDTO
@@ -256,8 +260,8 @@ CategoryQueryReaderInterface [internal mutation-support port]
   findActiveByIdForUpdate(int): ?CategoryDTO
   findByIdForUpdate(int): ?CategoryDTO
   hasNonDeletedChildrenForUpdate(int): bool
-  findTranslationById(int): ?CategoryTranslationDTO
-  findTranslationByIdForUpdate(int): ?CategoryTranslationDTO
+  findContentById(int): ?CategoryContentDTO
+  findContentByIdForUpdate(int): ?CategoryContentDTO
 
 CategoryTransactionInterface
   run(Closure): mixed
@@ -272,14 +276,14 @@ v1 get-by-code contract.
 ```text
 CategoryCommandService(CategoryCommandRepositoryInterface,
                        CategoryQueryReaderInterface,
-                       CategoryTranslationCommandRepositoryInterface,
+                       CategoryContentCommandRepositoryInterface,
                        CategoryTransactionInterface,
                        ClockInterface)
 CategoryQueryService(CategoryReadQueryInterface)
 CategoryManagementQueryService(CategoryManagementReadQueryInterface)
 
 PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
-PdoCategoryTranslationCommandRepository(PDO)
+PdoCategoryContentCommandRepository(PDO)
 PdoCategoryQueryReader(PDO)
 PdoCategoryReadQuery(PDO)
 PdoCategoryManagementReadQuery(PDO)
@@ -291,61 +295,65 @@ no Host framework/container bindings.
 
 Management Category lists accept `CategoryListCriteriaDTO`, apply an optional
 status filter and an explicit `CategoryDeletedStateEnum`, and are bounded to
-at most 100 rows per call. Management Translation lists accept
-`CategoryTranslationListCriteriaDTO`, optionally filter by Category, apply an
+at most 100 rows per call. Management Content lists accept
+`CategoryContentListCriteriaDTO`, optionally filter by Category, apply an
 explicit deleted state, and use the same bound. Category lists are ordered by
-`display_order, id`; Translation lists are ordered by `language_code, id`.
-The package does not add local pagination, search, or language fallback.
+`display_order, id`; Content lists are ordered by `language_code, id`.
+The package does not add local pagination, search, or language fallback. Content
+collections may contain the single NULL-language row together with zero or more
+language-specific rows; Category queries never join an unrestricted Content
+collection in a way that multiplies Category rows.
 Consumer Category lists use the same maximum of 100 through their separate
-criteria DTO; root and child lists use `display_order, id`, and Translation
+criteria DTO; root and child lists use `display_order, id`, and Content
 lists use `language_code, id`. The bound is applied by the persistence query
 with a typed integer parameter; pagination and search remain deferred.
 
-### Translation parent-state contract
+### Content parent-state contract
 
-The current Runtime does not couple Translation lifecycle mutations to the
+The current Runtime does not couple Content lifecycle mutations to the
 parent Category's status after the required parent-existence check. The
 mutation-support names `findActiveById()` and `findActiveByIdForUpdate()` mean
 non-deleted Category lifecycle state; they do not mean
 `CategoryStatusEnum::ACTIVE`.
 
-- `createTranslation()` requires the Category to exist and have
+- `createContent()` requires the Category to exist and have
   `deleted_at IS NULL`. A Category with status `INACTIVE` is valid; a
   soft-deleted Category is rejected.
-- `updateTranslation()` depends on the Translation's own non-deleted lifecycle
+- `updateContent()` depends on the Content's own non-deleted lifecycle
   and is allowed when the parent Category is inactive or soft-deleted.
-- `softDeleteTranslation()` depends on the Translation's own non-deleted
+- `softDeleteContent()` depends on the Content's own non-deleted
   lifecycle and is allowed when the parent Category is inactive or
   soft-deleted.
-- `restoreTranslation()` depends on the Translation row existing in its
+- `restoreContent()` depends on the Content row existing in its
   soft-deleted lifecycle and is allowed when the parent Category is inactive
   or soft-deleted.
 
 These semantics are proven against the real MySQL schema by
-`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+`CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 They are the v1 contract; no parent-state redesign is implied.
 
 ## Business invariants
 
 - Category `code` is immutable and unique among all stored identities.
-- Category Translation logical identity `(category_id, language_code)` is
-  immutable and unique.
-- Translation creation rejects an existing identity, including a soft-deleted
+- Category Content logical identity `(category_id, language_code)` is
+  immutable and unique, including the database-enforced single NULL-language
+  identity per Category.
+- Content creation rejects an existing identity, including a soft-deleted
   row; restoration reuses that same identity.
 - Parent movement rejects direct self-parenting and every indirect cycle,
   including `A → B → C → A`.
 - Soft delete is rejected while a Category has non-deleted children.
-- Restore reuses the same Category or Translation identity.
+- Restore reuses the same Category or Content identity.
 - Every mutation updates `updated_at` using the application `ClockInterface`.
 - Hierarchy/lifecycle checks and writes execute inside a real transaction with
   the required row locks.
 
 ## Query visibility contract
 
-Management query methods expose stored Category and Translation state for
+Management query methods expose stored Category and Content state for
 management/use-case consumers. They do not apply consumer ancestor visibility
 rules. Management reads provide Category get-by-ID, bounded all/root/child
-lists, Translation get-by-ID, and bounded Translation lists. Deleted records
+lists, Content get-by-ID, and bounded Content lists. Deleted records
 are returned only when the caller explicitly selects `include_deleted` or
 `deleted_only`; management get-by-code, search, and pagination are not part of
 the v1 public contract.
@@ -355,7 +363,7 @@ Visible query methods:
 - Read one Category by identity.
 - List root Categories.
 - List direct children by `parent_id`.
-- Read Category Translations.
+- Read Category Contents.
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
 any ancestor in its complete parent path is inactive or soft-deleted. Query
@@ -368,12 +376,14 @@ The canonical schema is [`schema/category.sql`](schema/category.sql). It owns
 exactly two tables:
 
 - `maa_category_categories`
-- `maa_category_category_translations`
+- `maa_category_category_contents`
 
 The schema uses InnoDB, `utf8mb4`, `ON DELETE RESTRICT`, `ON UPDATE RESTRICT`,
-stable unique keys, status `CHECK` enforcement, and package-owned self-parent
-triggers. MySQL 8.0.16 or later is required because earlier MySQL 8 releases
-accepted but did not enforce `CHECK` constraints.
+stable unique keys, status and language-code `CHECK` enforcement, and
+package-owned self-parent triggers. A stored generated language identity maps
+NULL to one uniqueness value, so MySQL enforces both the single unlocalized
+row and the per-language uniqueness. MySQL 8.0.16 or later is required because
+earlier MySQL 8 releases accepted but did not enforce `CHECK` constraints.
 
 Timestamps are application-managed UTC values. PDO repositories persist the
 supplied values and do not own time generation.
@@ -407,8 +417,8 @@ for distinct failure semantics:
 
 - `CategoryInvalidArgumentException`
 - `CategoryNotFoundException`
-- `CategoryTranslationNotFoundException`
-- `CategoryTranslationAlreadyExistsException`
+- `CategoryContentNotFoundException`
+- `CategoryContentAlreadyExistsException`
 - `CategoryCodeAlreadyExistsException`
 - `CategoryCycleException`
 - `CategoryHasNonDeletedChildrenException`
@@ -423,13 +433,13 @@ Named factories exposed by the package are:
   `invalidId()`, `nonPositiveId()`, `invalidDisplayOrder()`, `selfParent()`,
   and `invalidListLimit()`.
 - `CategoryNotFoundException::withId()` and
-  `CategoryTranslationNotFoundException::withId()`.
+  `CategoryContentNotFoundException::withId()`.
 - `CategoryCodeAlreadyExistsException::withCode()` and
-  `CategoryTranslationAlreadyExistsException::withIdentity()`.
+  `CategoryContentAlreadyExistsException::withIdentity()`.
 - `CategoryCycleException::forMove()` and
   `CategoryHasNonDeletedChildrenException::withId()`.
 - `CategoryPersistenceException::queryFailed()`,
-  `invalidAutoIncrementIdentity()`, `invalidTranslationAutoIncrementIdentity()`,
+  `invalidAutoIncrementIdentity()`, `invalidContentAutoIncrementIdentity()`,
   `invalidStorageValue()`, and `unexpectedColumnType()`.
 - `CategoryTransactionException::alreadyActive()`.
 

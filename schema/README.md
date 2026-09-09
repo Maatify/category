@@ -3,7 +3,7 @@
 The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../CATEGORY_PACKAGE_REFERENCE.md).
 
 This directory contains the package-owned persistence contract for Categories
-and Category Translations.
+and Category Contents.
 
 The package requires MySQL 8.0.16 or later. This minimum is part of the storage
 contract because the database schema relies on enforced `CHECK` constraints.
@@ -12,7 +12,7 @@ Integration verification uses the same required runtime version.
 ## Included tables
 
 - `maa_category_categories`
-- `maa_category_category_translations`
+- `maa_category_category_contents`
 
 Apply [category.sql](category.sql). It creates exactly the two tables and the
 package-owned self-parent triggers:
@@ -27,7 +27,12 @@ delete and update operations. Category creation obtains the next positive
 `display_order` for the nullable `parent_id` scope through the shared
 `maatify/persistence` Ordering API inside the application transaction.
 
-Category Translation creation, content updates, soft deletion, and restoration
+Category Content creation, content updates, soft deletion, and restoration
 are exposed through the package command service; consumers do not need direct
 SQL for that lifecycle. The `(category_id, language_code)` identity remains
-unique and immutable.
+unique and immutable. `language_code = NULL` represents unlocalized Content; a
+non-NULL value represents localized Content. A stored generated identity column
+makes NULL a single database uniqueness value, so MySQL enforces at most one
+unlocalized row per Category as well as one row per non-NULL language code.
+Empty-string language codes are rejected by the schema and are not an
+alternative to NULL.

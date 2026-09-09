@@ -9,14 +9,14 @@ use Maatify\Category\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
-use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationNotFoundException;
+use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Service\CategoryManagementQueryService;
 use PHPUnit\Framework\TestCase;
 
@@ -37,11 +37,11 @@ final class CategoryManagementQueryServiceTest extends TestCase
         );
     }
 
-    public function testMissingCategoryAndTranslationUseTheirSpecificNotFoundExceptions(): void
+    public function testMissingCategoryAndContentUseTheirSpecificNotFoundExceptions(): void
     {
         $reader = $this->createStub(CategoryManagementReadQueryInterface::class);
         $reader->method('findById')->willReturn(null);
-        $reader->method('findTranslationById')->willReturn(null);
+        $reader->method('findContentById')->willReturn(null);
         $service = new CategoryManagementQueryService($reader);
 
         try {
@@ -51,20 +51,20 @@ final class CategoryManagementQueryServiceTest extends TestCase
             // Expected.
         }
 
-        $this->expectException(CategoryTranslationNotFoundException::class);
-        $service->getTranslationById(9);
+        $this->expectException(CategoryContentNotFoundException::class);
+        $service->getContentById(9);
     }
 
     public function testListCriteriaArePassedToTheDedicatedReader(): void
     {
         $categories = new CategoryCollectionDTO([$this->category(1)]);
-        $translations = new CategoryTranslationCollectionDTO([$this->translation(2)]);
+        $contents = new CategoryContentCollectionDTO([$this->content(2)]);
         $categoryCriteria = new CategoryListCriteriaDTO(
             status: CategoryStatusEnum::INACTIVE,
             deletedState: CategoryDeletedStateEnum::INCLUDE_DELETED,
             maxResults: 2,
         );
-        $translationCriteria = new CategoryTranslationListCriteriaDTO(
+        $contentCriteria = new CategoryContentListCriteriaDTO(
             categoryId: 1,
             deletedState: CategoryDeletedStateEnum::DELETED_ONLY,
             maxResults: 3,
@@ -73,20 +73,20 @@ final class CategoryManagementQueryServiceTest extends TestCase
         $reader->expects(self::once())->method('listCategories')->with($categoryCriteria)->willReturn($categories);
         $reader->expects(self::once())->method('listRootCategories')->with($categoryCriteria)->willReturn($categories);
         $reader->expects(self::once())->method('listChildren')->with(1, $categoryCriteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listTranslations')->with($translationCriteria)->willReturn($translations);
+        $reader->expects(self::once())->method('listContents')->with($contentCriteria)->willReturn($contents);
         $service = new CategoryManagementQueryService($reader);
 
         self::assertSame($categories, $service->listCategories($categoryCriteria));
         self::assertSame($categories, $service->listRootCategories($categoryCriteria));
         self::assertSame($categories, $service->listChildren(1, $categoryCriteria));
-        self::assertSame($translations, $service->listTranslations($translationCriteria));
+        self::assertSame($contents, $service->listContents($contentCriteria));
     }
 
     public function testCriteriaRejectNonPositiveCategoryIds(): void
     {
         $this->expectException(CategoryInvalidArgumentException::class);
 
-        new CategoryTranslationListCriteriaDTO(categoryId: 0);
+        new CategoryContentListCriteriaDTO(categoryId: 0);
     }
 
     public function testCriteriaRejectOutOfBoundsMaximums(): void
@@ -112,11 +112,11 @@ final class CategoryManagementQueryServiceTest extends TestCase
         );
     }
 
-    private function translation(int $id): CategoryTranslationDTO
+    private function content(int $id): CategoryContentDTO
     {
         $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
 
-        return new CategoryTranslationDTO(
+        return new CategoryContentDTO(
             id: $id,
             categoryId: 1,
             languageCode: 'en-US',

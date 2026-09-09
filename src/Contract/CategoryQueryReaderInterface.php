@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\Contract;
 
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 
 /** Read port consumed by Category business orchestration. */
 interface CategoryQueryReaderInterface
@@ -47,13 +47,13 @@ interface CategoryQueryReaderInterface
      */
     public function hasNonDeletedChildrenForUpdate(int $categoryId): bool;
 
-    public function findTranslationById(int $translationId): ?CategoryTranslationDTO;
+    public function findContentById(int $contentId): ?CategoryContentDTO;
 
     /**
-     * Finds and locks a Category Translation regardless of soft-delete state.
+     * Finds and locks a Category Content regardless of soft-delete state.
      *
      * This lookup MUST execute with a row lock inside the current
      * CategoryTransactionInterface::run() transaction.
      */
-    public function findTranslationByIdForUpdate(int $translationId): ?CategoryTranslationDTO;
+    public function findContentByIdForUpdate(int $contentId): ?CategoryContentDTO;
 }

@@ -20,7 +20,7 @@ maatify/category
 * Host-agnostic.
 * Framework-neutral.
 * متوافقة بالكامل مع Maatify Engineering Standards.
-* مكتملة وظيفيًا من ناحية Category وCategory Translation lifecycle.
+* مكتملة وظيفيًا من ناحية Category وCategory Content lifecycle.
 * مكتملة من ناحية CRUD.
 * مكتملة من ناحية Persistence وConcurrency.
 * موثقة ومختبرة وقابلة للإصدار.
@@ -38,13 +38,13 @@ maatify/category
 
 | Phase | الحالة | الدليل/الحدود |
 |---|---|---|
-| 0 | `COMPLETED BY THIS BATCH` | Standards lock، قرارات v1، وحسم Translation parent-state contract مع Real MySQL proof |
+| 0 | `COMPLETED BY THIS BATCH` | Standards lock، قرارات v1، وحسم Content parent-state contract مع Real MySQL proof |
 | 1 | `ALREADY IMPLEMENTED + PROVEN` | `4fabccafdce4638fa5f050c9f72fa8241e343a31` وComposer/CI الحالية |
 | 2 | `ALREADY IMPLEMENTED + PROVEN` | `18e212875e299e6e7c7d9c3b0b1c5304e9e7e133` واختبارات Real MySQL |
 | 3 | `COMPLETED + PROVEN` | `b1141d93cb61f3961950faf774737b57e1143b5e` واختبارات validation |
 | 4 | `ALREADY IMPLEMENTED + PROVEN` | عقود PDO/transaction وReal MySQL integration الحالية |
 | 5 | `ALREADY IMPLEMENTED + PROVEN` | Category lifecycle وordering/concurrency integration الحالية |
-| 6 | `ALREADY IMPLEMENTED + PROVEN` | Translation lifecycle وidentity/restore integration الحالية، وإثبات parent-state semantics على Real MySQL |
+| 6 | `ALREADY IMPLEMENTED + PROVEN` | Content lifecycle وidentity/restore integration الحالية، وإثبات parent-state semantics على Real MySQL |
 | 7 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` وmanagement query tests |
 | 8 | `ALREADY IMPLEMENTED + PROVEN` | visible query service/read tests وancestor visibility integration |
 | 9 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` والقوائم bounded/deterministic |
@@ -60,6 +60,26 @@ maatify/category
 Phase 4–6 لا تعاد عبر Runtime implementation لمجرد إعادة الإثبات؛ evidence
 الحالية في Real MySQL tests هي proof المعتمد لها. وPhase 3/7/9/15 مغلقة
 ومثبتة في Draft الحالية قبل Batch التوثيق هذه.
+
+### 1.2 Current Draft correction — unified Category Content
+
+The current Draft corrects the previous content-model assumption. Category is a
+structural entity and does not store `name` or `description`. One package-owned
+Category Content persistence concept supports both:
+
+* `language_code = NULL`: one ordinary, unlocalized Content row per Category.
+* non-NULL `language_code`: one localized Content row per language identity.
+
+The Runtime uses `CreateCategoryContentCommand` and the other Content lifecycle
+Commands directly; callers do not create a pseudo-localized row to represent
+ordinary Category data. The database uses a stored generated identity column in
+the unique key so MySQL enforces the NULL row cardinality as well as
+`(category_id, language_code)` uniqueness for localized rows. No fallback or
+semantic language policy is introduced; those remain Host responsibilities.
+
+This correction supersedes the prior public inventory and schema wording in
+this roadmap. Its implementation evidence is the current Content unit tests,
+Real MySQL schema/PDO tests, query tests, and standalone consumer coverage.
 
 ---
 
@@ -78,8 +98,9 @@ Database Prefix: maa_category_
 المكتبة تتبع `php-engineering-standards`.
 
 ### Domain Ownership & Explicit Non-Goals
-Category Domain معني بإدارة التسلسل الهرمي للفئات (Hierarchy) وترجماتها (Translations).
-لا يتدخل في المنتجات (Products)، المحتوى (Content)، ولا يدير واجهات الـHTTP أو Admin UI مباشرة.
+Category Domain معني بإدارة التسلسل الهرمي للفئات (Hierarchy) ومحتواها
+(Category Content). لا يتدخل في المنتجات (Products)، ولا يدير واجهات الـHTTP
+أو Admin UI مباشرة.
 
 ---
 
@@ -88,15 +109,15 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 تم دمج المراحل السابقة (0-17) إلى 4 معالم هندسية (Milestones) تمثل قدرات النظام الحقيقية بناءً على وضع المستودع الحالي.
 
 ### Milestone 1: Core Domain, Schema & Persistence (Completed)
-**Engineering Capability:** تأسيس المعمارية، قواعد البيانات، وعقود الـPDO و Transactions، وتحديد حالة المالك/الترجمات.
+**Engineering Capability:** تأسيس المعمارية، قواعد البيانات، وعقود الـPDO و Transactions، وتحديد حالة المالك/المحتوى.
 **Included Legacy Phases:** Phase 0, 1, 2, 4
 **Locked v1 Decisions & Implementation Status:**
 * **PHP Requirement:** PHP 8.4+
 * **Database Requirement:** MySQL 8.0.16+, InnoDB, `utf8mb4_unicode_ci`.
-* **Schema Design:** `maa_category_categories` and `maa_category_category_translations`.
+* **Schema Design:** `maa_category_categories` and `maa_category_category_contents`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
-* **Translation Identity:** (category_id, language_code) uniquely identifies a translation.
-* **Translation Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Translation lifecycle only. Parent inactive or soft-deleted does not block those operations.
+* **Content Identity:** (category_id, language_code) uniquely identifies Content; `language_code = NULL` is the single unlocalized identity per Category.
+* **Content Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Content lifecycle only. Parent inactive or soft-deleted does not block those operations.
 * **Display Order:** No implicit default (like 0) in schema. `CreateCategoryCommand` has no `display_order`. Persistence/shared ordering determines next position.
 **Completion Gates:**
 * Schema creation tests pass.
@@ -106,15 +127,15 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 ---
 
 ### Milestone 2: Management & Mutation APIs (Completed)
-**Engineering Capability:** اكتمال جميع عمليات الـCRUD للإدارة (Management) الخاصة بالفئات وترجماتها مع معالجة التزامن والأخطاء.
+**Engineering Capability:** اكتمال جميع عمليات الـCRUD للإدارة (Management) الخاصة بالفئات ومحتواها مع معالجة التزامن والأخطاء.
 **Included Legacy Phases:** Phase 3, 5, 6, 7, 9, 10, 11
 **Locked v1 Decisions & Implementation Status:**
 * **Mutation Contract Strictness:** No generic "Update" DTOs; explicit Commands only (`MoveCategoryCommand`, `UpdateCategoryStatusCommand`, etc.).
 * **Pagination & Search:** Pagination and Search are deferred. Bounded list contracts remain max 100.
 * **Management Reads:** No public management get-by-code.
 * **Category Ordering:** Ordered by `display_order, id`.
-* **Translation Ordering:** Ordered by `language_code, id`.
-* **Soft Delete:** Translations manage their own soft-delete lifecycle independent of the Category.
+* **Content Ordering:** Ordered by `language_code, id`.
+* **Soft Delete:** Content records manage their own soft-delete lifecycle independent of the Category.
 * **Exception Boundaries:** Namespace is `Maatify\Category\Exception`. Package marker is `CategoryExceptionInterface`. No `CategoryException` base class.
 * **Concurrency Verification:** Proven transaction locks and restore mechanisms.
 **Completion Gates:**
@@ -163,7 +184,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 | Phase 3 | Command & Validation Layer | Milestone 2 |
 | Phase 4 | Persistence & Transaction Foundation | Milestone 1 |
 | Phase 5 | Category Create & Mutation CRUD | Milestone 2 |
-| Phase 6 | Category Translation CRUD | Milestone 2 |
+| Phase 6 | Category Content CRUD | Milestone 2 |
 | Phase 7 | Management Read Model | Milestone 2 |
 | Phase 8 | Consumer Visibility Query Model | Milestone 3 |
 | Phase 9 | Pagination, Ordering & Query Hardening | Milestone 2 |
@@ -188,16 +209,16 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 * `SoftDeleteCategoryCommand`
 * `UpdateCategoryStatusCommand`
 * `UpdateCategoryDisplayOrderCommand`
-* `CreateCategoryTranslationCommand`
-* `UpdateCategoryTranslationCommand`
-* `SoftDeleteCategoryTranslationCommand`
-* `RestoreCategoryTranslationCommand`
+* `CreateCategoryContentCommand`
+* `UpdateCategoryContentCommand`
+* `SoftDeleteCategoryContentCommand`
+* `RestoreCategoryContentCommand`
 
 ### 5.2 DTOs (Read Models)
 * `CategoryDTO`
-* `CategoryTranslationDTO`
+* `CategoryContentDTO`
 * `CategoryCollectionDTO`
-* `CategoryTranslationCollectionDTO`
+* `CategoryContentCollectionDTO`
 
 *(Mutation Commands ممنوع تسميتها DTO.)*
 
@@ -210,7 +231,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 
 * Architecture Locked.
 * Commands / DTOs Separated & Correct.
-* Category CRUD & Translation CRUD Complete.
+* Category CRUD & Category Content CRUD Complete.
 * Management Reads & Consumer Visibility Complete.
 * Persistence & Concurrency Verified.
 * Composer & CI Compliant.

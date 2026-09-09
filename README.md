@@ -13,7 +13,7 @@
 [![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 [![Contributing Guide](https://img.shields.io/badge/Contributing-Guide-blue.svg)](CONTRIBUTING.md)
 
-Framework-neutral hierarchical categories and translations for reusable PHP applications.
+Framework-neutral hierarchical categories and contents for reusable PHP applications.
 
 **Status:** v1.0.0 preparation · owner release metadata pending · not published
 
@@ -30,10 +30,10 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Key Features
 
-- Typed immutable Category and Category Translation DTOs.
-- Stable immutable Category codes and translation identities.
+- Typed immutable Category and Category Content DTOs.
+- Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
-- Category and Translation create, update, soft-delete, and restore lifecycle
+- Category and Content create, update, soft-delete, and restore lifecycle
   mutations, plus Category status and display-order mutations.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
@@ -46,7 +46,7 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 ## Public Runtime API
 
 The package exposes ten typed mutation Commands, immutable Category and
-Translation DTOs, three bounded criteria DTOs, two enums, typed service and
+Content DTOs, three bounded criteria DTOs, two enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
 constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
@@ -61,7 +61,16 @@ Management reads and consumer visibility reads are separate contracts.
 Management criteria can select status and deleted state; consumer criteria
 cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
 bounded to at most 100 rows. Category lists use `display_order, id`, and
-Translation lists use `language_code, id`.
+Content lists use `language_code, id`.
+
+## Category Content model
+
+Category is the structural entity; its table does not duplicate `name` or
+`description`. Optional Category Content stores those fields in one unified
+content table. Use `language_code: null` for ordinary unlocalized content, or a
+non-NULL language code for localized content. The schema enforces one NULL row
+per Category and one row per non-NULL language code. The package does not select
+fallback content; the Host owns semantic language validation and locale policy.
 
 ## Requirements
 
@@ -101,8 +110,8 @@ $category = new CategoryDTO(
 );
 ```
 
-The Category package owns the syntactic and storage validation of `language_code`
-required by its contract and Runtime. The host application owns dependency
+The Category package owns the syntactic and storage validation of non-NULL
+`language_code` values required by its contract and Runtime. The host application owns dependency
 injection, semantic language validation, fallback/locale policy, HTTP response
 envelopes, and presentation formatting.
 

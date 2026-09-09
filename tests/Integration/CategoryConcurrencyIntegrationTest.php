@@ -7,7 +7,7 @@ namespace Maatify\Category\Tests\Integration;
 use Closure;
 use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
@@ -16,10 +16,10 @@ use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
+use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
@@ -430,15 +430,15 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
-    public function testConcurrentTranslationCreationCannotDuplicateLogicalIdentity(): void
+    public function testConcurrentContentCreationCannotDuplicateLogicalIdentity(): void
     {
         $service = $this->service($this->connection());
-        $categoryId = $service->create(new CreateCategoryCommand('concurrent-translation-category'));
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-content-category'));
 
         $locker = $this->newConnection();
         $locker->beginTransaction();
         $insert = $locker->prepare(
-            'INSERT INTO `maa_category_category_translations` '
+            'INSERT INTO `maa_category_category_contents` '
             . '(`category_id`, `language_code`, `name`, `created_at`, `updated_at`) '
             . 'VALUES (:category_id, :language_code, :name, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
         );
@@ -455,27 +455,27 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         try {
             $this->assertLockWaitTimeout(
                 function () use ($blockedService, $categoryId): void {
-                    $blockedService->createTranslation(
-                        new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Competing', null),
+                    $blockedService->createContent(
+                        new CreateCategoryContentCommand($categoryId, 'en-US', 'Competing', null),
                     );
                 },
                 $blockedConnection,
-                'A competing translation creation must wait on its logical identity.',
+                'A competing content creation must wait on its logical identity.',
             );
 
             $locker->commit();
 
             try {
-                $blockedService->createTranslation(
-                    new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Competing', null),
+                $blockedService->createContent(
+                    new CreateCategoryContentCommand($categoryId, 'en-US', 'Competing', null),
                 );
-                self::fail('A committed translation identity must not be duplicated.');
-            } catch (CategoryTranslationAlreadyExistsException) {
+                self::fail('A committed content identity must not be duplicated.');
+            } catch (CategoryContentAlreadyExistsException) {
                 self::assertFalse($blockedConnection->inTransaction());
             }
 
             $statement = $blockedConnection->prepare(
-                'SELECT COUNT(*) FROM `maa_category_category_translations` '
+                'SELECT COUNT(*) FROM `maa_category_category_contents` '
                 . 'WHERE `category_id` = :category_id AND `language_code` = :language_code',
             );
             $statement->execute([
@@ -570,7 +570,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryQueryReader($connection),
-            new PdoCategoryTranslationCommandRepository($connection),
+            new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryTransaction($connection),
             $clock ?? new FixedCategoryClock(),
         );

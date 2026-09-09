@@ -8,16 +8,16 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Command\UpdateCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
@@ -40,16 +40,16 @@ final class CategoryCommandTest extends TestCase
     {
         $factories = [
             'CreateCategory.parentId' => static fn (int|string $id): object => new CreateCategoryCommand('code', $id),
-            'CreateCategoryTranslation.categoryId' => static fn (int|string $id): object => new CreateCategoryTranslationCommand($id, 'en-US', 'Name', null),
+            'CreateCategoryContent.categoryId' => static fn (int|string $id): object => new CreateCategoryContentCommand($id, 'en-US', 'Name', null),
             'MoveCategory.categoryId' => static fn (int|string $id): object => new MoveCategoryCommand($id, null),
             'MoveCategory.parentId' => static fn (int|string $id): object => new MoveCategoryCommand(42, $id),
             'RestoreCategory.categoryId' => static fn (int|string $id): object => new RestoreCategoryCommand($id),
-            'RestoreCategoryTranslation.translationId' => static fn (int|string $id): object => new RestoreCategoryTranslationCommand($id),
+            'RestoreCategoryContent.contentId' => static fn (int|string $id): object => new RestoreCategoryContentCommand($id),
             'SoftDeleteCategory.categoryId' => static fn (int|string $id): object => new SoftDeleteCategoryCommand($id),
-            'SoftDeleteCategoryTranslation.translationId' => static fn (int|string $id): object => new SoftDeleteCategoryTranslationCommand($id),
+            'SoftDeleteCategoryContent.contentId' => static fn (int|string $id): object => new SoftDeleteCategoryContentCommand($id),
             'UpdateCategoryDisplayOrder.categoryId' => static fn (int|string $id): object => new UpdateCategoryDisplayOrderCommand($id, 1),
             'UpdateCategoryStatus.categoryId' => static fn (int|string $id): object => new UpdateCategoryStatusCommand($id, CategoryStatusEnum::ACTIVE),
-            'UpdateCategoryTranslation.translationId' => static fn (int|string $id): object => new UpdateCategoryTranslationCommand($id, 'Name', null),
+            'UpdateCategoryContent.contentId' => static fn (int|string $id): object => new UpdateCategoryContentCommand($id, 'Name', null),
         ];
 
         foreach ($factories as $name => $factory) {
@@ -78,16 +78,27 @@ final class CategoryCommandTest extends TestCase
     public function testEveryCommandNormalizesCanonicalPositiveStringIdentities(): void
     {
         self::assertSame(42, (new CreateCategoryCommand('code', '42'))->parentId);
-        self::assertSame(42, (new CreateCategoryTranslationCommand('42', 'en-US', 'Name', null))->categoryId);
+        self::assertSame(42, (new CreateCategoryContentCommand('42', 'en-US', 'Name', null))->categoryId);
         self::assertSame(42, (new MoveCategoryCommand('42', '43'))->categoryId);
         self::assertSame(43, (new MoveCategoryCommand('42', '43'))->parentId);
         self::assertSame(42, (new RestoreCategoryCommand('42'))->categoryId);
-        self::assertSame(42, (new RestoreCategoryTranslationCommand('42'))->translationId);
+        self::assertSame(42, (new RestoreCategoryContentCommand('42'))->contentId);
         self::assertSame(42, (new SoftDeleteCategoryCommand('42'))->categoryId);
-        self::assertSame(42, (new SoftDeleteCategoryTranslationCommand('42'))->translationId);
+        self::assertSame(42, (new SoftDeleteCategoryContentCommand('42'))->contentId);
         self::assertSame(42, (new UpdateCategoryDisplayOrderCommand('42', 1))->categoryId);
         self::assertSame(42, (new UpdateCategoryStatusCommand('42', CategoryStatusEnum::ACTIVE))->categoryId);
-        self::assertSame(42, (new UpdateCategoryTranslationCommand('42', 'Name', null))->translationId);
+        self::assertSame(42, (new UpdateCategoryContentCommand('42', 'Name', null))->contentId);
+    }
+
+    public function testCreateContentAllowsNullForUnlocalizedContent(): void
+    {
+        $command = new CreateCategoryContentCommand(42, null, 'Name', null);
+
+        self::assertNull($command->languageCode);
+        self::assertSame(
+            ['categoryId' => 42, 'languageCode' => null, 'name' => 'Name', 'description' => null],
+            $command->jsonSerialize(),
+        );
     }
 
     public function testRequiredStringsRejectEmptyAndWhitespaceOnlyValues(): void
@@ -98,16 +109,16 @@ final class CategoryCommandTest extends TestCase
                 sprintf('CreateCategory.code must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
-                static fn (): object => new CreateCategoryTranslationCommand(1, $value, 'Name', null),
-                sprintf('CreateCategoryTranslation.languageCode must reject %s input.', $label),
+                static fn (): object => new CreateCategoryContentCommand(1, $value, 'Name', null),
+                sprintf('CreateCategoryContent.languageCode must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
-                static fn (): object => new CreateCategoryTranslationCommand(1, 'en-US', $value, null),
-                sprintf('CreateCategoryTranslation.name must reject %s input.', $label),
+                static fn (): object => new CreateCategoryContentCommand(1, 'en-US', $value, null),
+                sprintf('CreateCategoryContent.name must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
-                static fn (): object => new UpdateCategoryTranslationCommand(1, $value, null),
-                sprintf('UpdateCategoryTranslation.name must reject %s input.', $label),
+                static fn (): object => new UpdateCategoryContentCommand(1, $value, null),
+                sprintf('UpdateCategoryContent.name must reject %s input.', $label),
             );
         }
     }
@@ -120,30 +131,29 @@ final class CategoryCommandTest extends TestCase
             'Category code must reject more than 100 characters.',
         );
 
-        self::assertSame(
-            16,
-            mb_strlen((new CreateCategoryTranslationCommand(1, str_repeat('x', 16), 'Name', null))->languageCode),
-        );
+        $languageCode = (new CreateCategoryContentCommand(1, str_repeat('x', 16), 'Name', null))->languageCode;
+        self::assertNotNull($languageCode);
+        self::assertSame(16, mb_strlen($languageCode));
         $this->assertInvalidArgument(
-            static fn (): object => new CreateCategoryTranslationCommand(1, str_repeat('x', 17), 'Name', null),
+            static fn (): object => new CreateCategoryContentCommand(1, str_repeat('x', 17), 'Name', null),
             'Language code must reject more than 16 characters.',
         );
 
         self::assertSame(
             255,
-            mb_strlen((new CreateCategoryTranslationCommand(1, 'en-US', str_repeat('x', 255), null))->name),
+            mb_strlen((new CreateCategoryContentCommand(1, 'en-US', str_repeat('x', 255), null))->name),
         );
         $this->assertInvalidArgument(
-            static fn (): object => new CreateCategoryTranslationCommand(1, 'en-US', str_repeat('x', 256), null),
-            'Created translation name must reject more than 255 characters.',
+            static fn (): object => new CreateCategoryContentCommand(1, 'en-US', str_repeat('x', 256), null),
+            'Created content name must reject more than 255 characters.',
         );
         self::assertSame(
             255,
-            mb_strlen((new UpdateCategoryTranslationCommand(1, str_repeat('x', 255), null))->name),
+            mb_strlen((new UpdateCategoryContentCommand(1, str_repeat('x', 255), null))->name),
         );
         $this->assertInvalidArgument(
-            static fn (): object => new UpdateCategoryTranslationCommand(1, str_repeat('x', 256), null),
-            'Updated translation name must reject more than 255 characters.',
+            static fn (): object => new UpdateCategoryContentCommand(1, str_repeat('x', 256), null),
+            'Updated content name must reject more than 255 characters.',
         );
     }
 
@@ -209,13 +219,13 @@ final class CategoryCommandTest extends TestCase
         $mutationCommands = [
             MoveCategoryCommand::class,
             RestoreCategoryCommand::class,
-            RestoreCategoryTranslationCommand::class,
+            RestoreCategoryContentCommand::class,
             SoftDeleteCategoryCommand::class,
-            SoftDeleteCategoryTranslationCommand::class,
+            SoftDeleteCategoryContentCommand::class,
             UpdateCategoryDisplayOrderCommand::class,
             UpdateCategoryStatusCommand::class,
-            UpdateCategoryTranslationCommand::class,
-            CreateCategoryTranslationCommand::class,
+            UpdateCategoryContentCommand::class,
+            CreateCategoryContentCommand::class,
         ];
 
         foreach ($mutationCommands as $commandClass) {
@@ -224,16 +234,16 @@ final class CategoryCommandTest extends TestCase
         self::assertTrue(property_exists(CreateCategoryCommand::class, 'code'));
     }
 
-    public function testTranslationUpdateCannotMutateCategoryOrLanguageIdentity(): void
+    public function testContentUpdateCannotMutateCategoryOrLanguageIdentity(): void
     {
-        $parameters = (new ReflectionMethod(UpdateCategoryTranslationCommand::class, '__construct'))->getParameters();
+        $parameters = (new ReflectionMethod(UpdateCategoryContentCommand::class, '__construct'))->getParameters();
         $propertyNames = array_map(
             static fn (ReflectionProperty $property): string => $property->getName(),
-            (new ReflectionClass(UpdateCategoryTranslationCommand::class))->getProperties(),
+            (new ReflectionClass(UpdateCategoryContentCommand::class))->getProperties(),
         );
 
         self::assertSame(
-            ['translationId', 'name', 'description'],
+            ['contentId', 'name', 'description'],
             array_map(static fn (\ReflectionParameter $parameter): string => $parameter->getName(), $parameters),
         );
         self::assertNotContains('categoryId', $propertyNames);
@@ -244,15 +254,15 @@ final class CategoryCommandTest extends TestCase
     {
         $expectedCommands = [
             'create' => CreateCategoryCommand::class,
-            'createTranslation' => CreateCategoryTranslationCommand::class,
+            'createContent' => CreateCategoryContentCommand::class,
             'move' => MoveCategoryCommand::class,
             'softDelete' => SoftDeleteCategoryCommand::class,
-            'softDeleteTranslation' => SoftDeleteCategoryTranslationCommand::class,
+            'softDeleteContent' => SoftDeleteCategoryContentCommand::class,
             'restore' => RestoreCategoryCommand::class,
-            'restoreTranslation' => RestoreCategoryTranslationCommand::class,
+            'restoreContent' => RestoreCategoryContentCommand::class,
             'updateStatus' => UpdateCategoryStatusCommand::class,
             'updateDisplayOrder' => UpdateCategoryDisplayOrderCommand::class,
-            'updateTranslation' => UpdateCategoryTranslationCommand::class,
+            'updateContent' => UpdateCategoryContentCommand::class,
         ];
 
         $serviceReflection = new ReflectionClass(CategoryCommandServiceInterface::class);

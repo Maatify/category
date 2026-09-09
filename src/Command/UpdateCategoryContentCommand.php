@@ -8,18 +8,18 @@ use Maatify\Category\DTO\CategoryIdDTO;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
 /**
- * Validated command for changing translation content.
+ * Validated command for changing Content fields.
  *
- * The Category Translation logical identity is deliberately absent: neither
+ * The Category Content logical identity is deliberately absent: neither
  * category_id nor language_code can be changed through this contract.
  */
-final readonly class UpdateCategoryTranslationCommand implements \JsonSerializable
+final readonly class UpdateCategoryContentCommand implements \JsonSerializable
 {
-    public int $translationId;
+    public int $contentId;
     public string $name;
     public ?string $description;
 
-    public function __construct(int|string $translationId, string $name, ?string $description)
+    public function __construct(int|string $contentId, string $name, ?string $description)
     {
         if (trim($name) === '') {
             throw CategoryInvalidArgumentException::emptyField('name');
@@ -29,16 +29,16 @@ final readonly class UpdateCategoryTranslationCommand implements \JsonSerializab
             throw CategoryInvalidArgumentException::fieldTooLong('name', 255);
         }
 
-        $this->translationId = (new CategoryIdDTO($translationId, 'translationId'))->value;
+        $this->contentId = (new CategoryIdDTO($contentId, 'contentId'))->value;
         $this->name = $name;
         $this->description = $description;
     }
 
-    /** @return array{translationId: int, name: string, description: ?string} */
+    /** @return array{contentId: int, name: string, description: ?string} */
     public function jsonSerialize(): mixed
     {
         return [
-            'translationId' => $this->translationId,
+            'contentId' => $this->contentId,
             'name' => $this->name,
             'description' => $this->description,
         ];

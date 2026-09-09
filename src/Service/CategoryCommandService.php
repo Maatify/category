@@ -8,24 +8,24 @@ use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryTransactionInterface;
-use Maatify\Category\Contract\CategoryTranslationCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryTranslationCommand;
+use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryTranslationCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Command\UpdateCategoryTranslationCommand;
+use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryTranslationNotFoundException;
+use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
 /** Coordinates Category business rules and owns application mutation time. */
@@ -34,7 +34,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
     public function __construct(
         private CategoryCommandRepositoryInterface $commandRepository,
         private CategoryQueryReaderInterface $queryReader,
-        private CategoryTranslationCommandRepositoryInterface $translationCommandRepository,
+        private CategoryContentCommandRepositoryInterface $contentCommandRepository,
         private CategoryTransactionInterface $transaction,
         private ClockInterface $clock,
     ) {}
@@ -56,12 +56,12 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         });
     }
 
-    public function createTranslation(CreateCategoryTranslationCommand $command): int
+    public function createContent(CreateCategoryContentCommand $command): int
     {
         return $this->transaction->run(function () use ($command): int {
             $this->requireActiveCategoryForUpdate($command->categoryId);
 
-            return $this->translationCommandRepository->create($command, $this->clock->now());
+            return $this->contentCommandRepository->create($command, $this->clock->now());
         });
     }
 
@@ -126,35 +126,35 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
     }
 
-    public function updateTranslation(UpdateCategoryTranslationCommand $command): void
+    public function updateContent(UpdateCategoryContentCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
-            $this->requireActiveTranslationForUpdate($command->translationId);
+            $this->requireActiveContentForUpdate($command->contentId);
 
-            if (!$this->translationCommandRepository->update($command, $this->clock->now())) {
-                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            if (!$this->contentCommandRepository->update($command, $this->clock->now())) {
+                throw CategoryContentNotFoundException::withId($command->contentId);
             }
         });
     }
 
-    public function softDeleteTranslation(SoftDeleteCategoryTranslationCommand $command): void
+    public function softDeleteContent(SoftDeleteCategoryContentCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
-            $this->requireActiveTranslationForUpdate($command->translationId);
+            $this->requireActiveContentForUpdate($command->contentId);
 
-            if (!$this->translationCommandRepository->softDelete($command, $this->clock->now())) {
-                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            if (!$this->contentCommandRepository->softDelete($command, $this->clock->now())) {
+                throw CategoryContentNotFoundException::withId($command->contentId);
             }
         });
     }
 
-    public function restoreTranslation(RestoreCategoryTranslationCommand $command): void
+    public function restoreContent(RestoreCategoryContentCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
-            $this->requireTranslationForUpdate($command->translationId);
+            $this->requireContentForUpdate($command->contentId);
 
-            if (!$this->translationCommandRepository->restore($command, $this->clock->now())) {
-                throw CategoryTranslationNotFoundException::withId($command->translationId);
+            if (!$this->contentCommandRepository->restore($command, $this->clock->now())) {
+                throw CategoryContentNotFoundException::withId($command->contentId);
             }
         });
     }
@@ -192,26 +192,26 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         return $category;
     }
 
-    private function requireActiveTranslationForUpdate(int $translationId): CategoryTranslationDTO
+    private function requireActiveContentForUpdate(int $contentId): CategoryContentDTO
     {
-        $translation = $this->requireTranslationForUpdate($translationId);
+        $content = $this->requireContentForUpdate($contentId);
 
-        if ($translation->deletedAt !== null) {
-            throw CategoryTranslationNotFoundException::withId($translationId);
+        if ($content->deletedAt !== null) {
+            throw CategoryContentNotFoundException::withId($contentId);
         }
 
-        return $translation;
+        return $content;
     }
 
-    private function requireTranslationForUpdate(int $translationId): CategoryTranslationDTO
+    private function requireContentForUpdate(int $contentId): CategoryContentDTO
     {
-        $translation = $this->queryReader->findTranslationByIdForUpdate($translationId);
+        $content = $this->queryReader->findContentByIdForUpdate($contentId);
 
-        if ($translation === null) {
-            throw CategoryTranslationNotFoundException::withId($translationId);
+        if ($content === null) {
+            throw CategoryContentNotFoundException::withId($contentId);
         }
 
-        return $translation;
+        return $content;
     }
 
     private function assertMoveDoesNotCreateCycle(int $categoryId, int $newParentId): void
