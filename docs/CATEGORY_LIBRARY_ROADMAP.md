@@ -96,8 +96,8 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 * **Schema Design:** `maa_category_` and `maa_category_translation_`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
 * **Translation Identity:** (category_id, language_code) uniquely identifies a translation.
-* **Translation Parent-State Contract:** Translations cannot exist without a parent Category; soft-delete state mirrors parent implicitly.
-* **Display Order:** No implicit default (like 0); must be explicitly provided.
+* **Translation Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Translation lifecycle only. Parent inactive or soft-deleted does not block those operations.
+* **Display Order:** No implicit default (like 0) in schema. `CreateCategoryCommand` has no `display_order`. Persistence/shared ordering determines next position.
 **Completion Gates:**
 * Schema creation tests pass.
 * Trigger behaviors proven.
@@ -110,9 +110,12 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Included Legacy Phases:** Phase 3, 5, 6, 7, 9, 10, 11
 **Locked v1 Decisions & Implementation Status:**
 * **Mutation Contract Strictness:** No generic "Update" DTOs; explicit Commands only (`MoveCategoryCommand`, `UpdateCategoryStatusCommand`, etc.).
-* **Result Paginaton:** Pagination is deferred (No pagination/result DTO returned; category bounded lists handle management views).
-* **Soft Delete:** Cascading soft deletes applied to translations when category is soft-deleted.
-* **Exception Boundaries:** `Maatify\Category\Exceptions\CategoryException` encompasses all package exceptions.
+* **Pagination & Search:** Pagination and Search are deferred. Bounded list contracts remain max 100.
+* **Management Reads:** No public management get-by-code.
+* **Category Ordering:** Ordered by `display_order, id`.
+* **Translation Ordering:** Ordered by `language_code, id`.
+* **Soft Delete:** Translations manage their own soft-delete lifecycle independent of the Category.
+* **Exception Boundaries:** Namespace is `Maatify\Category\Exception`. Package marker is `CategoryExceptionInterface`. No `CategoryException` base class.
 * **Concurrency Verification:** Proven transaction locks and restore mechanisms.
 **Completion Gates:**
 * Management read models are robust.
@@ -126,7 +129,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Included Legacy Phases:** Phase 8
 **Locked v1 Decisions & Implementation Status:**
 * **Hierarchy Visibility:** Consumer lists exclude inactive or deleted ancestors (tree climbing visibility check).
-* **Language Fallback:** Resolved in translations effectively.
+* **Language Fallback:** The package does not resolve language fallback. Fallback/locale policy is Host-owned.
 **Completion Gates:**
 * Visible category reads properly filter out non-active tree segments.
 
