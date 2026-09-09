@@ -1,0 +1,709 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Maatify\Category\Tests\Integration;
+
+use Closure;
+use DateTimeImmutable;
+use Maatify\Category\Command\CreateCategoryCommand;
+use Maatify\Category\Command\CreateCategoryTranslationCommand;
+use Maatify\Category\Command\MoveCategoryCommand;
+use Maatify\Category\Command\RestoreCategoryCommand;
+use Maatify\Category\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
+use Maatify\Category\Exception\CategoryCycleException;
+use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
+use Maatify\Category\Exception\CategoryNotFoundException;
+use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
+use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
+use Maatify\Category\Service\CategoryCommandService;
+use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
+use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
+use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
+use PDO;
+use PDOException;
+use Throwable;
+
+final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationTestCase
+{
+    public function testCompetingMovesSerializeOnTheCategoryRowAndPreserveAValidHierarchy(): void
+    {
+        $service = $this->service($this->connection());
+        $sourceParentId = $service->create(new CreateCategoryCommand('competing-move-source'));
+        $targetParentId = $service->create(new CreateCategoryCommand('competing-move-target'));
+        $categoryId = $service->create(new CreateCategoryCommand('competing-move-category', $sourceParentId));
+
+        $locker = $this->newConnection();
+        $this->lockCategoryRow($locker, $categoryId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $categoryId, $targetParentId): void {
+                    $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
+                },
+                $blockedConnection,
+                'A competing move must wait for the category row lock.',
+            );
+
+            $locker->rollBack();
+            $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
+
+            $reader = new PdoCategoryQueryReader($blockedConnection);
+            self::assertSame($targetParentId, $reader->findById($categoryId)?->parentId);
+            $this->assertHierarchyIsValid($blockedConnection);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testParentChangeRaceSerializesBeforeTheChildMoveAndPreservesTheChain(): void
+    {
+        $service = $this->service($this->connection());
+        $sourceParentId = $service->create(new CreateCategoryCommand('parent-race-source'));
+        $targetParentId = $service->create(new CreateCategoryCommand('parent-race-target'));
+        $newAncestorId = $service->create(new CreateCategoryCommand('parent-race-ancestor'));
+        $categoryId = $service->create(new CreateCategoryCommand('parent-race-category', $sourceParentId));
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        $lockStatement = $locker->prepare(
+            'SELECT `id` FROM `maa_category_categories` WHERE `id` = :id FOR UPDATE',
+        );
+        $lockStatement->execute(['id' => $targetParentId]);
+        $updateStatement = $locker->prepare(
+            'UPDATE `maa_category_categories` SET `parent_id` = :parent_id, `updated_at` = UTC_TIMESTAMP() '
+            . 'WHERE `id` = :id',
+        );
+        $updateStatement->execute([
+            'parent_id' => $newAncestorId,
+            'id' => $targetParentId,
+        ]);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $categoryId, $targetParentId): void {
+                    $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
+                },
+                $blockedConnection,
+                'A child move must wait while its target parent changes.',
+            );
+
+            $locker->commit();
+            $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
+
+            $reader = new PdoCategoryQueryReader($blockedConnection);
+            self::assertSame($targetParentId, $reader->findById($categoryId)?->parentId);
+            self::assertSame($newAncestorId, $reader->findById($targetParentId)?->parentId);
+            $this->assertHierarchyIsValid($blockedConnection);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testDirectCycleAttemptWaitsForTheAncestorLockThenRemainsRejected(): void
+    {
+        $service = $this->service($this->connection());
+        $rootId = $service->create(new CreateCategoryCommand('direct-cycle-root'));
+        $childId = $service->create(new CreateCategoryCommand('direct-cycle-child', $rootId));
+
+        $locker = $this->newConnection();
+        $this->lockCategoryRow($locker, $childId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $rootId, $childId): void {
+                    $blockedService->move(new MoveCategoryCommand($rootId, $childId));
+                },
+                $blockedConnection,
+                'A direct cycle attempt must wait on the locked ancestor chain.',
+            );
+
+            $locker->rollBack();
+
+            try {
+                $blockedService->move(new MoveCategoryCommand($rootId, $childId));
+                self::fail('A direct cycle must remain rejected after the lock is released.');
+            } catch (CategoryCycleException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $this->assertHierarchyIsValid($blockedConnection);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testIndirectCycleAttemptWaitsForTheCompleteAncestorChainThenRemainsRejected(): void
+    {
+        $service = $this->service($this->connection());
+        $rootId = $service->create(new CreateCategoryCommand('indirect-cycle-root'));
+        $middleId = $service->create(new CreateCategoryCommand('indirect-cycle-middle', $rootId));
+        $leafId = $service->create(new CreateCategoryCommand('indirect-cycle-leaf', $middleId));
+
+        $locker = $this->newConnection();
+        $this->lockCategoryRow($locker, $middleId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $rootId, $leafId): void {
+                    $blockedService->move(new MoveCategoryCommand($rootId, $leafId));
+                },
+                $blockedConnection,
+                'An indirect cycle attempt must wait on the complete ancestor chain.',
+            );
+
+            $locker->rollBack();
+
+            try {
+                $blockedService->move(new MoveCategoryCommand($rootId, $leafId));
+                self::fail('An indirect cycle must remain rejected after the lock is released.');
+            } catch (CategoryCycleException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $this->assertHierarchyIsValid($blockedConnection);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testChildCreationRacingWithParentDeletionLeavesNoInvalidChild(): void
+    {
+        $service = $this->service($this->connection());
+        $parentId = $service->create(new CreateCategoryCommand('create-delete-parent'));
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        $lockStatement = $locker->prepare(
+            'SELECT `id` FROM `maa_category_categories` WHERE `id` = :id FOR UPDATE',
+        );
+        $lockStatement->execute(['id' => $parentId]);
+        $deleteStatement = $locker->prepare(
+            'UPDATE `maa_category_categories` SET `deleted_at` = UTC_TIMESTAMP(), `updated_at` = UTC_TIMESTAMP() '
+            . 'WHERE `id` = :id',
+        );
+        $deleteStatement->execute(['id' => $parentId]);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $parentId): void {
+                    $blockedService->create(new CreateCategoryCommand('create-delete-child', $parentId));
+                },
+                $blockedConnection,
+                'Child creation must wait for a concurrent parent deletion.',
+            );
+
+            $locker->commit();
+
+            try {
+                $blockedService->create(new CreateCategoryCommand('create-delete-child', $parentId));
+                self::fail('A child must not be created under a deleted parent.');
+            } catch (CategoryNotFoundException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $reader = new PdoCategoryQueryReader($blockedConnection);
+            self::assertNotNull($reader->findById($parentId)?->deletedAt);
+            $statement = $blockedConnection->prepare(
+                'SELECT COUNT(*) FROM `maa_category_categories` WHERE `parent_id` = :parent_id',
+            );
+            $statement->execute(['parent_id' => $parentId]);
+            self::assertSame(0, (int) $statement->fetchColumn());
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testParentDeletionRacingWithChildMutationLeavesBothRowsValid(): void
+    {
+        $service = $this->service($this->connection());
+        $parentId = $service->create(new CreateCategoryCommand('delete-race-parent'));
+        $childId = $service->create(new CreateCategoryCommand('delete-race-child', $parentId));
+
+        $locker = $this->newConnection();
+        $this->lockCategoryRow($locker, $childId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $parentId): void {
+                    $blockedService->softDelete(new SoftDeleteCategoryCommand($parentId));
+                },
+                $blockedConnection,
+                'Parent deletion must wait while the child lifecycle is changing.',
+            );
+
+            $locker->rollBack();
+
+            try {
+                $blockedService->softDelete(new SoftDeleteCategoryCommand($parentId));
+                self::fail('A parent with an active child must remain undeletable.');
+            } catch (CategoryHasNonDeletedChildrenException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $reader = new PdoCategoryQueryReader($blockedConnection);
+            self::assertNull($reader->findById($parentId)?->deletedAt);
+            self::assertNull($reader->findById($childId)?->deletedAt);
+            $this->assertHierarchyIsValid($blockedConnection);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testConcurrentRootReorderPreservesAContiguousSequenceAndTimestamp(): void
+    {
+        $service = $this->service($this->connection());
+        $firstId = $service->create(new CreateCategoryCommand('root-reorder-first'));
+        $secondId = $service->create(new CreateCategoryCommand('root-reorder-second'));
+        $thirdId = $service->create(new CreateCategoryCommand('root-reorder-third'));
+
+        $locker = $this->newConnection();
+        $this->lockOrderingScope($locker, null);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service(
+            $blockedConnection,
+            new FixedCategoryClock('2026-02-10 00:00:00 UTC'),
+        );
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $secondId): void {
+                    $blockedService->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondId, 1));
+                },
+                $blockedConnection,
+                'Root reorder must wait for the root ordering scope lock.',
+            );
+
+            $locker->rollBack();
+            $blockedService->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondId, 1));
+
+            self::assertSame(
+                [$secondId => 1, $firstId => 2, $thirdId => 3],
+                $this->ordersForScope($blockedConnection, null),
+            );
+            self::assertSame(
+                '2026-02-10 00:00:00',
+                $this->updatedAt($blockedConnection, $secondId),
+            );
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testConcurrentSiblingReorderPreservesAContiguousSequenceAndTimestamp(): void
+    {
+        $service = $this->service($this->connection());
+        $parentId = $service->create(new CreateCategoryCommand('sibling-reorder-parent'));
+        $firstId = $service->create(new CreateCategoryCommand('sibling-reorder-first', $parentId));
+        $secondId = $service->create(new CreateCategoryCommand('sibling-reorder-second', $parentId));
+        $thirdId = $service->create(new CreateCategoryCommand('sibling-reorder-third', $parentId));
+
+        $locker = $this->newConnection();
+        $this->lockOrderingScope($locker, $parentId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service(
+            $blockedConnection,
+            new FixedCategoryClock('2026-02-11 00:00:00 UTC'),
+        );
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $secondId): void {
+                    $blockedService->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondId, 1));
+                },
+                $blockedConnection,
+                'Sibling reorder must wait for the sibling ordering scope lock.',
+            );
+
+            $locker->rollBack();
+            $blockedService->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondId, 1));
+
+            self::assertSame(
+                [$secondId => 1, $firstId => 2, $thirdId => 3],
+                $this->ordersForScope($blockedConnection, $parentId),
+            );
+            self::assertSame(
+                '2026-02-11 00:00:00',
+                $this->updatedAt($blockedConnection, $secondId),
+            );
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testConcurrentCategoryCodeCreationUsesUniqueConstraintAfterBothFlowsObserveAbsence(): void
+    {
+        $bootstrapService = $this->service($this->connection());
+        $leftParentId = $bootstrapService->create(new CreateCategoryCommand('code-race-left-parent'));
+        $rightParentId = $bootstrapService->create(new CreateCategoryCommand('code-race-right-parent'));
+
+        $leftConnection = $this->newConnection();
+        $rightConnection = $this->newConnection();
+        $leftReader = new PdoCategoryQueryReader($leftConnection);
+        $rightReader = new PdoCategoryQueryReader($rightConnection);
+        $leftRepository = new PdoCategoryCommandRepository($leftConnection, new ScopedOrderingManager());
+        $rightRepository = new PdoCategoryCommandRepository($rightConnection, new ScopedOrderingManager());
+        $code = 'concurrent-absent-code';
+        $occurredAt = new DateTimeImmutable('2026-02-12 00:00:00 UTC');
+
+        try {
+            // Both independent flows observe the same code as absent before either insert.
+            $leftConnection->beginTransaction();
+            self::assertNull($leftReader->findByCode($code));
+
+            $rightConnection->beginTransaction();
+            self::assertNull($rightReader->findByCode($code));
+
+            $winnerId = $leftRepository->create(
+                new CreateCategoryCommand($code, $leftParentId),
+                $occurredAt,
+            );
+            $leftConnection->commit();
+
+            try {
+                $rightRepository->create(
+                    new CreateCategoryCommand($code, $rightParentId),
+                    $occurredAt,
+                );
+                self::fail('The losing creation flow must fail on the Category code unique key.');
+            } catch (CategoryCodeAlreadyExistsException $exception) {
+                self::assertInstanceOf(PDOException::class, $exception->getPrevious());
+                self::assertTrue($rightConnection->inTransaction());
+                $rightConnection->rollBack();
+            }
+
+            self::assertFalse($rightConnection->inTransaction());
+            $reader = new PdoCategoryQueryReader($this->connection());
+            self::assertSame(
+                $winnerId,
+                $reader->findByCode($code)?->id,
+            );
+            $countStatement = $this->connection()->prepare(
+                'SELECT COUNT(*) FROM `maa_category_categories` WHERE `code` = :code',
+            );
+            $countStatement->execute(['code' => $code]);
+            self::assertSame(1, (int) $countStatement->fetchColumn());
+        } finally {
+            $this->closeConnection($leftConnection);
+            $this->closeConnection($rightConnection);
+        }
+    }
+
+    public function testConcurrentTranslationCreationCannotDuplicateLogicalIdentity(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-translation-category'));
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        $insert = $locker->prepare(
+            'INSERT INTO `maa_category_category_translations` '
+            . '(`category_id`, `language_code`, `name`, `created_at`, `updated_at`) '
+            . 'VALUES (:category_id, :language_code, :name, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+        );
+        $insert->execute([
+            'category_id' => $categoryId,
+            'language_code' => 'en-US',
+            'name' => 'Reserved',
+        ]);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $categoryId): void {
+                    $blockedService->createTranslation(
+                        new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Competing', null),
+                    );
+                },
+                $blockedConnection,
+                'A competing translation creation must wait on its logical identity.',
+            );
+
+            $locker->commit();
+
+            try {
+                $blockedService->createTranslation(
+                    new CreateCategoryTranslationCommand($categoryId, 'en-US', 'Competing', null),
+                );
+                self::fail('A committed translation identity must not be duplicated.');
+            } catch (CategoryTranslationAlreadyExistsException) {
+                self::assertFalse($blockedConnection->inTransaction());
+            }
+
+            $statement = $blockedConnection->prepare(
+                'SELECT COUNT(*) FROM `maa_category_category_translations` '
+                . 'WHERE `category_id` = :category_id AND `language_code` = :language_code',
+            );
+            $statement->execute([
+                'category_id' => $categoryId,
+                'language_code' => 'en-US',
+            ]);
+            self::assertSame(1, (int) $statement->fetchColumn());
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testRestoreWaitsOnTheExistingRowAndPreservesItsIdentity(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-restore-category'));
+        $service->softDelete(new SoftDeleteCategoryCommand($categoryId));
+
+        $locker = $this->newConnection();
+        $this->lockCategoryRow($locker, $categoryId);
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $categoryId): void {
+                    $blockedService->restore(new RestoreCategoryCommand($categoryId));
+                },
+                $blockedConnection,
+                'Restore must wait on the existing Category row.',
+            );
+
+            $locker->rollBack();
+            $blockedService->restore(new RestoreCategoryCommand($categoryId));
+
+            $restored = (new PdoCategoryQueryReader($blockedConnection))->findById($categoryId);
+            self::assertNotNull($restored);
+            self::assertSame($categoryId, $restored->id);
+            self::assertNull($restored->deletedAt);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
+    }
+
+    public function testWriteFailureRollsBackPartialMutationsAndCleansTheConnection(): void
+    {
+        $connection = $this->connection();
+        $transaction = new PdoCategoryTransaction($connection);
+
+        try {
+            $transaction->run(function () use ($connection): void {
+                $partialInsert = $connection->prepare(
+                    'INSERT INTO `maa_category_categories` '
+                    . '(`code`, `status`, `display_order`, `created_at`, `updated_at`) '
+                    . 'VALUES (:code, :status, :display_order, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                );
+                $partialInsert->execute([
+                    'code' => 'rolled-back-partial-write',
+                    'status' => 'active',
+                    'display_order' => 1,
+                ]);
+
+                $connection->exec(
+                    'INSERT INTO `maa_category_categories` '
+                    . '(`code`, `status`, `display_order`, `created_at`, `updated_at`) '
+                    . "VALUES ('failed-write', 'invalid', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                );
+            });
+            self::fail('The invalid write must fail inside the transaction.');
+        } catch (PDOException) {
+            self::assertFalse($connection->inTransaction());
+        }
+
+        $partialLookup = $connection->prepare(
+            'SELECT COUNT(*) FROM `maa_category_categories` WHERE `code` = :code',
+        );
+        $partialLookup->execute(['code' => 'rolled-back-partial-write']);
+        self::assertSame(0, (int) $partialLookup->fetchColumn());
+
+        $service = $this->service($connection);
+        $createdId = $service->create(new CreateCategoryCommand('after-write-failure'));
+        self::assertSame($createdId, (new PdoCategoryQueryReader($connection))->findByCode('after-write-failure')?->id);
+        self::assertFalse($connection->inTransaction());
+    }
+
+    private function service(PDO $connection, ?FixedCategoryClock $clock = null): CategoryCommandService
+    {
+        return new CategoryCommandService(
+            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
+            new PdoCategoryQueryReader($connection),
+            new PdoCategoryTranslationCommandRepository($connection),
+            new PdoCategoryTransaction($connection),
+            $clock ?? new FixedCategoryClock(),
+        );
+    }
+
+    private function setLockWaitTimeout(PDO $connection): void
+    {
+        $connection->exec('SET SESSION innodb_lock_wait_timeout = 1');
+    }
+
+    private function lockCategoryRow(PDO $connection, int $categoryId): void
+    {
+        $connection->beginTransaction();
+        $statement = $connection->prepare(
+            'SELECT `id` FROM `maa_category_categories` WHERE `id` = :id FOR UPDATE',
+        );
+        $statement->execute(['id' => $categoryId]);
+        self::assertSame($categoryId, (int) $statement->fetchColumn());
+    }
+
+    private function lockOrderingScope(PDO $connection, ?int $parentId): void
+    {
+        $connection->beginTransaction();
+        $statement = $connection->prepare(
+            'SELECT `id` FROM `maa_category_categories` '
+            . 'WHERE `parent_id` <=> :parent_id AND `deleted_at` IS NULL '
+            . 'ORDER BY `display_order`, `id` FOR UPDATE',
+        );
+        $statement->execute(['parent_id' => $parentId]);
+        self::assertNotFalse($statement->fetchColumn());
+    }
+
+    /** @param Closure(): void $operation */
+    private function assertLockWaitTimeout(Closure $operation, PDO $connection, string $message): void
+    {
+        try {
+            $operation();
+            self::fail($message);
+        } catch (PDOException $exception) {
+            $driverCode = null;
+            if (is_array($exception->errorInfo)) {
+                $rawDriverCode = $exception->errorInfo[1] ?? null;
+                if (is_int($rawDriverCode) || is_string($rawDriverCode)) {
+                    $driverCode = (int) $rawDriverCode;
+                }
+            }
+            self::assertSame(1205, $driverCode, $exception->getMessage());
+            self::assertFalse($connection->inTransaction());
+        }
+    }
+
+    private function closeConnection(PDO $connection): void
+    {
+        if ($connection->inTransaction()) {
+            $connection->rollBack();
+        }
+    }
+
+    /** @return array<int, int|null> */
+    private function parentMap(PDO $connection): array
+    {
+        $statement = $connection->query(
+            'SELECT `id`, `parent_id` FROM `maa_category_categories` ORDER BY `id`',
+        );
+        self::assertNotFalse($statement);
+
+        /** @var array<int, int|null> $parents */
+        $parents = [];
+        while (($row = $statement->fetch(PDO::FETCH_ASSOC)) !== false) {
+            if (!is_array($row)) {
+                self::fail('Category row must be an associative array.');
+            }
+
+            $idValue = $row['id'] ?? null;
+            if (!is_int($idValue) && !is_string($idValue)) {
+                self::fail('Category id must be an integer value.');
+            }
+            $id = (int) $idValue;
+
+            $parentId = $row['parent_id'] ?? null;
+            if ($parentId !== null && !is_int($parentId) && !is_string($parentId)) {
+                self::fail('Category parent_id must be an integer or null.');
+            }
+            $parents[$id] = $parentId === null ? null : (int) $parentId;
+        }
+
+        return $parents;
+    }
+
+    private function assertHierarchyIsValid(PDO $connection): void
+    {
+        $parents = $this->parentMap($connection);
+
+        foreach ($parents as $categoryId => $parentId) {
+            $visited = [$categoryId => true];
+            while ($parentId !== null) {
+                self::assertArrayHasKey($parentId, $parents);
+                self::assertArrayNotHasKey($parentId, $visited);
+                $visited[$parentId] = true;
+                $parentId = $parents[$parentId];
+            }
+        }
+    }
+
+    /** @return array<int, int> */
+    private function ordersForScope(PDO $connection, ?int $parentId): array
+    {
+        $statement = $connection->prepare(
+            'SELECT `id`, `display_order` FROM `maa_category_categories` '
+            . 'WHERE `parent_id` <=> :parent_id AND `deleted_at` IS NULL '
+            . 'ORDER BY `display_order`, `id`',
+        );
+        $statement->execute(['parent_id' => $parentId]);
+
+        /** @var array<int|string, int|string> $orders */
+        $orders = $statement->fetchAll(PDO::FETCH_KEY_PAIR);
+        $normalized = [];
+        foreach ($orders as $id => $order) {
+            $normalized[(int) $id] = (int) $order;
+        }
+
+        return $normalized;
+    }
+
+    private function updatedAt(PDO $connection, int $categoryId): string
+    {
+        $statement = $connection->prepare(
+            'SELECT `updated_at` FROM `maa_category_categories` WHERE `id` = :id',
+        );
+        $statement->execute(['id' => $categoryId]);
+        $value = $statement->fetchColumn();
+        self::assertIsString($value);
+
+        return $value;
+    }
+}
