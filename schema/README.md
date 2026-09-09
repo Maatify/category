@@ -3,7 +3,8 @@
 The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../CATEGORY_PACKAGE_REFERENCE.md).
 
 This directory contains the package-owned persistence contract for Categories
-and Category Contents, plus Category Image Assignments.
+and Category Contents, extensible Category Content Fields, plus Category Image
+Assignments.
 
 The package requires MySQL 8.0.16 or later. This minimum is part of the storage
 contract because the database schema relies on enforced `CHECK` constraints.
@@ -13,9 +14,10 @@ Integration verification uses the same required runtime version.
 
 - `maa_category_categories`
 - `maa_category_category_contents`
+- `maa_category_category_content_fields`
 - `maa_category_category_image_assignments`
 
-Apply [category.sql](category.sql). It creates exactly the three tables and the
+Apply [category.sql](category.sql). It creates exactly the four tables and the
 package-owned self-parent triggers:
 
 - `trg_maa_category_categories_parent_not_self_ai`
@@ -46,3 +48,14 @@ makes NULL a single database uniqueness value, so MySQL enforces at most one
 unlocalized row per Category as well as one row per non-NULL language code.
 Empty-string language codes are rejected by the schema and are not an
 alternative to NULL.
+
+Category Content Fields are Host-defined key/value records with immutable
+`(category_id, field_key, language_code, platform)` identity. The four exact
+scope combinations are supported independently; management criteria distinguish
+an omitted scope filter from an exact NULL/NULL scope, while consumer reads
+require one exact scope and never fallback. `format` is `text`, `html`, or
+`json`; values use `LONGTEXT`, JSON syntax is enforced for JSON fields, and
+Category does not sanitize, render, or interpret Host-defined keys. Field
+ordering is independent per Category and exact scope through the shared
+`maatify/persistence` Ordering API. The generated NULL-safe identity remains
+unique across soft deletion.

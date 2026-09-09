@@ -10,12 +10,15 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
@@ -27,12 +30,17 @@ use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Exception\CategoryContentFieldNotFoundException;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
 /** Coordinates Category business rules and owns application mutation time. */
@@ -43,6 +51,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         private CategoryQueryReaderInterface $queryReader,
         private CategoryContentCommandRepositoryInterface $contentCommandRepository,
         private CategoryImageAssignmentCommandRepositoryInterface $imageAssignmentCommandRepository,
+        private CategoryContentFieldCommandRepositoryInterface $contentFieldCommandRepository,
         private CategoryTransactionInterface $transaction,
         private ClockInterface $clock,
     ) {}
@@ -79,6 +88,15 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
             $this->requireActiveCategoryForUpdate($command->categoryId);
 
             return $this->imageAssignmentCommandRepository->create($command, $this->clock->now());
+        });
+    }
+
+    public function createContentField(CreateCategoryContentFieldCommand $command): int
+    {
+        return $this->transaction->run(function () use ($command): int {
+            $this->requireActiveCategoryForUpdate($command->categoryId);
+
+            return $this->contentFieldCommandRepository->create($command, $this->clock->now());
         });
     }
 
@@ -162,6 +180,25 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
     }
 
+    public function updateContentField(UpdateCategoryContentFieldCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveContentFieldForUpdate($command->fieldId);
+
+            if (!$this->contentFieldCommandRepository->update($command, $this->clock->now())) {
+                throw CategoryContentFieldNotFoundException::withId($command->fieldId);
+            }
+        });
+    }
+
+    public function updateContentFieldDisplayOrder(
+        UpdateCategoryContentFieldDisplayOrderCommand $command,
+    ): void {
+        if (!$this->contentFieldCommandRepository->updateDisplayOrder($command, $this->clock->now())) {
+            throw CategoryContentFieldNotFoundException::withId($command->fieldId);
+        }
+    }
+
     public function softDeleteContent(SoftDeleteCategoryContentCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
@@ -202,6 +239,28 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
             if (!$this->imageAssignmentCommandRepository->restore($command, $this->clock->now())) {
                 throw CategoryImageAssignmentNotFoundException::withId($command->assignmentId);
+            }
+        });
+    }
+
+    public function softDeleteContentField(SoftDeleteCategoryContentFieldCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveContentFieldForUpdate($command->fieldId);
+
+            if (!$this->contentFieldCommandRepository->softDelete($command, $this->clock->now())) {
+                throw CategoryContentFieldNotFoundException::withId($command->fieldId);
+            }
+        });
+    }
+
+    public function restoreContentField(RestoreCategoryContentFieldCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireContentFieldForUpdate($command->fieldId);
+
+            if (!$this->contentFieldCommandRepository->restore($command, $this->clock->now())) {
+                throw CategoryContentFieldNotFoundException::withId($command->fieldId);
             }
         });
     }
@@ -281,6 +340,28 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
 
         return $assignment;
+    }
+
+    private function requireActiveContentFieldForUpdate(int $fieldId): CategoryContentFieldDTO
+    {
+        $field = $this->requireContentFieldForUpdate($fieldId);
+
+        if ($field->deletedAt !== null) {
+            throw CategoryContentFieldNotFoundException::withId($fieldId);
+        }
+
+        return $field;
+    }
+
+    private function requireContentFieldForUpdate(int $fieldId): CategoryContentFieldDTO
+    {
+        $field = $this->queryReader->findContentFieldByIdForUpdate($fieldId);
+
+        if ($field === null) {
+            throw CategoryContentFieldNotFoundException::withId($fieldId);
+        }
+
+        return $field;
     }
 
     private function assertMoveDoesNotCreateCycle(int $categoryId, int $newParentId): void

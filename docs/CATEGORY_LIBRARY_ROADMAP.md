@@ -101,6 +101,25 @@ Category-plus-scope ordering key so creation and movement continue to use the
 shared `maatify/persistence` Ordering API. This capability is covered by unit,
 schema, PDO, visibility, lifecycle, concurrency, and standalone consumer tests.
 
+### 1.4 Current Draft capability — extensible Category Content Fields
+
+The child implementation adds first-class Host-defined Category Content Fields
+without changing the fixed `CategoryContent` name/description contract. A field
+uses immutable identity `(category_id, field_key, language_code, platform)` and
+one of the typed formats `text`, `html`, or `json`. The package stores values
+in `LONGTEXT`, validates JSON syntax for JSON fields, and does not own the
+semantic meaning of keys, HTML sanitization/rendering, editor behavior, or JSON
+semantics.
+
+All four exact language/platform scopes are supported with no fallback. Field
+creation and movement use the shared Ordering API with category-plus-scope
+locking, while management criteria distinguish an omitted scope from exact
+NULL/NULL. Consumer reads exclude deleted fields, require an exact scope, and
+apply complete ancestor visibility. Stable identity remains reserved across
+soft deletion. Real MySQL tests cover formats, JSON validation, identity,
+ordering, lifecycle, management/consumer reads, ancestor visibility, and
+concurrent position allocation.
+
 ---
 
 ## 2. Package Identity & Standards Authority

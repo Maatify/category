@@ -18,6 +18,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
@@ -208,8 +209,8 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         -1,
         PREG_SPLIT_NO_EMPTY,
     );
-    if (!is_array($statements) || count($statements) !== 5) {
-        standalone_consumer_fail('The installed Category schema must contain three tables and two triggers.');
+    if (!is_array($statements) || count($statements) !== 6) {
+        standalone_consumer_fail('The installed Category schema must contain four tables and two triggers.');
     }
 
     foreach ($statements as $statement) {
@@ -222,6 +223,7 @@ function standalone_consumer_drop_schema(\PDO $pdo): void
     foreach ([
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_ai`',
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_bu`',
+        'DROP TABLE IF EXISTS `maa_category_category_content_fields`',
         'DROP TABLE IF EXISTS `maa_category_category_image_assignments`',
         'DROP TABLE IF EXISTS `maa_category_category_contents`',
         'DROP TABLE IF EXISTS `maa_category_categories`',
@@ -301,9 +303,10 @@ try {
         standalone_consumer_database_objects($pdo, 'tables') === [
             'maa_category_categories',
             'maa_category_category_contents',
+            'maa_category_category_content_fields',
             'maa_category_category_image_assignments',
         ],
-        'The standalone schema did not create exactly its three package-owned tables.',
+        'The standalone schema did not create exactly its four package-owned tables.',
     );
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'triggers') === [
@@ -318,6 +321,7 @@ try {
         new PdoCategoryQueryReader($pdo),
         new PdoCategoryContentCommandRepository($pdo),
         new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
+        new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryTransaction($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
     );

@@ -9,7 +9,8 @@ currently pinned to adoption commit `f386948aa873fef9960680411c8918d095d29b93`.
 ## Purpose
 
 `maatify/category` is a reusable Base Module for hierarchical Categories,
-optional Category Content, and Category-owned Image Assignments. It can be consumed by a Catalog, a navigation system,
+optional Category Content, extensible Host-defined Category Content Fields, and
+Category-owned Image Assignments. It can be consumed by a Catalog, a navigation system,
 an access taxonomy, or another Host without knowing the Host's framework or
 schema.
 
@@ -17,11 +18,11 @@ schema.
 
 The package owns:
 
-- Category and Content DTOs, typed mutation Commands, and input validation.
+- Category, Content, and Content Field DTOs, typed mutation Commands, and input validation.
 - Category mutation/query contracts.
 - Business orchestration and domain exceptions.
 - Package-local PDO persistence adapters and transaction boundaries.
-- The three package-owned MySQL tables and their internal constraints.
+- The four package-owned MySQL tables and their internal constraints.
 
 The Package owns the syntactic and storage validation of non-NULL
 `language_code` values required by its contract and Runtime. The Host owns dependency injection, HTTP,
@@ -45,6 +46,15 @@ scopes are NULL/NULL, language/NULL, NULL/platform, and language/platform; no
 fallback or hardcoded platform enum is defined. Category does not own the
 Media Asset, Language, or Platform lifecycle and creates no foreign key to
 those host concepts.
+
+Category Content Fields are arbitrary Host-defined key/value records. Their
+immutable logical identity is `(category_id, field_key, language_code, platform)`
+and their exact scope supports NULL/NULL, language/NULL, NULL/platform, and
+language/platform without fallback. Category stores `text`, `html`, and `json`
+values in `LONGTEXT`; it validates JSON syntax for JSON fields but does not
+sanitize/render HTML or interpret `field_key` semantics. The Host owns editor,
+sanitization, rendering, JSON semantics, and semantic language/platform
+validation.
 
 `status` (`active`/`inactive`) is independent from `deleted_at`. Query
 visibility excludes inactive or soft-deleted Categories and excludes every
@@ -113,6 +123,15 @@ The real MySQL proof is maintained in
 `CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 This is a closed v1 contract, not an open implementation decision.
 
+### Category Content Field parent-state and ordering contract
+
+`createContentField()` requires a Category that exists and is not soft-deleted;
+an inactive Category is allowed. Field value/format updates, soft deletion,
+restoration, and ordering use the field's own lifecycle. Creation locks the
+Category-owned exact ordering scope before asking the shared Ordering API for
+the next position. A field's logical identity is never changed by an update,
+and soft deletion does not release its uniqueness reservation.
+
 ## Query contract
 
 The package exposes two separate public query ports:
@@ -123,13 +142,14 @@ The package exposes two separate public query ports:
   and bound each list to at most 100 rows. Category lists are ordered by
   `display_order, id`; Content lists are ordered by `language_code, id`; Image
   Assignment lists are ordered deterministically by Category, exact generated
-  scope, `display_order, id`.
+  scope, `display_order, id`; Content Field lists are ordered by Category, exact
+  generated scope, field key, `display_order, id`.
 - `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
   consumer visibility reads and apply the complete ancestor visibility rule.
   Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most
   100 rows without exposing status/deleted-state controls. Category lists use
   `display_order, id`; Content lists use `language_code, id`; Image Assignment
-  reads require an exact scope and use `display_order, id`.
+  and Content Field reads require an exact scope and use `display_order, id`.
 
 Management reads do not reuse consumer visibility queries. The v1 contract has
 no public management get-by-code, search, or local pagination implementation.
@@ -150,6 +170,10 @@ requested Category's complete ancestor chain to be active and non-deleted, and
 match language/platform with NULL-safe exact predicates. They never search a
 different scope as fallback. Management criteria distinguish an omitted scope
 filter (`scope = null`) from an exact NULL/NULL scope object.
+Visible Content Field reads exclude soft-deleted fields, require an exact
+`CategoryContentFieldScopeDTO`, apply complete ancestor visibility, and never
+fallback. Management Content Field criteria use `scope = null` for no scope
+filter and `new CategoryContentFieldScopeDTO()` for exact NULL/NULL scope.
 
 ## v1 API freeze closure
 

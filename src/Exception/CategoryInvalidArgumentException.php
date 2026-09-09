@@ -6,6 +6,7 @@ namespace Maatify\Category\Exception;
 
 use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\Validation\InvalidArgumentMaatifyException;
+use Throwable;
 
 final class CategoryInvalidArgumentException extends InvalidArgumentMaatifyException
     implements CategoryExceptionInterface
@@ -47,5 +48,10 @@ final class CategoryInvalidArgumentException extends InvalidArgumentMaatifyExcep
             $maximum,
             $limit,
         ));
+    }
+
+    public static function invalidJsonValue(?Throwable $previous = null): self
+    {
+        return new self('A Category Content Field with format "json" must contain valid JSON.', 0, $previous);
     }
 }

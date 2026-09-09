@@ -1,15 +1,15 @@
 # Category Package Reference
 
 `maatify/category` is the canonical, framework-neutral package for reusable
-hierarchical categories, optional Category Content, and Category-owned Image
-Assignments. This file is the package's
+hierarchical categories, optional Category Content, extensible Category Content
+Fields, and Category-owned Image Assignments. This file is the package's
 single stable contract reference. Detailed implementation notes belong under
 `docs/` and must link back here.
 
 ## Scope and boundaries
 
-The package owns Category, Category Content, and the direct Image Assignment
-relationship behavior only. It does not
+The package owns Category, Category Content, Category Content Fields, and the
+direct Image Assignment relationship behavior only. It does not
 own Catalog identity, Product, Pricing, Inventory, Media, HTTP, framework
 integration, permissions, presentation, or dependency-injection bindings.
 
@@ -21,6 +21,10 @@ The package is host-agnostic:
   keys only.
 - Image Assignments reference host-provided Media Asset identities without a
   Media, Platform, or Language foreign key or lifecycle dependency.
+- Content Fields store host-defined `field_key`/value pairs without owning the
+  semantic meaning of a key. Their exact nullable language/platform scopes and
+  lifecycle are package-owned; the Host owns key semantics, HTML sanitization,
+  rendering, and any JSON schema validation.
 - Category owns the syntactic and storage validation of non-NULL `language_code`
   values required by its contract, including the constraints enforced by the
   Runtime.
@@ -44,7 +48,8 @@ status, ordering, timestamps, and soft-deletion lifecycle are independent from
 human-readable content; `name` and `description` are not copied into the
 Category table.
 
-Category Content is the single content persistence concept. Its
+Category Content is the package's localized name/description persistence
+concept. Its
 `(category_id, language_code)` identity supports both forms:
 
 - `language_code = NULL` is ordinary, unlocalized Category Content.
@@ -64,6 +69,22 @@ soft-deleted rows. `language_code` and `platform` are nullable exact scope
 dimensions; all four combinations are supported, empty strings are invalid,
 and no platform enum or fallback is defined. The same Media Asset may be used
 in different scopes. Ordering is independent for each Category and exact scope.
+
+### Category Content Field model
+
+Category Content Fields are a separate extensible value model. Their immutable
+identity is `(category_id, field_key, language_code, platform)`, including
+soft-deleted rows. All four exact nullable scope combinations are supported:
+NULL/NULL, language/NULL, NULL/platform, and language/platform. Empty strings
+are invalid, no fallback is performed, and the Host owns the semantic meaning
+of each key.
+
+Each field declares `text`, `html`, or `json` format and stores its value as
+`LONGTEXT`. The package validates JSON syntax when the declared format is
+`json`; HTML sanitization/rendering and JSON schema validation remain Host
+responsibilities. Display order is independent for each Category and exact
+scope, with deterministic `display_order, id` reads and explicit reorder
+commands.
 
 ## Runtime API
 
@@ -93,9 +114,13 @@ The immutable record DTOs are:
 - `CategoryImageAssignmentScopeDTO`
 - `CategoryImageAssignmentDTO`
 - `CategoryImageAssignmentCollectionDTO`
+- `CategoryContentFieldScopeDTO`
+- `CategoryContentFieldDTO`
+- `CategoryContentFieldCollectionDTO`
 - `CategoryListCriteriaDTO`
 - `CategoryContentListCriteriaDTO`
 - `CategoryImageAssignmentListCriteriaDTO`
+- `CategoryContentFieldListCriteriaDTO`
 - `CategoryVisibleListCriteriaDTO`
 
 ### Commands
@@ -114,19 +139,26 @@ The immutable record DTOs are:
 - `UpdateCategoryImageAssignmentDisplayOrderCommand`
 - `SoftDeleteCategoryImageAssignmentCommand`
 - `RestoreCategoryImageAssignmentCommand`
+- `CreateCategoryContentFieldCommand`
+- `UpdateCategoryContentFieldCommand`
+- `UpdateCategoryContentFieldDisplayOrderCommand`
+- `SoftDeleteCategoryContentFieldCommand`
+- `RestoreCategoryContentFieldCommand`
 
 Every public DTO and collection DTO is immutable and implements
 `JsonSerializable`. Collections also retain typed `IteratorAggregate` behavior.
 Date-time fields serialize as RFC 3339 strings; enum fields serialize using
 their backing values.
 
-Commands and DTOs validate their input/domain invariants. `CategoryDTO` and
-`CategoryContentDTO` and `CategoryImageAssignmentDTO` require canonical positive
-identities. A Category
+Commands and DTOs validate their input/domain invariants. `CategoryDTO`,
+`CategoryContentDTO`, `CategoryImageAssignmentDTO`, and
+`CategoryContentFieldDTO` require canonical positive identities. A Category
 cannot use itself as its parent. `UpdateCategoryContentCommand` accepts only
   content fields, preserving the logical identity
 `(category_id, language_code)`. Category mutation Commands do not expose `code`, so
-the stable Category code remains immutable after creation.
+the stable Category code remains immutable after creation. Content Field update
+commands accept only format/value or display order, preserving the field's
+immutable identity.
 
 ### Services and contracts
 
@@ -134,7 +166,8 @@ the stable Category code remains immutable after creation.
   orchestration for creation, content creation/content update/soft
   delete/restore, parent movement, cycle prevention, Category soft delete,
   restore, status, and display order, plus Image Assignment creation, exact
-  scope ordering, soft deletion, and restoration.
+  scope ordering, soft deletion, and restoration, plus Content Field creation,
+  value/format updates, exact-scope ordering, soft deletion, and restoration.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
   identity and list reads.
 - `CategoryManagementQueryServiceInterface` and
@@ -144,9 +177,12 @@ the stable Category code remains immutable after creation.
   lifecycle write port.
 - `CategoryImageAssignmentCommandRepositoryInterface` is the Image Assignment
   lifecycle and ordering write port.
+- `CategoryContentFieldCommandRepositoryInterface` is the Content Field
+  lifecycle and exact-scope ordering write port.
 - `CategoryQueryReaderInterface` is the mutation-support read port. Its
   `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock Category, Content, and Image Assignment rows inside the
+  explicit `ForUpdate` methods lock Category, Content, Image Assignment, and
+  Content Field rows inside the
   application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
@@ -189,6 +225,19 @@ UpdateCategoryImageAssignmentDisplayOrderCommand(string|int $assignmentId,
                                                  int $displayOrder)
 SoftDeleteCategoryImageAssignmentCommand(string|int $assignmentId)
 RestoreCategoryImageAssignmentCommand(string|int $assignmentId)
+
+CreateCategoryContentFieldCommand(string|int $categoryId, string $fieldKey,
+                                  ?string $languageCode,
+                                  ?string $platform,
+                                  CategoryContentFieldFormatEnum $format,
+                                  string $value)
+UpdateCategoryContentFieldCommand(string|int $fieldId,
+                                  CategoryContentFieldFormatEnum $format,
+                                  string $value)
+UpdateCategoryContentFieldDisplayOrderCommand(string|int $fieldId,
+                                              int $displayOrder)
+SoftDeleteCategoryContentFieldCommand(string|int $fieldId)
+RestoreCategoryContentFieldCommand(string|int $fieldId)
 ```
 
 Commands are `final readonly` and implement `JsonSerializable`. Category code,
@@ -214,9 +263,18 @@ CategoryImageAssignmentDTO(int $id, int $categoryId, int $mediaAssetId,
                            int $displayOrder, DateTimeImmutable $createdAt,
                            DateTimeImmutable $updatedAt,
                            ?DateTimeImmutable $deletedAt)
+CategoryContentFieldScopeDTO(?string $languageCode = null,
+                             ?string $platform = null)
+CategoryContentFieldDTO(int $id, int $categoryId, string $fieldKey,
+                        ?string $languageCode, ?string $platform,
+                        CategoryContentFieldFormatEnum $format, string $value,
+                        int $displayOrder, DateTimeImmutable $createdAt,
+                        DateTimeImmutable $updatedAt,
+                        ?DateTimeImmutable $deletedAt)
 CategoryCollectionDTO(array $items)
 CategoryContentCollectionDTO(array $items)
 CategoryImageAssignmentCollectionDTO(array $items)
+CategoryContentFieldCollectionDTO(array $items)
 CategoryListCriteriaDTO(?CategoryStatusEnum $status = null,
                         CategoryDeletedStateEnum $deletedState = NON_DELETED,
                         int $maxResults = 100)
@@ -228,10 +286,15 @@ CategoryImageAssignmentListCriteriaDTO(?int $categoryId = null,
                                        ?CategoryImageAssignmentScopeDTO $scope = null,
                                        CategoryDeletedStateEnum $deletedState = NON_DELETED,
                                        int $maxResults = 100)
+CategoryContentFieldListCriteriaDTO(?int $categoryId = null,
+                                    ?string $fieldKey = null,
+                                    ?CategoryContentFieldScopeDTO $scope = null,
+                                    CategoryDeletedStateEnum $deletedState = NON_DELETED,
+                                    int $maxResults = 100)
 ```
 
 All DTOs and collections are `final readonly` and `JsonSerializable`;
-collections also implement typed `IteratorAggregate` and `Countable`. The four
+collections also implement typed `IteratorAggregate` and `Countable`. The five
 criteria DTOs reject limits outside `1..100`.
 
 #### Enums
@@ -241,6 +304,7 @@ CategoryStatusEnum: ACTIVE = 'active', INACTIVE = 'inactive'
 CategoryDeletedStateEnum: NON_DELETED = 'non_deleted',
                           INCLUDE_DELETED = 'include_deleted',
                           DELETED_ONLY = 'deleted_only'
+CategoryContentFieldFormatEnum: TEXT = 'text', HTML = 'html', JSON = 'json'
 ```
 
 #### Public contracts and method signatures
@@ -261,6 +325,11 @@ CategoryCommandServiceInterface
   updateImageAssignmentDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
   softDeleteImageAssignment(SoftDeleteCategoryImageAssignmentCommand): void
   restoreImageAssignment(RestoreCategoryImageAssignmentCommand): void
+  createContentField(CreateCategoryContentFieldCommand): int
+  updateContentField(UpdateCategoryContentFieldCommand): void
+  updateContentFieldDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
+  softDeleteContentField(SoftDeleteCategoryContentFieldCommand): void
+  restoreContentField(RestoreCategoryContentFieldCommand): void
 
 CategoryQueryServiceInterface
   getById(int): CategoryDTO
@@ -268,6 +337,7 @@ CategoryQueryServiceInterface
   listChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
   listImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+  listContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
 
 CategoryManagementQueryServiceInterface
   getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
@@ -278,6 +348,8 @@ CategoryManagementQueryServiceInterface
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
   getImageAssignmentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  getContentFieldById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
+  listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
 
 CategoryCommandRepositoryInterface
   create(CreateCategoryCommand, DateTimeImmutable): int
@@ -299,12 +371,20 @@ CategoryImageAssignmentCommandRepositoryInterface
   softDelete(SoftDeleteCategoryImageAssignmentCommand, DateTimeImmutable): bool
   restore(RestoreCategoryImageAssignmentCommand, DateTimeImmutable): bool
 
+CategoryContentFieldCommandRepositoryInterface
+  create(CreateCategoryContentFieldCommand, DateTimeImmutable): int
+  update(UpdateCategoryContentFieldCommand, DateTimeImmutable): bool
+  updateDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand, DateTimeImmutable): bool
+  softDelete(SoftDeleteCategoryContentFieldCommand, DateTimeImmutable): bool
+  restore(RestoreCategoryContentFieldCommand, DateTimeImmutable): bool
+
 CategoryReadQueryInterface
   findVisibleById(int): ?CategoryDTO
   listVisibleRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listVisibleChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listVisibleContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
   listVisibleImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+  listVisibleContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
 
 CategoryManagementReadQueryInterface
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
@@ -315,6 +395,8 @@ CategoryManagementReadQueryInterface
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
   findImageAssignmentById(int, CategoryDeletedStateEnum): ?CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  findContentFieldById(int, CategoryDeletedStateEnum): ?CategoryContentFieldDTO
+  listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
 
 CategoryQueryReaderInterface [internal mutation-support port]
   findById(int): ?CategoryDTO
@@ -327,6 +409,8 @@ CategoryQueryReaderInterface [internal mutation-support port]
   findContentByIdForUpdate(int): ?CategoryContentDTO
   findImageAssignmentById(int): ?CategoryImageAssignmentDTO
   findImageAssignmentByIdForUpdate(int): ?CategoryImageAssignmentDTO
+  findContentFieldById(int): ?CategoryContentFieldDTO
+  findContentFieldByIdForUpdate(int): ?CategoryContentFieldDTO
 
 CategoryTransactionInterface
   run(Closure): mixed
@@ -343,6 +427,7 @@ CategoryCommandService(CategoryCommandRepositoryInterface,
                        CategoryQueryReaderInterface,
                        CategoryContentCommandRepositoryInterface,
                        CategoryImageAssignmentCommandRepositoryInterface,
+                       CategoryContentFieldCommandRepositoryInterface,
                        CategoryTransactionInterface,
                        ClockInterface)
 CategoryQueryService(CategoryReadQueryInterface)
@@ -351,6 +436,7 @@ CategoryManagementQueryService(CategoryManagementReadQueryInterface)
 PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentCommandRepository(PDO)
 PdoCategoryImageAssignmentCommandRepository(PDO, ScopedOrderingManager)
+PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryQueryReader(PDO)
 PdoCategoryReadQuery(PDO)
 PdoCategoryManagementReadQuery(PDO)
@@ -375,6 +461,13 @@ apply exact nullable scope predicates only when a scope object is supplied,
 and are ordered by Category, exact scope, `display_order, id`. Visible Image
 Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
 deleted rows, and apply complete ancestor visibility with no fallback.
+Management Content Field lists accept `CategoryContentFieldListCriteriaDTO`,
+apply an optional exact nullable scope predicate, and are ordered by Category,
+exact scope, field key, and `display_order, id`. Visible Content Field lists
+require an exact `CategoryContentFieldScopeDTO`, exclude deleted rows, and
+apply complete ancestor visibility with no fallback. In management criteria,
+`scope = null` means no scope filter; `new CategoryContentFieldScopeDTO()`
+means exact NULL/NULL scope.
 Consumer Category lists use the same maximum of 100 through their separate
 criteria DTO; root and child lists use `display_order, id`, and Content
 lists use `language_code, id`. The bound is applied by the persistence query
@@ -404,6 +497,12 @@ These semantics are proven against the real MySQL schema by
 `CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 They are the v1 contract; no parent-state redesign is implied.
 
+Content Field creation requires a non-deleted parent Category. Field value,
+ordering, soft-delete, and restore mutations depend on the field's own
+lifecycle and are not blocked by an inactive or soft-deleted parent Category.
+Visible field reads additionally require every Category in the complete
+ancestor path to be active and non-deleted.
+
 ## Business invariants
 
 - Category `code` is immutable and unique among all stored identities.
@@ -419,7 +518,18 @@ They are the v1 contract; no parent-state redesign is implied.
   platform)` is immutable and unique, including soft-deleted rows; the same
   Media Asset may be assigned in other exact scopes.
 - Image Assignment ordering is independent per Category and exact scope.
-- Restore reuses the same Category or Content identity.
+- Content Field identity `(category_id, field_key, language_code, platform)` is
+  immutable and unique, including soft-deleted rows; NULL scopes use
+  NULL-safe database identity values.
+- Content Field keys support all four exact nullable language/platform scopes;
+  the same key may exist in different scopes without fallback between them.
+- Content Field formats are `text`, `html`, and `json`; declared JSON values
+  must be syntactically valid, while Host HTML/semantic validation is outside
+  the package.
+- Content Field ordering is independent per Category and exact scope, uses
+  explicit reorder commands, and is stable across soft delete/restore.
+- Restore reuses the same Category, Content, Image Assignment, or Content Field
+  identity.
 - Every mutation updates `updated_at` using the application `ClockInterface`.
 - Hierarchy/lifecycle checks and writes execute inside a real transaction with
   the required row locks.
@@ -441,29 +551,36 @@ Visible query methods:
 - List direct children by `parent_id`.
 - Read Category Contents.
 - Read Image Assignments for an exact language/platform scope.
+- Read Content Fields for an exact language/platform scope.
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
 any ancestor in its complete parent path is inactive or soft-deleted. Query
 methods return typed DTOs and do not select a language or apply fallback. Their
 criteria cannot opt out of inactive/deleted filtering.
-Image Assignment reads also exclude soft-deleted assignments and never fall
-back between exact scopes. Management `scope = null` means no scope filter;
-`new CategoryImageAssignmentScopeDTO()` means exact NULL/NULL scope.
+Image Assignment and Content Field reads exclude soft-deleted rows and never
+fall back between exact scopes. Management `scope = null` means no scope
+filter; `new CategoryImageAssignmentScopeDTO()` or
+`new CategoryContentFieldScopeDTO()` means exact NULL/NULL scope.
 
 ## Persistence contract
 
 The canonical schema is [`schema/category.sql`](schema/category.sql). It owns
-exactly three tables:
+exactly four tables:
 
 - `maa_category_categories`
 - `maa_category_category_contents`
 - `maa_category_category_image_assignments`
+- `maa_category_category_content_fields`
 
 The schema uses InnoDB, `utf8mb4`, `ON DELETE RESTRICT`, `ON UPDATE RESTRICT`,
 stable unique keys, status/language/platform `CHECK` enforcement, and
 package-owned self-parent triggers. A stored generated language identity maps
 NULL to one uniqueness value, so MySQL enforces both the single unlocalized
-row and the per-language uniqueness. MySQL 8.0.16 or later is required because
+row and the per-language uniqueness. Content Fields use generated
+NULL-normalized language/platform identities for their immutable four-part
+identity, and a generated exact-scope ordering key for locking and ordering.
+Their declared format is checked, and `JSON_VALID(value)` is enforced for
+`json` rows. MySQL 8.0.16 or later is required because
 earlier MySQL 8 releases accepted but did not enforce `CHECK` constraints.
 
 Timestamps are application-managed UTC values. PDO repositories persist the
@@ -500,6 +617,8 @@ for distinct failure semantics:
 - `CategoryNotFoundException`
 - `CategoryContentNotFoundException`
 - `CategoryContentAlreadyExistsException`
+- `CategoryContentFieldNotFoundException`
+- `CategoryContentFieldAlreadyExistsException`
 - `CategoryCodeAlreadyExistsException`
 - `CategoryCycleException`
 - `CategoryHasNonDeletedChildrenException`
@@ -512,11 +631,13 @@ Named factories exposed by the package are:
 
 - `CategoryInvalidArgumentException::emptyField()`, `fieldTooLong()`,
   `invalidId()`, `nonPositiveId()`, `invalidDisplayOrder()`, `selfParent()`,
-  and `invalidListLimit()`.
+  `invalidListLimit()`, and `invalidJsonValue()`.
 - `CategoryNotFoundException::withId()` and
   `CategoryContentNotFoundException::withId()`.
 - `CategoryCodeAlreadyExistsException::withCode()` and
   `CategoryContentAlreadyExistsException::withIdentity()`.
+- `CategoryContentFieldNotFoundException::withId()` and
+  `CategoryContentFieldAlreadyExistsException::withIdentity()`.
 - `CategoryCycleException::forMove()` and
   `CategoryHasNonDeletedChildrenException::withId()`.
 - `CategoryPersistenceException::queryFailed()`,

@@ -12,9 +12,11 @@ use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
@@ -29,6 +31,12 @@ use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
@@ -211,6 +219,7 @@ final class CategoryCommandServiceTest extends TestCase
             $queryReader,
             $contentRepository,
             new InMemoryCategoryImageAssignmentCommandRepository(),
+            new InMemoryCategoryContentFieldCommandRepository(),
             new InMemoryCategoryTransaction(),
             new FixedClock(),
         );
@@ -247,6 +256,7 @@ final class CategoryCommandServiceTest extends TestCase
             $queryReader,
             $contentRepository,
             new InMemoryCategoryImageAssignmentCommandRepository(),
+            new InMemoryCategoryContentFieldCommandRepository(),
             $transaction,
             new FixedClock(),
         );
@@ -293,6 +303,7 @@ final class CategoryCommandServiceTest extends TestCase
             $queryReader,
             new InMemoryCategoryContentCommandRepository(),
             $imageRepository,
+            new InMemoryCategoryContentFieldCommandRepository(),
             $transaction,
             new FixedClock(),
         );
@@ -329,6 +340,7 @@ final class CategoryCommandServiceTest extends TestCase
             $queryReader,
             new InMemoryCategoryContentCommandRepository(),
             new InMemoryCategoryImageAssignmentCommandRepository(),
+            new InMemoryCategoryContentFieldCommandRepository(),
             $transaction ?? new InMemoryCategoryTransaction(),
             new FixedClock(),
         );
@@ -480,6 +492,16 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
     {
         return $this->findImageAssignmentById($assignmentId);
     }
+
+    public function findContentFieldById(int $fieldId): ?CategoryContentFieldDTO
+    {
+        return null;
+    }
+
+    public function findContentFieldByIdForUpdate(int $fieldId): ?CategoryContentFieldDTO
+    {
+        return null;
+    }
 }
 
 /** @internal Test-only in-memory command port. */
@@ -619,6 +641,57 @@ final class InMemoryCategoryImageAssignmentCommandRepository implements Category
 
     public function restore(
         RestoreCategoryImageAssignmentCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->restored = $command;
+
+        return true;
+    }
+}
+
+/** @internal Test-only in-memory content field command port. */
+final class InMemoryCategoryContentFieldCommandRepository implements CategoryContentFieldCommandRepositoryInterface
+{
+    public ?CreateCategoryContentFieldCommand $created = null;
+    public ?UpdateCategoryContentFieldCommand $updated = null;
+    public ?UpdateCategoryContentFieldDisplayOrderCommand $displayOrderUpdated = null;
+    public ?SoftDeleteCategoryContentFieldCommand $softDeleted = null;
+    public ?RestoreCategoryContentFieldCommand $restored = null;
+
+    public function create(CreateCategoryContentFieldCommand $command, DateTimeImmutable $occurredAt): int
+    {
+        $this->created = $command;
+
+        return 88;
+    }
+
+    public function update(UpdateCategoryContentFieldCommand $command, DateTimeImmutable $occurredAt): bool
+    {
+        $this->updated = $command;
+
+        return true;
+    }
+
+    public function updateDisplayOrder(
+        UpdateCategoryContentFieldDisplayOrderCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->displayOrderUpdated = $command;
+
+        return true;
+    }
+
+    public function softDelete(
+        SoftDeleteCategoryContentFieldCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->softDeleted = $command;
+
+        return true;
+    }
+
+    public function restore(
+        RestoreCategoryContentFieldCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $this->restored = $command;
