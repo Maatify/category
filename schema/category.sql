@@ -153,7 +153,7 @@ CREATE TABLE `maa_category_category_image_assignments`
 ENGINE = InnoDB
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci
-COMMENT = 'Category-owned exact-scope references to host Media Asset identities';
+COMMENT = 'Category-owned exact-scope links to externally owned Media Asset identities';
 
 -- MySQL does not permit a CHECK expression to reference an AUTO_INCREMENT
 -- column. These package-owned triggers preserve the parent_id <> id invariant
