@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryTranslationCommand;
-use Maatify\Category\DTO\CategoryDTO;
+use Maatify\Category\DTO\CategoryListCriteriaDTO;
+use Maatify\Category\DTO\CategoryTranslationListCriteriaDTO;
+use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryTranslationCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
+use Maatify\Category\Service\CategoryManagementQueryService;
 use Maatify\Category\Service\CategoryQueryService;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
@@ -31,64 +36,118 @@ function standalone_consumer_require(bool $condition, string $message): void
 }
 
 /**
- * @return list<class-string>
+ * Build the public type inventory from the installed package source itself.
+ *
+ * This intentionally does not maintain a second, hand-curated list in the
+ * consumer: every PHP source file must expose a discoverable package type,
+ * and every discovered class, interface, or enum must then autoload from the
+ * installed package.
+ *
+ * @return list<array{kind: 'class'|'interface'|'enum', name: string}>
  */
-function standalone_consumer_public_classes(): array
+function standalone_consumer_public_types(string $packageSourceRoot): array
 {
-    return [
-        CreateCategoryCommand::class,
-        CreateCategoryTranslationCommand::class,
-        'Maatify\\Category\\Command\\MoveCategoryCommand',
-        'Maatify\\Category\\Command\\RestoreCategoryCommand',
-        'Maatify\\Category\\Command\\RestoreCategoryTranslationCommand',
-        'Maatify\\Category\\Command\\SoftDeleteCategoryCommand',
-        'Maatify\\Category\\Command\\SoftDeleteCategoryTranslationCommand',
-        'Maatify\\Category\\Command\\UpdateCategoryDisplayOrderCommand',
-        'Maatify\\Category\\Command\\UpdateCategoryStatusCommand',
-        'Maatify\\Category\\Command\\UpdateCategoryTranslationCommand',
-        'Maatify\\Category\\DTO\\CategoryCollectionDTO',
-        CategoryDTO::class,
-        'Maatify\\Category\\DTO\\CategoryIdDTO',
-        'Maatify\\Category\\DTO\\CategoryTranslationCollectionDTO',
-        'Maatify\\Category\\DTO\\CategoryTranslationDTO',
-        'Maatify\\Category\\Exception\\CategoryCodeAlreadyExistsException',
-        'Maatify\\Category\\Exception\\CategoryCycleException',
-        'Maatify\\Category\\Exception\\CategoryHasNonDeletedChildrenException',
-        'Maatify\\Category\\Exception\\CategoryInvalidArgumentException',
-        'Maatify\\Category\\Exception\\CategoryNotFoundException',
-        'Maatify\\Category\\Exception\\CategoryPersistenceException',
-        'Maatify\\Category\\Exception\\CategoryTransactionException',
-        'Maatify\\Category\\Exception\\CategoryTranslationAlreadyExistsException',
-        'Maatify\\Category\\Exception\\CategoryTranslationNotFoundException',
-        PdoCategoryCommandRepository::class,
-        PdoCategoryQueryReader::class,
-        PdoCategoryReadQuery::class,
-        PdoCategoryTranslationCommandRepository::class,
-        PdoCategoryTransaction::class,
-        CategoryCommandService::class,
-        CategoryQueryService::class,
-    ];
+    $types = [];
+    $seen = [];
+    $iterator = new \RecursiveIteratorIterator(
+        new \RecursiveDirectoryIterator($packageSourceRoot, \FilesystemIterator::SKIP_DOTS),
+    );
+
+    foreach ($iterator as $fileInfo) {
+        if (!$fileInfo instanceof \SplFileInfo || !$fileInfo->isFile() || $fileInfo->getExtension() !== 'php') {
+            continue;
+        }
+
+        $source = file_get_contents($fileInfo->getPathname());
+        if (!is_string($source)) {
+            standalone_consumer_fail('Unable to read installed package source: ' . $fileInfo->getPathname());
+        }
+
+        $namespaceMatches = [];
+        if (preg_match(
+            '/^\s*namespace\s+([A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)*)\s*;/m',
+            $source,
+            $namespaceMatches,
+        ) !== 1) {
+            standalone_consumer_fail('Package source file has no discoverable namespace: ' . $fileInfo->getPathname());
+        }
+        $namespace = $namespaceMatches[1];
+
+        $fileTypeCount = 0;
+        $tokens = token_get_all($source);
+        $previousMeaningfulToken = null;
+        $tokenCount = count($tokens);
+        for ($index = 0; $index < $tokenCount; $index++) {
+            $token = $tokens[$index];
+            if (!is_array($token)) {
+                if (trim($token) !== '') {
+                    $previousMeaningfulToken = $token;
+                }
+                continue;
+            }
+
+            $tokenId = $token[0];
+            if (in_array($tokenId, [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            if (in_array($tokenId, [T_CLASS, T_INTERFACE, T_ENUM], true)) {
+                $nextIndex = $index + 1;
+                while ($nextIndex < $tokenCount) {
+                    $nextToken = $tokens[$nextIndex];
+                    if (is_array($nextToken) && in_array($nextToken[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                        $nextIndex++;
+                        continue;
+                    }
+                    if (is_string($nextToken) && trim($nextToken) === '') {
+                        $nextIndex++;
+                        continue;
+                    }
+                    break;
+                }
+
+                $nextToken = $tokens[$nextIndex] ?? null;
+                if (
+                    is_array($nextToken)
+                    && $nextToken[0] === T_STRING
+                    && !($tokenId === T_CLASS && $previousMeaningfulToken === T_NEW)
+                ) {
+                    $name = $nextToken[1];
+
+                    $type = $namespace . '\\' . $name;
+                    if (isset($seen[$type])) {
+                        standalone_consumer_fail('Package source declares a duplicate public type: ' . $type);
+                    }
+                    $seen[$type] = true;
+                    $types[] = [
+                        'kind' => match ($tokenId) {
+                            T_CLASS => 'class',
+                            T_INTERFACE => 'interface',
+                            T_ENUM => 'enum',
+                        },
+                        'name' => $type,
+                    ];
+                    $fileTypeCount++;
+                }
+            }
+
+            $previousMeaningfulToken = $tokenId;
+        }
+
+        standalone_consumer_require(
+            $fileTypeCount === 1,
+            'Package source file must declare exactly one public class, interface, or enum: ' . $fileInfo->getPathname(),
+        );
+    }
+
+    standalone_consumer_require($types !== [], 'Installed package source contains no public types.');
+    usort($types, static fn (array $left, array $right): int => strcmp($left['name'], $right['name']));
+
+    return $types;
 }
 
 /**
- * @return list<class-string>
- */
-function standalone_consumer_public_interfaces(): array
-{
-    return [
-        'Maatify\\Category\\Contract\\CategoryCommandRepositoryInterface',
-        'Maatify\\Category\\Contract\\CategoryCommandServiceInterface',
-        'Maatify\\Category\\Contract\\CategoryQueryReaderInterface',
-        'Maatify\\Category\\Contract\\CategoryQueryServiceInterface',
-        'Maatify\\Category\\Contract\\CategoryReadQueryInterface',
-        'Maatify\\Category\\Contract\\CategoryTransactionInterface',
-        'Maatify\\Category\\Contract\\CategoryTranslationCommandRepositoryInterface',
-        'Maatify\\Category\\Exception\\CategoryExceptionInterface',
-    ];
-}
-
-/**
- * @param class-string $type
+ * @phpstan-assert class-string $type
  */
 function standalone_consumer_assert_type_loaded(string $type, string $kind): void
 {
@@ -202,18 +261,14 @@ if (!is_file($autoloadPath)) {
 }
 require $autoloadPath;
 
-foreach (standalone_consumer_public_classes() as $type) {
-    standalone_consumer_assert_type_loaded($type, 'class');
-    standalone_consumer_assert_installed_source($type, $packageSourceRoot);
+$publicTypes = standalone_consumer_public_types($packageSourceRoot);
+$publicTypeNames = [];
+foreach ($publicTypes as $definition) {
+    standalone_consumer_assert_type_loaded($definition['name'], $definition['kind']);
+    standalone_consumer_assert_installed_source($definition['name'], $packageSourceRoot);
+    $publicTypeNames[] = $definition['name'];
 }
-
-foreach (standalone_consumer_public_interfaces() as $type) {
-    standalone_consumer_assert_type_loaded($type, 'interface');
-    standalone_consumer_assert_installed_source($type, $packageSourceRoot);
-}
-
-standalone_consumer_assert_type_loaded(CategoryStatusEnum::class, 'enum');
-standalone_consumer_assert_installed_source(CategoryStatusEnum::class, $packageSourceRoot);
+fwrite(STDOUT, sprintf("Installed package public inventory (%d): %s\n", count($publicTypes), implode(', ', $publicTypeNames)));
 
 $dsn = getenv('CATEGORY_STANDALONE_DSN');
 $username = getenv('CATEGORY_STANDALONE_DB_USER');
@@ -260,6 +315,8 @@ try {
         new SystemClock(new \DateTimeZone('UTC')),
     );
     $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo));
+    $managementReader = new PdoCategoryManagementReadQuery($pdo);
+    $managementService = new CategoryManagementQueryService($managementReader);
 
     $categoryId = $commandService->create(new CreateCategoryCommand('standalone-consumer-category'));
     $translationId = $commandService->createTranslation(
@@ -271,11 +328,68 @@ try {
     standalone_consumer_require($category->id === $categoryId, 'Standalone query returned the wrong Category.');
     standalone_consumer_require($category->code === 'standalone-consumer-category', 'Standalone Category code mismatch.');
     standalone_consumer_require(
-        $queryService->listTranslations($categoryId)->count() === 1,
+        $queryService->listRootCategories(new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
+        'Standalone visible root query did not return the stored Category.',
+    );
+    standalone_consumer_require(
+        $queryService->listChildren($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 0,
+        'Standalone visible child query returned an unexpected Category.',
+    );
+    standalone_consumer_require(
+        $queryService->listTranslations($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
         'Standalone query did not return the stored translation.',
+    );
+
+    $managementCategory = $managementService->getById(
+        $categoryId,
+        CategoryDeletedStateEnum::NON_DELETED,
+    );
+    standalone_consumer_require(
+        $managementCategory->id === $categoryId,
+        'Standalone management read service returned the wrong Category.',
+    );
+    $managementCategories = $managementService->listCategories(
+        new CategoryListCriteriaDTO(
+            status: CategoryStatusEnum::ACTIVE,
+            deletedState: CategoryDeletedStateEnum::NON_DELETED,
+            maxResults: 10,
+        ),
+    );
+    standalone_consumer_require(
+        $managementCategories->count() === 1,
+        'Standalone management Category list did not return the stored Category.',
+    );
+    standalone_consumer_require(
+        $managementService->listRootCategories(new CategoryListCriteriaDTO(maxResults: 10))->count() === 1,
+        'Standalone management root list did not return the stored Category.',
+    );
+    standalone_consumer_require(
+        $managementService->listChildren($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
+        'Standalone management child list returned an unexpected Category.',
+    );
+    $managementTranslation = $managementService->getTranslationById(
+        $translationId,
+        CategoryDeletedStateEnum::NON_DELETED,
+    );
+    standalone_consumer_require(
+        $managementTranslation->id === $translationId,
+        'Standalone management read service returned the wrong Translation.',
+    );
+    standalone_consumer_require(
+        $managementService->listTranslations(
+            new CategoryTranslationListCriteriaDTO(
+                categoryId: $categoryId,
+                deletedState: CategoryDeletedStateEnum::NON_DELETED,
+                maxResults: 10,
+            ),
+        )->count() === 1,
+        'Standalone management Translation list did not return the stored translation.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);
 }
 
-fwrite(STDOUT, "Standalone external consumer verification passed.\n");
+fwrite(
+    STDOUT,
+    sprintf("Standalone external consumer verification passed for %d public package types.\n", count($publicTypes)),
+);
