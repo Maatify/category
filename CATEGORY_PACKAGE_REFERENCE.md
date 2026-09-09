@@ -24,6 +24,14 @@ The package is host-agnostic:
 - Public read contracts use typed DTOs and collections, while mutation
   contracts use typed Commands; neither uses associative arrays.
 
+## Current standards provenance
+
+The current normative standards adoption is the repository-local selective
+pinning recorded in [`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](docs/php-engineering-standards/STANDARDS_MANIFEST.md).
+Its exact adoption commit is `f386948aa873fef9960680411c8918d095d29b93`.
+The manifest, not a floating upstream branch or a historical roadmap claim,
+resolves the active and inherited profiles for this package.
+
 ## Standards Applicability Decision
 
 The Category domain is translation-only. The base Category table does not own a
@@ -34,11 +42,10 @@ The logical identity of a translation is `(category_id, language_code)`. The
 Host remains responsible for semantic language validation and fallback
 behavior.
 
-This contract is compatible with the Package Standard at snapshot
-`4918da9f15feb1b336a822d53afe497a6fef885e`, whose Translation Pattern now
-conditions applicability on the Domain contract. Category's Translation-only
-architecture is therefore part of the standard applicability model and is not
-described as a local exception.
+The Translation-only architecture is part of the current Domain contract and
+is not described as a local exception. Earlier standards SHAs that may appear
+in historical roadmap evidence are provenance only; they are not the current
+normative adoption for this package.
 
 ## Runtime API
 
@@ -123,6 +130,165 @@ the stable Category code remains immutable after creation.
 - `CategoryTransactionInterface` defines the transaction boundary used by the
   application service.
 
+### Complete public runtime inventory
+
+The following inventory is generated from the current `src/` tree and is the
+stable v1 API surface. Concrete PDO adapters are public host-wiring classes;
+their public methods implement the corresponding contracts below.
+
+#### Commands and constructors
+
+```text
+CreateCategoryCommand(string $code, string|int|null $parentId = null, CategoryStatusEnum $status = ACTIVE)
+MoveCategoryCommand(string|int $categoryId, string|int|null $parentId)
+UpdateCategoryStatusCommand(string|int $categoryId, CategoryStatusEnum $status)
+UpdateCategoryDisplayOrderCommand(string|int $categoryId, int $displayOrder)
+SoftDeleteCategoryCommand(string|int $categoryId)
+RestoreCategoryCommand(string|int $categoryId)
+
+CreateCategoryTranslationCommand(string|int $categoryId, string $languageCode, string $name, ?string $description)
+UpdateCategoryTranslationCommand(string|int $translationId, string $name, ?string $description)
+SoftDeleteCategoryTranslationCommand(string|int $translationId)
+RestoreCategoryTranslationCommand(string|int $translationId)
+```
+
+Commands are `final readonly` and implement `JsonSerializable`. Category code,
+translation `categoryId`, and translation `languageCode` are not mutable through
+an update command.
+
+#### DTOs and criteria constructors
+
+```text
+CategoryIdDTO(string|int $value, string $field = 'id')
+CategoryDTO(int $id, ?int $parentId, string $code, CategoryStatusEnum $status,
+            int $displayOrder, DateTimeImmutable $createdAt,
+            DateTimeImmutable $updatedAt, ?DateTimeImmutable $deletedAt)
+CategoryTranslationDTO(int $id, int $categoryId, string $languageCode,
+                       string $name, ?string $description,
+                       DateTimeImmutable $createdAt,
+                       DateTimeImmutable $updatedAt,
+                       ?DateTimeImmutable $deletedAt)
+CategoryCollectionDTO(array $items)
+CategoryTranslationCollectionDTO(array $items)
+CategoryListCriteriaDTO(?CategoryStatusEnum $status = null,
+                        CategoryDeletedStateEnum $deletedState = NON_DELETED,
+                        int $maxResults = 100)
+CategoryTranslationListCriteriaDTO(?int $categoryId = null,
+                                   CategoryDeletedStateEnum $deletedState = NON_DELETED,
+                                   int $maxResults = 100)
+CategoryVisibleListCriteriaDTO(int $maxResults = 100)
+```
+
+All DTOs and collections are `final readonly` and `JsonSerializable`;
+collections also implement typed `IteratorAggregate` and `Countable`. The three
+criteria DTOs reject limits outside `1..100`.
+
+#### Enums
+
+```text
+CategoryStatusEnum: ACTIVE = 'active', INACTIVE = 'inactive'
+CategoryDeletedStateEnum: NON_DELETED = 'non_deleted',
+                          INCLUDE_DELETED = 'include_deleted',
+                          DELETED_ONLY = 'deleted_only'
+```
+
+#### Public contracts and method signatures
+
+```text
+CategoryCommandServiceInterface
+  create(CreateCategoryCommand): int
+  createTranslation(CreateCategoryTranslationCommand): int
+  move(MoveCategoryCommand): void
+  softDelete(SoftDeleteCategoryCommand): void
+  restore(RestoreCategoryCommand): void
+  updateStatus(UpdateCategoryStatusCommand): void
+  updateDisplayOrder(UpdateCategoryDisplayOrderCommand): void
+  updateTranslation(UpdateCategoryTranslationCommand): void
+  softDeleteTranslation(SoftDeleteCategoryTranslationCommand): void
+  restoreTranslation(RestoreCategoryTranslationCommand): void
+
+CategoryQueryServiceInterface
+  getById(int): CategoryDTO
+  listRootCategories(?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listChildren(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listTranslations(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+
+CategoryManagementQueryServiceInterface
+  getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
+  listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  getTranslationById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryTranslationDTO
+  listTranslations(CategoryTranslationListCriteriaDTO): CategoryTranslationCollectionDTO
+
+CategoryCommandRepositoryInterface
+  create(CreateCategoryCommand, DateTimeImmutable): int
+  move(MoveCategoryCommand, DateTimeImmutable): bool
+  softDelete(SoftDeleteCategoryCommand, DateTimeImmutable): bool
+  restore(RestoreCategoryCommand, DateTimeImmutable): bool
+  updateStatus(UpdateCategoryStatusCommand, DateTimeImmutable): bool
+  updateDisplayOrder(UpdateCategoryDisplayOrderCommand, DateTimeImmutable): bool
+
+CategoryTranslationCommandRepositoryInterface
+  create(CreateCategoryTranslationCommand, DateTimeImmutable): int
+  update(UpdateCategoryTranslationCommand, DateTimeImmutable): bool
+  softDelete(SoftDeleteCategoryTranslationCommand, DateTimeImmutable): bool
+  restore(RestoreCategoryTranslationCommand, DateTimeImmutable): bool
+
+CategoryReadQueryInterface
+  findVisibleById(int): ?CategoryDTO
+  listVisibleRootCategories(?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listVisibleChildren(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listVisibleTranslations(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+
+CategoryManagementReadQueryInterface
+  findById(int, CategoryDeletedStateEnum): ?CategoryDTO
+  listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  findTranslationById(int, CategoryDeletedStateEnum): ?CategoryTranslationDTO
+  listTranslations(CategoryTranslationListCriteriaDTO): CategoryTranslationCollectionDTO
+
+CategoryQueryReaderInterface [internal mutation-support port]
+  findById(int): ?CategoryDTO
+  findByCode(string): ?CategoryDTO
+  findActiveById(int): ?CategoryDTO
+  findActiveByIdForUpdate(int): ?CategoryDTO
+  findByIdForUpdate(int): ?CategoryDTO
+  hasNonDeletedChildrenForUpdate(int): bool
+  findTranslationById(int): ?CategoryTranslationDTO
+  findTranslationByIdForUpdate(int): ?CategoryTranslationDTO
+
+CategoryTransactionInterface
+  run(Closure): mixed
+```
+
+`findByCode()` is intentionally present only on the internal
+mutation-support port. It is not a public management read, service method, or
+v1 get-by-code contract.
+
+#### Services and PDO adapters
+
+```text
+CategoryCommandService(CategoryCommandRepositoryInterface,
+                       CategoryQueryReaderInterface,
+                       CategoryTranslationCommandRepositoryInterface,
+                       CategoryTransactionInterface,
+                       ClockInterface)
+CategoryQueryService(CategoryReadQueryInterface)
+CategoryManagementQueryService(CategoryManagementReadQueryInterface)
+
+PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
+PdoCategoryTranslationCommandRepository(PDO)
+PdoCategoryQueryReader(PDO)
+PdoCategoryReadQuery(PDO)
+PdoCategoryManagementReadQuery(PDO)
+PdoCategoryTransaction(PDO)
+```
+
+The concrete adapters implement the public contracts listed above and contain
+no Host framework/container bindings.
+
 Management Category lists accept `CategoryListCriteriaDTO`, apply an optional
 status filter and an explicit `CategoryDeletedStateEnum`, and are bounded to
 at most 100 rows per call. Management Translation lists accept
@@ -198,6 +364,18 @@ Package-owned storage/hydration failures use the appropriate
 `CategoryPersistenceException` hierarchy. An external `PDOException` is not
 wrapped and propagates unchanged.
 
+## Composer and platform contract
+
+The package is `maatify/category`, type `library`, under the
+`Maatify\Category\` PSR-4 namespace. Its direct runtime requirements are PHP
+`^8.4`, `ext-mbstring`, `ext-pdo`, `ext-pdo_mysql`, `maatify/exceptions:^1.0`,
+`maatify/persistence:^1.2.0`, and `maatify/shared-common:^1.0`. Development
+tools are declared separately in `require-dev`; the reusable library does not
+commit `composer.lock`.
+
+The package's storage contract is MySQL `8.0.16+` with InnoDB, `utf8mb4`, and
+enforced `CHECK` constraints.
+
 ## Exceptions
 
 The package marker is `CategoryExceptionInterface`. Named exceptions are used
@@ -214,6 +392,22 @@ for distinct failure semantics:
 - `CategoryPersistenceException`
 
 They use the stable hierarchy from `maatify/exceptions`.
+
+Named factories exposed by the package are:
+
+- `CategoryInvalidArgumentException::emptyField()`, `fieldTooLong()`,
+  `invalidId()`, `nonPositiveId()`, `invalidDisplayOrder()`, `selfParent()`,
+  and `invalidListLimit()`.
+- `CategoryNotFoundException::withId()` and
+  `CategoryTranslationNotFoundException::withId()`.
+- `CategoryCodeAlreadyExistsException::withCode()` and
+  `CategoryTranslationAlreadyExistsException::withIdentity()`.
+- `CategoryCycleException::forMove()` and
+  `CategoryHasNonDeletedChildrenException::withId()`.
+- `CategoryPersistenceException::queryFailed()`,
+  `invalidAutoIncrementIdentity()`, `invalidTranslationAutoIncrementIdentity()`,
+  `invalidStorageValue()`, and `unexpectedColumnType()`.
+- `CategoryTransactionException::alreadyActive()`.
 
 ## Verification contract
 
