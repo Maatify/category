@@ -2,6 +2,10 @@
 
 The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../../CATEGORY_PACKAGE_REFERENCE.md).
 
+Normative standards provenance is resolved by
+[`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](../php-engineering-standards/STANDARDS_MANIFEST.md),
+currently pinned to adoption commit `f386948aa873fef9960680411c8918d095d29b93`.
+
 ## Purpose
 
 `maatify/category` is a reusable Base Module for hierarchical Categories and
@@ -67,6 +71,27 @@ package-owned command operations. Their immutable `(category_id,
 language_code)` identity is enforced by the schema unique key and is never
 accepted by content-update commands.
 
+### Translation parent-state contract
+
+The current Runtime resolves parent state as follows, without introducing a
+new parent/Translation coupling rule:
+
+- `createTranslation()` requires a Category that exists and is not
+  soft-deleted. `CategoryStatusEnum::INACTIVE` does not block creation;
+  `findActiveByIdForUpdate()` means non-deleted lifecycle state here, not
+  status `ACTIVE`.
+- `updateTranslation()` checks and locks the Translation lifecycle only. An
+  inactive or soft-deleted parent Category does not block the update.
+- `softDeleteTranslation()` checks and locks the Translation lifecycle only.
+  An inactive or soft-deleted parent Category does not block the operation.
+- `restoreTranslation()` checks and locks the Translation row's existence and
+  lifecycle only. An inactive or soft-deleted parent Category does not block
+  restoration.
+
+The real MySQL proof is maintained in
+`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+This is a closed v1 contract, not an open implementation decision.
+
 ## Query contract
 
 The package exposes two separate public query ports:
@@ -85,6 +110,39 @@ The package exposes two separate public query ports:
 Management reads do not reuse consumer visibility queries. The v1 contract has
 no public management get-by-code, search, or local pagination implementation.
 Results are typed DTOs and collections, never associative arrays.
+
+`CategoryQueryReaderInterface::findByCode()` is an internal
+mutation-support lookup only. It is not exposed by either query service and is
+not part of the public management API.
+
+The v1 query contract intentionally defers pagination and search, bounds every
+unpaginated list to 100 rows, and uses `display_order, id` for Category ordering
+and `language_code, id` for Translation ordering.
+
+## v1 API freeze closure
+
+The Final API Freeze audit on baseline
+`f29af0d65728c7c252b57f7b1def8e7a56d6b38d` found no known blocking Runtime gap.
+The audit covered the `Maatify\Category\` namespace, all Commands, DTOs,
+criteria DTOs, enums, contracts, services, PDO adapters, constructors, method
+signatures, return types, exception hierarchy, package-owned table/column
+contracts, indexes and constraints, Composer dependencies, PHP/MySQL support,
+and Host-boundary rules. No speculative public API, duplicate contract,
+legacy Catalog runtime naming, or undeclared Host dependency was found.
+
+The freeze consequence is documentation-only: the stable inventory is recorded
+in the root Package Reference, while `findByCode()` remains internal
+mutation-support only and pagination, search, and public management get-by-code
+remain deferred or absent as stated above.
+
+## Release presentation state
+
+Implementation and verification gates are prepared, but the package is not
+presented as a Final Release Candidate or as ready for release. Final RC
+activation remains `BLOCKED BY OWNER DECISION` until the owner approves the
+release metadata and publication timing. `[Unreleased]` remains in place;
+there is no Tag, GitHub Release, or Packagist publication. `SECURITY.md` may
+therefore remain in Development State.
 
 ## Non-goals
 

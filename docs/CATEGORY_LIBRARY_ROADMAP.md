@@ -27,6 +27,46 @@ maatify/category
 
 كل Phase يجب أن يكون نطاقها وAcceptance Criteria معروفين قبل بدء تنفيذها.
 
+### 1.1 Baseline reconciliation and current status
+
+تستخدم هذه الوثيقة التصنيفات التالية بدل اعتبار وجود الملفات وحده دليلًا على
+اكتمال Phase:
+
+- `ALREADY IMPLEMENTED + PROVEN`: التنفيذ موجود، ومعايير القبول مثبتة بأدلة
+  حالية أو Real MySQL/CI tests مناسبة.
+- `COMPLETED + PROVEN`: أُنجزت Phase في Draft الحالية مع evidence محدد.
+- `COMPLETED BY THIS BATCH`: إغلاق توثيقي/حوكمي أو audit ناتج عن Batch الحالية.
+- `BLOCKED BY OWNER DECISION`: التنفيذ والـgates جاهزة، لكن تفعيل Final Release
+  Candidate يتطلب release metadata وموافقة المالك؛ ولا يعني ذلك Merge أو Tag أو
+  Release أو Publish.
+
+الحالة المجمعة على baseline `f29af0d65728c7c252b57f7b1def8e7a56d6b38d` هي:
+
+| Phase | الحالة | الدليل/الحدود |
+|---|---|---|
+| 0 | `COMPLETED BY THIS BATCH` | Standards lock، قرارات v1، وحسم Translation parent-state contract مع Real MySQL proof |
+| 1 | `ALREADY IMPLEMENTED + PROVEN` | `4fabccafdce4638fa5f050c9f72fa8241e343a31` وComposer/CI الحالية |
+| 2 | `ALREADY IMPLEMENTED + PROVEN` | `18e212875e299e6e7c7d9c3b0b1c5304e9e7e133` واختبارات Real MySQL |
+| 3 | `COMPLETED + PROVEN` | `b1141d93cb61f3961950faf774737b57e1143b5e` واختبارات validation |
+| 4 | `ALREADY IMPLEMENTED + PROVEN` | عقود PDO/transaction وReal MySQL integration الحالية |
+| 5 | `ALREADY IMPLEMENTED + PROVEN` | Category lifecycle وordering/concurrency integration الحالية |
+| 6 | `ALREADY IMPLEMENTED + PROVEN` | Translation lifecycle وidentity/restore integration الحالية، وإثبات parent-state semantics على Real MySQL |
+| 7 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` وmanagement query tests |
+| 8 | `ALREADY IMPLEMENTED + PROVEN` | visible query service/read tests وancestor visibility integration |
+| 9 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` والقوائم bounded/deterministic |
+| 10 | `COMPLETED + PROVEN` | `ceeb53fa47f8956d9700fd277b41e0b58cc23af6` واختبارات concurrency |
+| 11 | `ALREADY IMPLEMENTED + PROVEN` | exception hierarchy/factories والـfailure tests الحالية |
+| 12 | `ALREADY IMPLEMENTED + PROVEN` | `composer.json` وComposer verification الحالية |
+| 13 | `ALREADY IMPLEMENTED + PROVEN` | `.github/workflows/ci.yml` والـaggregate gate الحالية |
+| 14 | `COMPLETED BY THIS BATCH` | documentation and package-presentation sweep |
+| 15 | `COMPLETED + PROVEN` | `f29af0d65728c7c252b57f7b1def8e7a56d6b38d` وstandalone consumer |
+| 16 | `COMPLETED BY THIS BATCH` | Final API freeze audit؛ لا Runtime gap blocking معروفة |
+| 17 | `BLOCKED BY OWNER DECISION` | Implementation وverification gates جاهزة؛ Final RC activation تحتاج owner-approved release metadata، ولا إصدار فعلي |
+
+Phase 4–6 لا تعاد عبر Runtime implementation لمجرد إعادة الإثبات؛ evidence
+الحالية في Real MySQL tests هي proof المعتمد لها. وPhase 3/7/9/15 مغلقة
+ومثبتة في Draft الحالية قبل Batch التوثيق هذه.
+
 ---
 
 ## 2. Package Identity
@@ -68,11 +108,16 @@ Catalog هو مستهلك/aggregator محتمل للمكتبة، وليس مال
 Maatify/php-engineering-standards
 ```
 
-والـsnapshot المعتمد حاليًا هو:
+والـadoption الحاكم حاليًا هو:
 
 ```text
-4918da9f15feb1b336a822d53afe497a6fef885e
+f386948aa873fef9960680411c8918d095d29b93
 ```
+
+هذا هو exact adoption commit المسجل في
+[`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](php-engineering-standards/STANDARDS_MANIFEST.md)،
+وفق نموذج Selective Pinned Adoption. أي SHA أقدم مذكور في أقسام provenance
+التاريخية أدناه لا يمثل current normative snapshot.
 
 وتنطبق على هذه المكتبة الـProfiles التالية:
 
@@ -344,32 +389,30 @@ BCP-47 semantic validation وسياسة fallback تظل Host responsibility وف
 
 ## 10. Phase Stack Execution Rule
 
-كل Phase في هذه الـRoadmap تنفذ بنظام:
+كل Phase في هذه الـRoadmap تُقبل منطقيًا، لكن لا تتحول تلقائيًا إلى Branch أو PR.
+تستخدم الـPhases المترابطة Execution Batch واحدة عندما يكون ذلك أوضح وأقل كلفة:
 
 ```text
 main
-└── phase-N-draft
-    ├── blueprint
-    ├── work-unit-1
-    ├── work-unit-2
-    ├── ...
-    ├── verification
-    ├── documentation
-    └── final-review / required-fixes
+└── phase-draft أو batch-integration-boundary
+    └── codex/v1-finalization-batch
+        ├── Phase-level commits
+        ├── required fixes عند الحاجة
+        └── integration gates
 ```
 
 القواعد:
 
-1. Phase Draft تبدأ من أحدث `main`.
-2. ممنوع التطوير مباشرة على Draft.
-3. كل Component له Branch مستقل.
-4. كل Branch تبدأ من أحدث Draft HEAD.
-5. التنفيذ Sequential.
-6. لا يبدأ Component جديد قبل اعتماد وSquash Merge السابق.
-7. Component PR تستهدف Phase Draft.
-8. Fixes تتم داخل نفس Component PR أو Required-Fix Component حسب حالة الـStack.
-9. لا يدخل `main` إلا Phase مكتملة.
-10. Phase Draft يتم Squash Merge إلى `main` بعد اكتمال Verification + Documentation + Final Review.
+1. `Phase ≠ Branch ≠ PR`: Phase حد قبول منطقي، وExecution Batch حد تسليم،
+   وWork Branch/PR حد Git لا ينشأ إلا إذا أضاف عزلًا أو reviewability أو
+   rollback أو تكاملًا آمنًا.
+2. تبدأ Work Branch من أحدث exact base معتمد؛ في هذه Batch هو
+   `f29af0d65728c7c252b57f7b1def8e7a56d6b38d` على Draft الحالية.
+3. عدة Phases مترابطة يجوز أن تستخدم Work Branch واحدة مع Commits واضحة لكل
+   logical milestone؛ لا تنشأ Branch/PR لكل Phase لمجرد الرقم.
+4. لا تدخل Verification أو Final Review في Branch/PR مستقلة إذا لم تنتج تغييرًا.
+5. لا يدخل `main` إلا حد التكامل بعد اكتمال كل Acceptance Criteria والـGates.
+6. يظل دمج حد التكامل إلى `main` وTag وRelease وPublish قرارًا للمالك.
 
 هذه القواعد لا تمنح صلاحية Merge أو Tag أو Release. تظل صلاحية الدمج والاعتماد النهائي لمالك المشروع، وتطبق قيود عدم الـamend والـforce-push وقواعد Review/Verification من الـPhase Stack Standard.
 
@@ -443,13 +486,20 @@ docs/CATEGORY_LIBRARY_ROADMAP.md
 * lock boundaries.
 * ordering integration.
 * `getNextPosition()` versus movement transaction ownership.
-* pagination integration.
+* pagination integration أو قرار تأجيلها.
 * exception conversion/propagation.
 
 #### Query
 
 * management مقابل consumer read boundary.
-* اعتماد أو تأجيل `get by code` وSearch وPagination في `v1.0.0`.
+* Pagination: **deferred** في `v1.0.0`.
+* Search: **deferred** في `v1.0.0`.
+* public management get-by-code: **غير مضاف** في `v1.0.0`.
+* `findByCode()`: internal mutation-support only، وليس Public Management API.
+* Management Read وConsumer Visibility: عقدان منفصلان.
+* كل unpaginated list bounded بحد أقصى 100.
+* Category ordering: `display_order, id`.
+* Translation ordering: `language_code, id`.
 * مصادر البيانات والـDTOs والـvisibility rules لكل read contract معتمد.
 
 ---
@@ -464,9 +514,30 @@ The logical identity is `(category_id, language_code)`. The Package owns the
 syntactic and storage validation of `language_code` required by its contract.
 The Host owns semantic language validation and fallback/locale policy.
 
-This contract is compatible with the Package Standard at snapshot
-`4918da9f15feb1b336a822d53afe497a6fef885e`. No Translation standards blocker
-is open.
+This contract is resolved under the current local selective adoption recorded
+at `f386948aa873fef9960680411c8918d095d29b93`; no Translation standards
+blocker is open. The older snapshot claim is historical provenance only.
+
+### Translation parent-state contract
+
+The current Runtime closes the parent-state decision without changing Runtime
+behavior:
+
+* `createTranslation()` requires the Category to exist and be non-soft-deleted.
+  `CategoryStatusEnum::INACTIVE` does not block creation; the
+  mutation-support `findActiveById*` names mean non-deleted lifecycle state,
+  not status `ACTIVE`.
+* `updateTranslation()` depends on the Translation's own non-deleted lifecycle;
+  an inactive or soft-deleted parent Category does not block it.
+* `softDeleteTranslation()` depends on the Translation's own non-deleted
+  lifecycle; an inactive or soft-deleted parent Category does not block it.
+* `restoreTranslation()` depends on the Translation row's existence and
+  soft-deleted lifecycle; an inactive or soft-deleted parent Category does not
+  block it.
+
+Real MySQL proof is recorded by
+`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+Phase 0 therefore has no open parent-state decision.
 
 ---
 
@@ -549,6 +620,9 @@ Maatify\Category\
 ---
 
 ## 14. Phase 2 — Schema & Core Domain Data
+
+**Status:** `ALREADY IMPLEMENTED + PROVEN`; لا إعادة تنفيذ Runtime في هذه
+Batch.
 
 ### الهدف
 
@@ -734,7 +808,7 @@ COMPLETED / VERIFIED (Final Review: PASSED)
 * trigger behavior حقيقي
 * storage behavior يستخدم Real MySQL وليس SQLite أو mocks
 
-**Verification provenance:**
+**Historical verification provenance:**
 
 * Phase 1 verified content tree: `f282d7fd6c0bab361f05694a472bfda8254cd942`
 * Category Package CI run #22 نجحت على ذلك المحتوى.
@@ -744,6 +818,9 @@ COMPLETED / VERIFIED (Final Review: PASSED)
 ---
 
 ## 15. Phase 3 — Command & Validation Layer
+
+**Status:** `COMPLETED + PROVEN` في Draft الحالية عبر
+`b1141d93cb61f3961950faf774737b57e1143b5e` واختبارات Unit/validation الحالية.
 
 ### الهدف
 
@@ -859,6 +936,9 @@ Phase 3 مكتملة إلا بعد استكمال validation/domain-contract com
 
 ## 16. Phase 4 — Persistence & Transaction Foundation
 
+**Status:** `ALREADY IMPLEMENTED + PROVEN` عبر العقود الحالية واختبارات Real
+MySQL؛ لا إعادة تنفيذ Runtime في هذه Batch.
+
 ### الهدف
 
 توفير Infrastructure قابلة للاستخدام بواسطة Services بدون business logic داخل repositories.
@@ -939,6 +1019,9 @@ Persistence كاملة وقابلة للاختبار بمعزل عن Services.
 ---
 
 ## 17. Phase 5 — Category Create & Mutation CRUD
+
+**Status:** `ALREADY IMPLEMENTED + PROVEN` عبر اختبارات Category وConcurrency
+الحقيقية؛ لا إعادة تنفيذ Runtime في هذه Batch.
 
 ### الهدف
 
@@ -1062,6 +1145,9 @@ Category mutation side كاملة.
 
 ## 18. Phase 6 — Category Translation CRUD
 
+**Status:** `ALREADY IMPLEMENTED + PROVEN` عبر اختبارات Translation وReal MySQL؛
+لا إعادة تنفيذ Runtime في هذه Batch.
+
 ### الهدف
 
 إكمال lifecycle للTranslations.
@@ -1151,13 +1237,18 @@ RestoreCategoryTranslationCommand
 
 ### Parent Category State
 
-قبل التنفيذ يجب أن تكون Architecture حاسمة بشأن:
+The parent-state semantics are closed by the Phase 0 contract above and are
+proven by the Real MySQL integration test. Phase 6 does not leave these cases
+to the implementer:
 
-* إنشاء Translation لـsoft-deleted Category.
-* تعديل Translation لـsoft-deleted Category.
-* حذف/استعادة Translation عندما تكون Category نفسها محذوفة.
+* creation is allowed for an existing non-deleted Category, including
+  `INACTIVE`, and rejected for a soft-deleted Category;
+* update, soft delete, and restore are governed by the Translation lifecycle
+  itself and remain allowed when the parent Category is inactive or
+  soft-deleted.
 
-ممنوع ترك هذه semantics ليقررها implementer أثناء كتابة الكود.
+لا تُترك هذه semantics لقرار implementer أثناء كتابة الكود؛ العقد أعلاه هو
+المرجع المغلق.
 
 ---
 
@@ -1253,6 +1344,9 @@ Deleted only
 ---
 
 ## 20. Phase 8 — Consumer Visibility Query Model
+
+**Status:** `ALREADY IMPLEMENTED + PROVEN` عبر `CategoryQueryService` و
+`PdoCategoryReadQuery` واختبارات visibility/ancestor الحالية.
 
 ### الهدف
 
@@ -1385,6 +1479,9 @@ production-safe. Consumer visibility تستخدم `CategoryVisibleListCriteriaDT
 
 ## 22. Phase 10 — Concurrency & Invariant Hardening
 
+**Status:** `COMPLETED + PROVEN` عبر
+`ceeb53fa47f8956d9700fd277b41e0b58cc23af6` واختبارات concurrency الحقيقية.
+
 ### الهدف
 
 إثبات صحة المكتبة تحت العمليات المتزامنة.
@@ -1457,6 +1554,9 @@ production-safe. Consumer visibility تستخدم `CategoryVisibleListCriteriaDT
 
 ## 23. Phase 11 — Exception & Failure Contract
 
+**Status:** `ALREADY IMPLEMENTED + PROVEN`؛ hierarchy/factories الحالية موثقة
+في Package Reference ومستخدمة في Runtime/tests.
+
 ### الهدف
 
 تثبيت failure surface قبل Stable API.
@@ -1516,6 +1616,9 @@ Failure contract كاملة داخل Package Reference.
 
 ## 24. Phase 12 — Package / Composer Compliance
 
+**Status:** `ALREADY IMPLEMENTED + PROVEN`؛ `composer.json` وautoload وstable
+dependency constraints مطابقة للعقد الحالي.
+
 ### Composer Review
 
 تنفذ مراجعة `composer.json` كاملة وفق
@@ -1547,6 +1650,9 @@ dependencies التي يثبتها Phase 0.
 ---
 
 ## 25. Phase 13 — CI Compliance
+
+**Status:** `ALREADY IMPLEMENTED + PROVEN` على مستوى workflow architecture؛
+Final Verification لهذه Batch تعيد تشغيل required commands على exact final HEAD.
 
 ### الهدف
 
@@ -1595,6 +1701,9 @@ MySQL Integration، وFull Suite، وبقية checks المنطبقة على ه�
 ---
 
 ## 26. Phase 14 — Documentation & Package Presentation
+
+**Status:** `COMPLETED BY THIS BATCH` بعد documentation/presentation sweep؛ لا
+تغيير Runtime أو schema مطلوب لهذا النطاق.
 
 ### README
 
@@ -1675,6 +1784,8 @@ docs/EXCEPTIONS.md
 
 ## 27. Phase 15 — Standalone Consumer Verification
 
+**Status:** `COMPLETED + PROVEN` على baseline `f29af0d65728c7c252b57f7b1def8e7a56d6b38d`.
+
 ### الهدف
 
 إثبات أن المكتبة مستقلة فعليًا عن المصدر الذي تم استخراجها منه.
@@ -1707,6 +1818,9 @@ docs/EXCEPTIONS.md
 ---
 
 ## 28. Phase 16 — Final API Freeze Review
+
+**Status:** `COMPLETED BY THIS BATCH`; audit الـRuntime الحالي لم يجد gap حقيقية
+blocking لـStable API، لذلك لا يوجد Runtime change خاص بهذه Phase.
 
 ### الهدف
 
@@ -1758,12 +1872,38 @@ docs/EXCEPTIONS.md
 
 ## 29. Phase 17 — Release Readiness
 
-### Exact Release Candidate Verification
+**Status:** `BLOCKED BY OWNER DECISION`; implementation and verification gates
+are prepared and may be green, but Final Release Candidate activation requires
+owner-approved release metadata and publication timing. This state does not
+execute or imply Tag, Release, Publish, or Merge.
 
-على exact candidate SHA يجب اجتياز كل Gates المنطبقة في Package وComposer وCI
+### Final readiness verification
+
+على exact final Batch HEAD يجب اجتياز كل Gates المنطبقة في Package وComposer وCI
 وBase Module وPresentation Standards. والدليل الخاص بـCategory يجب أن يشمل
 Real MySQL Integration، كل PHP minors المعتمدة، مراجعة API/Architecture،
 documentation sweep، clean repository، وstandalone installation test.
+
+بوابة هذه Batch النهائية تُشغّل مرة واحدة على exact final HEAD بعد اكتمال
+كل Commits:
+
+```text
+composer validate --strict
+composer dump-autoload --optimize --strict-psr
+composer check-platform-reqs
+composer audit --no-interaction --abandoned=fail
+PHP syntax validation for all package-owned PHP paths
+PHPStan level max
+Unit tests
+Real MySQL Integration tests
+Full PHPUnit suite
+standalone consumer verification
+```
+
+نجاح هذه البوابة يثبت implementation/readiness gates فقط؛ لا ينقل Phase 17 إلى
+`READY FOR OWNER APPROVAL` ولا يفعّل Final RC قبل اعتماد المالك للـrelease
+metadata وموعد النشر. وتظل `v1.0.0` وموعد الإصدار وعمليات
+Merge/Tag/Release/Publish خارج التنفيذ حتى يعتمدها المالك.
 
 ---
 
@@ -1773,7 +1913,8 @@ documentation sweep، clean repository، وstandalone installation test.
 * Package Reference final.
 * Architecture final.
 * Roadmap updated with completed status.
-* CHANGELOG release entry ready.
+* CHANGELOG `[Unreleased]` notes remain active; `v1.0.0`, release date, and
+  Final RC metadata remain owner-controlled until Tag/Release approval.
 * Composer metadata final.
 
 ---
@@ -1805,7 +1946,7 @@ CreateCategoryCommand
 Management:
 
 * by ID.
-* by code when approved.
+* no public by-code method in v1; `findByCode()` is internal mutation support only.
 * roots.
 * children.
 * lists.
@@ -1895,12 +2036,12 @@ RestoreCategoryTranslationCommand
 
 ### DTOs
 
-* [ ] CategoryDTO
-* [ ] CategoryTranslationDTO
-* [ ] CategoryCollectionDTO
-* [ ] CategoryTranslationCollectionDTO
-* [ ] Query Criteria DTOs where needed
-* [ ] Pagination/result DTOs where Category owns a stable public result contract
+* [x] CategoryDTO
+* [x] CategoryTranslationDTO
+* [x] CategoryCollectionDTO
+* [x] CategoryTranslationCollectionDTO
+* [x] Query Criteria DTOs where needed
+* [x] No pagination/result DTO: pagination is deferred and Category owns no such v1 contract.
 
 Mutation Commands ممنوع تسميتها DTO.
 
@@ -1955,7 +2096,10 @@ RestoreCategoryTranslationCommand
 
 ---
 
-### Other Known Gaps
+### Historical provenance (not current gaps)
+
+الملاحظات التالية تصف baseline تاريخية سبقت Phase Stack الحالية، ولا تمثل gaps
+مفتوحة في `f29af0d…` أو في هذه Batch:
 
 * Master Roadmap لم تكن موجودة.
 * Translation CRUD لم تكن كاملة.
@@ -1965,7 +2109,10 @@ RestoreCategoryTranslationCommand
 * naming كان ما زال Catalog-centric.
 * table prefix كان `maa_catalog_`.
 * package namespace كان Catalog-oriented.
-* Translation-only Domain contract موثق ومتوافق مع الـPackage Standard.
+* Translation-only Domain contract لم يكن موثقًا.
+
+أُغلقت هذه البنود عبر Commits الموثقة في status table والأدلة الحالية، ولا
+يُعاد تفسيرها كـCurrent normative contract.
 
 ---
 
@@ -2024,7 +2171,7 @@ Architecture Locked
 
 + Public API Frozen
 
-+ Release Candidate Fully Green
++ Readiness gates fully green when verified; Final RC activation remains owner-controlled
 ```
 
 عندها فقط يمكن اعتبار:
