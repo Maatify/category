@@ -218,8 +218,16 @@ jobs:
             echo "A forbidden host/runtime Composer dependency is declared."
             exit 1
           fi
+          if rg -n -i 'adminkernel|admin-control-panel|(^|[^[:alnum:]_])catalog([^[:alnum:]_]|$)|(^|[^[:alnum:]_])slim([^[:alnum:]_]|$)|php-di' composer.json src; then
+            echo "A forbidden host/runtime symbol is referenced by the package."
+            exit 1
+          fi
           if rg -n -P '^(namespace|use)\s+(App|Host|Admin|Catalog|Slim|DI)(\\|\s|;)' src; then
             echo "A forbidden host namespace is referenced by package runtime code."
+            exit 1
+          fi
+          if rg -n -P '\b(require|require_once|include|include_once)\b' src; then
+            echo "Package runtime code includes a host-owned file."
             exit 1
           fi
           if rg -n -i 'CREATE TABLE[^\n]*(admin|catalog|host)|REFERENCES[^\n]*(admin|catalog|host)' schema; then
@@ -255,6 +263,14 @@ jobs:
       - name: Verify the clean consumer has no host files
         run: |
           set -euo pipefail
+          for expected_file in composer.json composer.lock consumer.php vendor; do
+            test -e "$CATEGORY_CONSUMER_DIR/$expected_file"
+          done
+          unexpected_file="$(find "$CATEGORY_CONSUMER_DIR" -mindepth 1 -maxdepth 1 ! -name composer.json ! -name composer.lock ! -name consumer.php ! -name vendor -print -quit)"
+          if [ -n "$unexpected_file" ]; then
+            echo "The clean consumer contains an unexpected host file: $unexpected_file"
+            exit 1
+          fi
           host_file="$(find "$CATEGORY_CONSUMER_DIR" -maxdepth 1 -type f \( -name '*Host*' -o -name '*Admin*' -o -name '*Catalog*' \) -print -quit)"
           if [ -n "$host_file" ]; then
             echo "The clean consumer contains a host-owned file: $host_file"
