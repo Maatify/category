@@ -164,7 +164,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $blockedService = $this->service($blockedConnection);
 
         try {
-            $blockedService->createTranslation(new CreateCategoryTranslationCommand($catId, 'en', 'Test2'));
+            $blockedService->createTranslation(new CreateCategoryTranslationCommand($catId, 'en', 'Test2', null));
             self::fail('Translation identity must fail uniquely under concurrency.');
         } catch (CategoryTranslationAlreadyExistsException|PDOException $e) {
             self::assertFalse($blockedConnection->inTransaction());
