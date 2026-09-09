@@ -15,6 +15,10 @@ use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
+use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
@@ -26,6 +30,7 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(private PDO $pdo) {}
 
@@ -263,6 +268,80 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         return new CategoryImageAssignmentCollectionDTO($items);
     }
 
+    public function listVisibleContentFields(
+        int $categoryId,
+        CategoryContentFieldScopeDTO $scope,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryContentFieldCollectionDTO {
+        $scopeWhere = [];
+        $scopeParams = [];
+        if ($scope->languageCode === null) {
+            $scopeWhere[] = '`field`.`language_code` IS NULL';
+        } else {
+            $scopeWhere[] = '`field`.`language_code` = :field_language_code';
+            $scopeParams['field_language_code'] = $scope->languageCode;
+        }
+        if ($scope->platform === null) {
+            $scopeWhere[] = '`field`.`platform` IS NULL';
+        } else {
+            $scopeWhere[] = '`field`.`platform` = :field_platform';
+            $scopeParams['field_platform'] = $scope->platform;
+        }
+
+        $statement = $this->pdo->prepare(
+            'WITH RECURSIVE `category_ancestors` AS ('
+            . 'SELECT `id`, `parent_id`, `status`, `deleted_at` '
+            . 'FROM `' . self::CATEGORY_TABLE . '` '
+            . 'WHERE `id` = :field_ancestor_start_id '
+            . 'UNION ALL '
+            . 'SELECT `parent`.`id`, `parent`.`parent_id`, `parent`.`status`, `parent`.`deleted_at` '
+            . 'FROM `' . self::CATEGORY_TABLE . '` AS `parent` '
+            . 'INNER JOIN `category_ancestors` AS `child` '
+            . 'ON `child`.`parent_id` = `parent`.`id`'
+            . ') '
+            . 'SELECT `field`.`id`, `field`.`category_id`, `field`.`field_key`, '
+            . '`field`.`language_code`, `field`.`platform`, `field`.`format`, `field`.`value`, '
+            . '`field`.`display_order`, `field`.`created_at`, `field`.`updated_at`, `field`.`deleted_at` '
+            . 'FROM `' . self::CONTENT_FIELD_TABLE . '` AS `field` '
+            . 'WHERE `field`.`category_id` = :field_category_id '
+            . 'AND `field`.`deleted_at` IS NULL '
+            . 'AND EXISTS ('
+            . 'SELECT 1 FROM `category_ancestors` AS `visible_category` '
+            . 'WHERE `visible_category`.`id` = :visible_field_category_id'
+            . ') '
+            . 'AND NOT EXISTS ('
+            . 'SELECT 1 FROM `category_ancestors` AS `ancestor` '
+            . 'WHERE `ancestor`.`status` <> \'active\' '
+            . 'OR `ancestor`.`deleted_at` IS NOT NULL'
+            . ') '
+            . 'AND ' . implode(' AND ', $scopeWhere) . ' '
+            . 'ORDER BY `field`.`display_order` ASC, `field`.`id` ASC '
+            . 'LIMIT :max_results',
+        );
+        $this->executeBounded(
+            $statement,
+            $criteria,
+            array_merge(
+                [
+                    'field_ancestor_start_id' => $categoryId,
+                    'field_category_id' => $categoryId,
+                    'visible_field_category_id' => $categoryId,
+                ],
+                $scopeParams,
+            ),
+        );
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        $items = [];
+        foreach ($rows as $row) {
+            $items[] = $this->hydrateContentField($row);
+        }
+
+        /** @var list<CategoryContentFieldDTO> $items */
+        return new CategoryContentFieldCollectionDTO($items);
+    }
+
     /** @param array<string, int|string> $params */
     private function executeBounded(
         PDOStatement $statement,
@@ -358,6 +437,31 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             mediaAssetId: $this->integerValue($row, 'media_asset_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
+            displayOrder: $this->integerValue($row, 'display_order'),
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateContentField(array $row): CategoryContentFieldDTO
+    {
+        $format = $this->stringValue($row, 'format');
+        try {
+            $fieldFormat = CategoryContentFieldFormatEnum::from($format);
+        } catch (\ValueError $exception) {
+            throw CategoryPersistenceException::invalidStorageValue('format', $exception);
+        }
+
+        return new CategoryContentFieldDTO(
+            id: $this->integerValue($row, 'id'),
+            categoryId: $this->integerValue($row, 'category_id'),
+            fieldKey: $this->stringValue($row, 'field_key'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
+            platform: $this->nullableStringValue($row, 'platform'),
+            format: $fieldFormat,
+            value: $this->stringValue($row, 'value'),
             displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),

@@ -16,6 +16,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryQueryService;
@@ -243,6 +244,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
             new PdoCategoryQueryReader($connection),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
+            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryTransaction($connection),
             new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
         );

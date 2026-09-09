@@ -13,8 +13,9 @@
 [![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 [![Contributing Guide](https://img.shields.io/badge/Contributing-Guide-blue.svg)](CONTRIBUTING.md)
 
-Framework-neutral hierarchical categories, contents, and Category-owned image
-assignments for reusable PHP applications.
+Framework-neutral hierarchical categories, contents, extensible Host-defined
+content fields, and Category-owned image assignments for reusable PHP
+applications.
 
 **Status:** v1.0.0 preparation · owner release metadata pending · not published
 
@@ -26,13 +27,15 @@ assignments for reusable PHP applications.
 
 `maatify/category` provides typed Category domain/application contracts, PDO
 adapters, MySQL schema, hierarchy invariants, lifecycle operations, ordering,
-and exact-scope references to host Media Asset identities,
+and exact-scope references to host Media Asset identities and Host-defined
+content values,
 and separate management and visible query/list behavior. It is independent of
 Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Key Features
 
 - Typed immutable Category and Category Content DTOs.
+- Typed extensible Category Content Field DTOs with text, HTML, and JSON formats.
 - Typed Category Image Assignment DTOs with exact language/platform scopes.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
@@ -40,6 +43,8 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
   mutations, plus Category status and display-order mutations.
 - Image Assignment create, exact-scope ordering, soft-delete, and restore
   mutations; stable identity remains reserved after soft deletion.
+- Content Field create, value/format update, exact-scope ordering, soft-delete,
+  restore, management reads, and exact consumer reads; field keys remain Host-defined.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
@@ -50,8 +55,9 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes fourteen typed mutation Commands, immutable Category,
-Content, and Image Assignment DTOs, four bounded criteria DTOs, two enums, typed service and
+The package exposes nineteen typed mutation Commands, immutable Category,
+Content, and Image Assignment/Content Field DTOs, five bounded criteria DTOs,
+three enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
 constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
@@ -66,8 +72,8 @@ Management reads and consumer visibility reads are separate contracts.
 Management criteria can select status and deleted state; consumer criteria
 cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
 bounded to at most 100 rows. Category lists use `display_order, id`; Content
-lists use `language_code, id`; Image Assignment lists use exact scopes and
-deterministic `display_order, id` ordering.
+lists use `language_code, id`; Image Assignment and Content Field lists use
+exact scopes and deterministic `display_order, id` ordering within each scope.
 
 ## Category Content model
 
@@ -91,6 +97,19 @@ Language lifecycle and creates no foreign key to those host concepts.
 Consumer reads require an exact scope, exclude deleted assignments, and hide
 assignments when any Category ancestor is inactive or deleted. Management reads
 can omit scope filtering or request exact NULL/NULL scope explicitly.
+
+## Category Content Field model
+
+Category Content Fields are arbitrary Host-defined key/value records separate
+from the fixed `CategoryContent` name/description model. Their stable identity
+is `(category_id, field_key, language_code, platform)`, including soft-deleted
+rows. `NULL` language/platform values are exact neutral dimensions, not
+fallbacks; all four scope combinations are supported. Values use exact
+lowercase `text`, `html`, or `json` formats and are stored without HTML
+sanitization or rendering. The database enforces the format case exactly.
+The Host owns the meaning of `field_key`, WYSIWYG policy, rendering, and JSON
+semantics. Consumer reads require the exact scope and complete ancestor
+visibility.
 
 ## Requirements
 

@@ -9,6 +9,8 @@ use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 
 /** Dedicated public read port for visible Category query behavior. */
@@ -47,4 +49,11 @@ interface CategoryReadQueryInterface
         CategoryImageAssignmentScopeDTO $scope,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryImageAssignmentCollectionDTO;
+
+    /** Lists fields for the exact requested scope, with no fallback. */
+    public function listVisibleContentFields(
+        int $categoryId,
+        CategoryContentFieldScopeDTO $scope,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryContentFieldCollectionDTO;
 }

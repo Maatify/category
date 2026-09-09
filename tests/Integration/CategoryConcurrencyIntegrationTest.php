@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
@@ -19,10 +20,12 @@ use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
 use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
@@ -622,6 +625,114 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
+    public function testConcurrentContentFieldCreationAllocatesDistinctPositionsWithinExactScope(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-field-order-category'));
+        $firstConnection = $this->newConnection();
+        $secondConnection = $this->newConnection();
+        $firstRepository = new PdoCategoryContentFieldCommandRepository(
+            $firstConnection,
+            new ScopedOrderingManager(),
+        );
+        $secondRepository = new PdoCategoryContentFieldCommandRepository(
+            $secondConnection,
+            new ScopedOrderingManager(),
+        );
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+
+        try {
+            $firstConnection->beginTransaction();
+            $firstId = $firstRepository->create(
+                new CreateCategoryContentFieldCommand(
+                    $categoryId,
+                    'first',
+                    'en-US',
+                    'web',
+                    CategoryContentFieldFormatEnum::TEXT,
+                    'first',
+                ),
+                $occurredAt,
+            );
+
+            $secondConnection->beginTransaction();
+            $this->setLockWaitTimeout($secondConnection);
+
+            try {
+                $secondRepository->create(
+                    new CreateCategoryContentFieldCommand(
+                        $categoryId,
+                        'second',
+                        'en-US',
+                        'web',
+                        CategoryContentFieldFormatEnum::TEXT,
+                        'second',
+                    ),
+                    $occurredAt,
+                );
+                self::fail('A concurrent field creation must wait for the exact ordering scope lock.');
+            } catch (PDOException $exception) {
+                $driverCode = $exception->errorInfo[1] ?? null;
+                if (!is_int($driverCode) && !is_string($driverCode)) {
+                    self::fail('The concurrent field creation must expose the MySQL lock wait timeout code.');
+                }
+                self::assertSame(1205, (int) $driverCode, $exception->getMessage());
+                self::assertTrue($secondConnection->inTransaction());
+                $secondConnection->rollBack();
+            }
+
+            $firstConnection->commit();
+
+            $secondConnection->beginTransaction();
+            $secondId = $secondRepository->create(
+                new CreateCategoryContentFieldCommand(
+                    $categoryId,
+                    'second',
+                    'en-US',
+                    'web',
+                    CategoryContentFieldFormatEnum::TEXT,
+                    'second',
+                ),
+                $occurredAt,
+            );
+            $secondConnection->commit();
+
+            $statement = $this->connection()->prepare(
+                'SELECT `id`, `display_order` FROM `maa_category_category_content_fields` '
+                . 'WHERE `category_id` = :category_id AND `language_code` = :language_code '
+                . 'AND `platform` = :platform AND `deleted_at` IS NULL ORDER BY `display_order`, `id`',
+            );
+            $statement->execute([
+                'category_id' => $categoryId,
+                'language_code' => 'en-US',
+                'platform' => 'web',
+            ]);
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $firstRowId = $rows[0]['id'] ?? null;
+            $secondRowId = $rows[1]['id'] ?? null;
+            $firstRowOrder = $rows[0]['display_order'] ?? null;
+            $secondRowOrder = $rows[1]['display_order'] ?? null;
+            if (!is_int($firstRowId) && !is_string($firstRowId)) {
+                self::fail('The first field row identity must be scalar.');
+            }
+            if (!is_int($secondRowId) && !is_string($secondRowId)) {
+                self::fail('The second field row identity must be scalar.');
+            }
+            if (!is_int($firstRowOrder) && !is_string($firstRowOrder)) {
+                self::fail('The first field row order must be scalar.');
+            }
+            if (!is_int($secondRowOrder) && !is_string($secondRowOrder)) {
+                self::fail('The second field row order must be scalar.');
+            }
+            self::assertSame([$firstId, $secondId], [(int) $firstRowId, (int) $secondRowId]);
+            self::assertSame([1, 2], [(int) $firstRowOrder, (int) $secondRowOrder]);
+        } finally {
+            $this->closeConnection($firstConnection);
+            $this->closeConnection($secondConnection);
+        }
+    }
+
     public function testRestoreWaitsOnTheExistingRowAndPreservesItsIdentity(): void
     {
         $service = $this->service($this->connection());
@@ -705,6 +816,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             new PdoCategoryQueryReader($connection),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
+            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryTransaction($connection),
             $clock ?? new FixedCategoryClock(),
         );

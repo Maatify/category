@@ -13,6 +13,9 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
+use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 
 /** Dedicated management read port, separate from consumer visibility reads. */
@@ -49,4 +52,13 @@ interface CategoryManagementReadQueryInterface
     public function listImageAssignments(
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO;
+
+    public function findContentFieldById(
+        int $fieldId,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryContentFieldDTO;
+
+    public function listContentFields(
+        CategoryContentFieldListCriteriaDTO $criteria,
+    ): CategoryContentFieldCollectionDTO;
 }

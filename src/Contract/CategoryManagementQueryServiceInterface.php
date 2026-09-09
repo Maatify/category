@@ -13,6 +13,9 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
+use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 
 /** Public application contract for management Category reads. */
@@ -49,4 +52,14 @@ interface CategoryManagementQueryServiceInterface
     public function listImageAssignments(
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO;
+
+    /** @throws \Maatify\Category\Exception\CategoryContentFieldNotFoundException */
+    public function getContentFieldById(
+        int $fieldId,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryContentFieldDTO;
+
+    public function listContentFields(
+        CategoryContentFieldListCriteriaDTO $criteria,
+    ): CategoryContentFieldCollectionDTO;
 }

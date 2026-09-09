@@ -20,7 +20,7 @@ maatify/category
 * Host-agnostic.
 * Framework-neutral.
 * متوافقة بالكامل مع Maatify Engineering Standards.
-* مكتملة وظيفيًا من ناحية Category وCategory Content وCategory Image Assignment lifecycle.
+* مكتملة وظيفيًا من ناحية Category وCategory Content وCategory Content Field وCategory Image Assignment lifecycle.
 * مكتملة من ناحية CRUD.
 * مكتملة من ناحية Persistence وConcurrency.
 * موثقة ومختبرة وقابلة للإصدار.
@@ -101,6 +101,25 @@ Category-plus-scope ordering key so creation and movement continue to use the
 shared `maatify/persistence` Ordering API. This capability is covered by unit,
 schema, PDO, visibility, lifecycle, concurrency, and standalone consumer tests.
 
+### 1.4 Current Draft capability — extensible Category Content Fields
+
+The child implementation adds first-class Host-defined Category Content Fields
+without changing the fixed `CategoryContent` name/description contract. A field
+uses immutable identity `(category_id, field_key, language_code, platform)` and
+one of the exact lowercase typed formats `text`, `html`, or `json`. The package stores values
+in `LONGTEXT`, validates JSON syntax for JSON fields, and does not own the
+semantic meaning of keys, HTML sanitization/rendering, editor behavior, or JSON
+semantics.
+
+All four exact language/platform scopes are supported with no fallback. Field
+creation and movement use the shared Ordering API with category-plus-scope
+locking, while management criteria distinguish an omitted scope from exact
+NULL/NULL. Consumer reads exclude deleted fields, require an exact scope, and
+apply complete ancestor visibility. Stable identity remains reserved across
+soft deletion. Real MySQL tests cover formats, JSON validation, identity,
+ordering, lifecycle, management/consumer reads, ancestor visibility, and
+concurrent position allocation.
+
 ---
 
 ## 2. Package Identity & Standards Authority
@@ -134,11 +153,12 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Locked v1 Decisions & Implementation Status:**
 * **PHP Requirement:** PHP 8.4+
 * **Database Requirement:** MySQL 8.0.16+, InnoDB, `utf8mb4_unicode_ci`.
-* **Schema Design:** `maa_category_categories`, `maa_category_category_contents`, and `maa_category_category_image_assignments`.
+* **Schema Design:** `maa_category_categories`, `maa_category_category_contents`, `maa_category_category_content_fields`, and `maa_category_category_image_assignments`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
 * **Content Identity:** (category_id, language_code) uniquely identifies Content; `language_code = NULL` is the single unlocalized identity per Category.
 * **Content Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Content lifecycle only. Parent inactive or soft-deleted does not block those operations.
 * **Image Assignment Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Ordering/soft-delete/restore depend on the assignment lifecycle only; exact identity remains reserved after soft deletion.
+* **Content Field Schema Contract:** `(category_id, field_key, language_code, platform)` is NULL-safe and reserved across soft deletion; `format` accepts exact lowercase `text`, `html`, or `json`, and JSON rows require valid JSON syntax.
 * **Display Order:** No implicit default (like 0) in schema. `CreateCategoryCommand` has no `display_order`. Persistence/shared ordering determines next position.
 **Completion Gates:**
 * Schema creation tests pass.

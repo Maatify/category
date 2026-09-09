@@ -14,6 +14,7 @@ final class CategorySchemaIntegrationTest extends TestCase
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
     private const INSERT_TRIGGER = 'trg_maa_category_categories_parent_not_self_ai';
     private const UPDATE_TRIGGER = 'trg_maa_category_categories_parent_not_self_bu';
 
@@ -57,6 +58,7 @@ final class CategorySchemaIntegrationTest extends TestCase
     {
         self::assertSame([
             self::CATEGORY_TABLE,
+            self::CONTENT_FIELD_TABLE,
             self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
@@ -68,6 +70,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->assertTrigger(self::UPDATE_TRIGGER, 'BEFORE', 'UPDATE');
         $this->assertTableStorage(self::CATEGORY_TABLE);
         $this->assertTableStorage(self::CONTENT_TABLE);
+        $this->assertTableStorage(self::CONTENT_FIELD_TABLE);
         $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
 
         $this->dropSchema();
@@ -77,6 +80,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->installSchema();
         self::assertSame([
             self::CATEGORY_TABLE,
+            self::CONTENT_FIELD_TABLE,
             self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
@@ -86,6 +90,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         ], $this->triggerNames());
         $this->assertTableStorage(self::CATEGORY_TABLE);
         $this->assertTableStorage(self::CONTENT_TABLE);
+        $this->assertTableStorage(self::CONTENT_FIELD_TABLE);
         $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
     }
 
@@ -147,6 +152,50 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->insertImageAssignment(4, 1, 100, 'en-US', 'web');
 
         self::assertSame(4, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
+    }
+
+    public function testContentFieldFormatCheckRequiresExactLowercaseValues(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $collationStatement = $this->connection()->prepare(
+            'SELECT COLLATION_NAME FROM information_schema.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column',
+        );
+        $collationStatement->execute([
+            'table' => self::CONTENT_FIELD_TABLE,
+            'column' => 'format',
+        ]);
+        self::assertSame('utf8mb4_bin', $collationStatement->fetchColumn());
+
+        /** @var list<array{string, string, string}> $variants */
+        $variants = [
+            ['json-uppercase', 'JSON', '{}'],
+            ['text-uppercase', 'TEXT', 'plain'],
+            ['html-uppercase', 'HTML', '<p>plain</p>'],
+            ['json-trailing-space', 'json ', '{}'],
+            ['text-trailing-space', 'text ', 'plain'],
+        ];
+        foreach ($variants as [$fieldKey, $format, $value]) {
+            $this->assertContentFieldInsertRejected(
+                $fieldKey,
+                $format,
+                $value,
+                sprintf('The database must reject uppercase Content Field format %s.', $format),
+            );
+        }
+    }
+
+    public function testContentFieldJsonCheckRejectsInvalidJson(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+
+        $this->assertContentFieldInsertRejected(
+            'invalid-json',
+            'json',
+            '{invalid',
+            'The database must reject invalid JSON for the json Content Field format.',
+        );
     }
 
     public function testEmptyImageAssignmentScopeValuesAreRejected(): void
@@ -275,8 +324,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             PREG_SPLIT_NO_EMPTY,
         );
 
-        if (!is_array($statements) || count($statements) !== 5) {
-            throw new RuntimeException('The canonical Category schema must contain exactly three tables and two triggers.');
+        if (!is_array($statements) || count($statements) !== 6) {
+            throw new RuntimeException('The canonical Category schema must contain exactly four tables and two triggers.');
         }
 
         $tableStatements = 0;
@@ -298,8 +347,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             $this->connection()->exec($statement);
         }
 
-        if ($tableStatements !== 3 || $triggerStatements !== 2) {
-            throw new RuntimeException('The canonical Category schema must contain exactly three tables and two triggers.');
+        if ($tableStatements !== 4 || $triggerStatements !== 2) {
+            throw new RuntimeException('The canonical Category schema must contain exactly four tables and two triggers.');
         }
     }
 
@@ -308,6 +357,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $connection = $this->connection();
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::INSERT_TRIGGER . '`');
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::UPDATE_TRIGGER . '`');
+        $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_FIELD_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::IMAGE_ASSIGNMENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CATEGORY_TABLE . '`');
@@ -429,6 +479,44 @@ final class CategorySchemaIntegrationTest extends TestCase
         ]);
     }
 
+    private function assertContentFieldInsertRejected(
+        string $fieldKey,
+        string $format,
+        string $value,
+        string $message,
+    ): void {
+        try {
+            $this->insertContentField($fieldKey, $format, $value);
+        } catch (PDOException) {
+            return;
+        }
+
+        self::fail($message);
+    }
+
+    private function insertContentField(string $fieldKey, string $format, string $value): void
+    {
+        $statement = $this->connection()->prepare(
+            'INSERT INTO `' . self::CONTENT_FIELD_TABLE . '` '
+            . '(`category_id`, `field_key`, `language_code`, `platform`, `format`, `value`, '
+            . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
+            . 'VALUES (:category_id, :field_key, :language_code, :platform, :format, :value, '
+            . ':display_order, :created_at, :updated_at, :deleted_at)',
+        );
+        $statement->execute([
+            'category_id' => 1,
+            'field_key' => $fieldKey,
+            'language_code' => null,
+            'platform' => null,
+            'format' => $format,
+            'value' => $value,
+            'display_order' => 1,
+            'created_at' => '2026-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'deleted_at' => null,
+        ]);
+    }
+
     /** @return list<string> */
     private function tableNames(): array
     {
@@ -436,8 +524,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             'SELECT TABLE_NAME FROM information_schema.TABLES '
             . 'WHERE TABLE_SCHEMA = DATABASE() '
             . 'AND TABLE_NAME IN ('
-            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
-            . ' ORDER BY TABLE_NAME',
+            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::CONTENT_FIELD_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
+            . ' ORDER BY BINARY TABLE_NAME',
         );
 
         if ($statement === false) {
@@ -467,7 +555,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             . 'WHERE TRIGGER_SCHEMA = DATABASE() '
             . 'AND TRIGGER_NAME IN ('
             . "'" . self::INSERT_TRIGGER . "', '" . self::UPDATE_TRIGGER . "')"
-            . ' ORDER BY TRIGGER_NAME',
+            . ' ORDER BY BINARY TRIGGER_NAME',
         );
 
         if ($statement === false) {

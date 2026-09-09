@@ -7,6 +7,7 @@ namespace Maatify\Category\Contract;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
@@ -18,6 +19,10 @@ use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
 
 /** Public application contract for Category business mutations. */
 interface CategoryCommandServiceInterface
@@ -27,6 +32,8 @@ interface CategoryCommandServiceInterface
     public function createContent(CreateCategoryContentCommand $command): int;
 
     public function createImageAssignment(CreateCategoryImageAssignmentCommand $command): int;
+
+    public function createContentField(CreateCategoryContentFieldCommand $command): int;
 
     public function move(MoveCategoryCommand $command): void;
 
@@ -50,5 +57,15 @@ interface CategoryCommandServiceInterface
         UpdateCategoryImageAssignmentDisplayOrderCommand $command,
     ): void;
 
+    public function updateContentField(UpdateCategoryContentFieldCommand $command): void;
+
+    public function updateContentFieldDisplayOrder(
+        UpdateCategoryContentFieldDisplayOrderCommand $command,
+    ): void;
+
     public function softDeleteImageAssignment(SoftDeleteCategoryImageAssignmentCommand $command): void;
+
+    public function softDeleteContentField(SoftDeleteCategoryContentFieldCommand $command): void;
+
+    public function restoreContentField(RestoreCategoryContentFieldCommand $command): void;
 }

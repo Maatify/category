@@ -10,6 +10,7 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
@@ -20,6 +21,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(private PDO $pdo) {}
 
@@ -90,6 +92,16 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         return $this->findImageAssignment($assignmentId, true);
     }
 
+    public function findContentFieldById(int $fieldId): ?CategoryContentFieldDTO
+    {
+        return $this->findContentField($fieldId, false);
+    }
+
+    public function findContentFieldByIdForUpdate(int $fieldId): ?CategoryContentFieldDTO
+    {
+        return $this->findContentField($fieldId, true);
+    }
+
     private function findContent(int $contentId, bool $forUpdate): ?CategoryContentDTO
     {
         $statement = $this->pdo->prepare(
@@ -120,6 +132,22 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return is_array($row) ? $this->hydrateImageAssignment($row) : null;
+    }
+
+    private function findContentField(int $fieldId, bool $forUpdate): ?CategoryContentFieldDTO
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id`, `category_id`, `field_key`, `language_code`, `platform`, `format`, `value`, '
+            . '`display_order`, `created_at`, `updated_at`, `deleted_at` '
+            . 'FROM `' . self::CONTENT_FIELD_TABLE . '` '
+            . 'WHERE `id` = :id LIMIT 1'
+            . ($forUpdate ? ' FOR UPDATE' : ''),
+        );
+        $statement->execute(['id' => $fieldId]);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateContentField($row) : null;
     }
 
     private function findCategory(int $categoryId, bool $activeOnly, bool $forUpdate): ?CategoryDTO
@@ -197,6 +225,31 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
             mediaAssetId: $this->integerValue($row, 'media_asset_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
+            displayOrder: $this->integerValue($row, 'display_order'),
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateContentField(array $row): CategoryContentFieldDTO
+    {
+        $format = $this->stringValue($row, 'format');
+        try {
+            $fieldFormat = \Maatify\Category\Enum\CategoryContentFieldFormatEnum::from($format);
+        } catch (\ValueError $exception) {
+            throw CategoryPersistenceException::invalidStorageValue('format', $exception);
+        }
+
+        return new CategoryContentFieldDTO(
+            id: $this->integerValue($row, 'id'),
+            categoryId: $this->integerValue($row, 'category_id'),
+            fieldKey: $this->stringValue($row, 'field_key'),
+            languageCode: $this->nullableStringValue($row, 'language_code'),
+            platform: $this->nullableStringValue($row, 'platform'),
+            format: $fieldFormat,
+            value: $this->stringValue($row, 'value'),
             displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),

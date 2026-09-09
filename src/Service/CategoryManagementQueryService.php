@@ -16,10 +16,14 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\DTO\CategoryContentFieldDTO;
+use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Exception\CategoryContentFieldNotFoundException;
 
 /** Coordinates the public management Category read contract. */
 final readonly class CategoryManagementQueryService implements CategoryManagementQueryServiceInterface
@@ -95,5 +99,25 @@ final readonly class CategoryManagementQueryService implements CategoryManagemen
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO {
         return $this->reader->listImageAssignments($criteria);
+    }
+
+    public function getContentFieldById(
+        int $fieldId,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryContentFieldDTO {
+        $id = (new CategoryIdDTO($fieldId, 'fieldId'))->value;
+        $field = $this->reader->findContentFieldById($id, $deletedState);
+
+        if ($field === null) {
+            throw CategoryContentFieldNotFoundException::withId($id);
+        }
+
+        return $field;
+    }
+
+    public function listContentFields(
+        CategoryContentFieldListCriteriaDTO $criteria,
+    ): CategoryContentFieldCollectionDTO {
+        return $this->reader->listContentFields($criteria);
     }
 }

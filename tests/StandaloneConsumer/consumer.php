@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
+use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
@@ -18,6 +22,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
@@ -208,8 +213,8 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         -1,
         PREG_SPLIT_NO_EMPTY,
     );
-    if (!is_array($statements) || count($statements) !== 5) {
-        standalone_consumer_fail('The installed Category schema must contain three tables and two triggers.');
+    if (!is_array($statements) || count($statements) !== 6) {
+        standalone_consumer_fail('The installed Category schema must contain four tables and two triggers.');
     }
 
     foreach ($statements as $statement) {
@@ -222,6 +227,7 @@ function standalone_consumer_drop_schema(\PDO $pdo): void
     foreach ([
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_ai`',
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_bu`',
+        'DROP TABLE IF EXISTS `maa_category_category_content_fields`',
         'DROP TABLE IF EXISTS `maa_category_category_image_assignments`',
         'DROP TABLE IF EXISTS `maa_category_category_contents`',
         'DROP TABLE IF EXISTS `maa_category_categories`',
@@ -237,7 +243,7 @@ function standalone_consumer_database_objects(\PDO $pdo, string $objectType): ar
         'SELECT ' . ($objectType === 'tables' ? 'TABLE_NAME' : 'TRIGGER_NAME') . ' '
         . 'FROM information_schema.' . ($objectType === 'tables' ? 'TABLES' : 'TRIGGERS') . ' '
         . 'WHERE ' . ($objectType === 'tables' ? 'TABLE_SCHEMA' : 'TRIGGER_SCHEMA') . ' = DATABASE() '
-        . 'ORDER BY 1',
+        . 'ORDER BY BINARY ' . ($objectType === 'tables' ? 'TABLE_NAME' : 'TRIGGER_NAME'),
     );
     if ($statement === false) {
         standalone_consumer_fail('Unable to inspect standalone database objects.');
@@ -300,10 +306,11 @@ try {
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'tables') === [
             'maa_category_categories',
+            'maa_category_category_content_fields',
             'maa_category_category_contents',
             'maa_category_category_image_assignments',
         ],
-        'The standalone schema did not create exactly its three package-owned tables.',
+        'The standalone schema did not create exactly its four package-owned tables.',
     );
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'triggers') === [
@@ -318,6 +325,7 @@ try {
         new PdoCategoryQueryReader($pdo),
         new PdoCategoryContentCommandRepository($pdo),
         new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
+        new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryTransaction($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
     );
@@ -338,12 +346,23 @@ try {
     $localizedImageAssignmentId = $commandService->createImageAssignment(
         new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
     );
+    $contentFieldId = $commandService->createContentField(
+        new CreateCategoryContentFieldCommand(
+            $categoryId,
+            'badge_config',
+            'en-US',
+            'web',
+            CategoryContentFieldFormatEnum::JSON,
+            '{"enabled":true}',
+        ),
+    );
     standalone_consumer_require(
         $categoryId > 0
         && $contentId > 0
         && $localizedContentId > 0
         && $imageAssignmentId > 0
-        && $localizedImageAssignmentId > 0,
+        && $localizedImageAssignmentId > 0
+        && $contentFieldId > 0,
         'Standalone mutation returned invalid IDs.',
     );
 
@@ -372,6 +391,19 @@ try {
             new CategoryImageAssignmentScopeDTO('en-US', 'web'),
         )->count() === 1,
         'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
+    );
+    $visibleContentFields = $queryService->listContentFields(
+        $categoryId,
+        new CategoryContentFieldScopeDTO('en-US', 'web'),
+        new CategoryVisibleListCriteriaDTO(maxResults: 10),
+    );
+    $visibleContentFieldId = null;
+    foreach ($visibleContentFields as $visibleContentField) {
+        $visibleContentFieldId = $visibleContentField->id;
+    }
+    standalone_consumer_require(
+        $visibleContentFields->count() === 1 && $visibleContentFieldId === $contentFieldId,
+        'Standalone exact Content Field consumer query returned the wrong rows.',
     );
 
     $managementCategory = $managementService->getById(
@@ -432,6 +464,23 @@ try {
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
         )->count() === 2,
         'Standalone management Image Assignment list did not return both scopes.',
+    );
+    $managementContentField = $managementService->getContentFieldById($contentFieldId);
+    standalone_consumer_require(
+        $managementContentField->id === $contentFieldId
+        && $managementContentField->fieldKey === 'badge_config'
+        && $managementContentField->format === CategoryContentFieldFormatEnum::JSON,
+        'Standalone management read service returned the wrong Content Field.',
+    );
+    standalone_consumer_require(
+        $managementService->listContentFields(
+            new CategoryContentFieldListCriteriaDTO(
+                categoryId: $categoryId,
+                scope: new CategoryContentFieldScopeDTO('en-US', 'web'),
+                maxResults: 10,
+            ),
+        )->count() === 1,
+        'Standalone management Content Field list did not return the exact scope.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);
