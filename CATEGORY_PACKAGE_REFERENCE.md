@@ -209,9 +209,9 @@ CategoryCommandServiceInterface
 
 CategoryQueryServiceInterface
   getById(int): CategoryDTO
-  listRootCategories(?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listChildren(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listTranslations(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+  listRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listTranslations(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
 
 CategoryManagementQueryServiceInterface
   getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
@@ -237,9 +237,9 @@ CategoryTranslationCommandRepositoryInterface
 
 CategoryReadQueryInterface
   findVisibleById(int): ?CategoryDTO
-  listVisibleRootCategories(?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listVisibleChildren(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listVisibleTranslations(int, ?CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
+  listVisibleRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listVisibleChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listVisibleTranslations(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryTranslationCollectionDTO
 
 CategoryManagementReadQueryInterface
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
@@ -300,6 +300,30 @@ Consumer Category lists use the same maximum of 100 through their separate
 criteria DTO; root and child lists use `display_order, id`, and Translation
 lists use `language_code, id`. The bound is applied by the persistence query
 with a typed integer parameter; pagination and search remain deferred.
+
+### Translation parent-state contract
+
+The current Runtime does not couple Translation lifecycle mutations to the
+parent Category's status after the required parent-existence check. The
+mutation-support names `findActiveById()` and `findActiveByIdForUpdate()` mean
+non-deleted Category lifecycle state; they do not mean
+`CategoryStatusEnum::ACTIVE`.
+
+- `createTranslation()` requires the Category to exist and have
+  `deleted_at IS NULL`. A Category with status `INACTIVE` is valid; a
+  soft-deleted Category is rejected.
+- `updateTranslation()` depends on the Translation's own non-deleted lifecycle
+  and is allowed when the parent Category is inactive or soft-deleted.
+- `softDeleteTranslation()` depends on the Translation's own non-deleted
+  lifecycle and is allowed when the parent Category is inactive or
+  soft-deleted.
+- `restoreTranslation()` depends on the Translation row existing in its
+  soft-deleted lifecycle and is allowed when the parent Category is inactive
+  or soft-deleted.
+
+These semantics are proven against the real MySQL schema by
+`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+They are the v1 contract; no parent-state redesign is implied.
 
 ## Business invariants
 

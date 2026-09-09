@@ -18,6 +18,7 @@ use Maatify\Category\Command\UpdateCategoryTranslationCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
+use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryTranslationAlreadyExistsException;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
@@ -143,6 +144,63 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         self::assertSame('en-US', $restored->languageCode);
         self::assertNull($restored->deletedAt);
         self::assertSame('قمصان', $restored->name);
+    }
+
+    public function testTranslationMutationsFollowParentLifecycleStateContractOnMySql(): void
+    {
+        $connection = $this->connection();
+        $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 UTC'));
+        $queryReader = new PdoCategoryQueryReader($connection);
+
+        $inactiveCategoryId = $service->create(new CreateCategoryCommand('inactive-translation-parent'));
+        $service->updateStatus(
+            new UpdateCategoryStatusCommand($inactiveCategoryId, CategoryStatusEnum::INACTIVE),
+        );
+
+        $inactiveTranslationId = $service->createTranslation(
+            new CreateCategoryTranslationCommand($inactiveCategoryId, 'en-US', 'Inactive parent', null),
+        );
+        self::assertSame($inactiveCategoryId, $queryReader->findTranslationById($inactiveTranslationId)?->categoryId);
+
+        $service->updateTranslation(
+            new UpdateCategoryTranslationCommand($inactiveTranslationId, 'Updated inactive parent', null),
+        );
+        self::assertSame('Updated inactive parent', $queryReader->findTranslationById($inactiveTranslationId)?->name);
+
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($inactiveTranslationId));
+        self::assertNotNull($queryReader->findTranslationById($inactiveTranslationId)?->deletedAt);
+
+        $service->restoreTranslation(new RestoreCategoryTranslationCommand($inactiveTranslationId));
+        self::assertNull($queryReader->findTranslationById($inactiveTranslationId)?->deletedAt);
+
+        $deletedCategoryId = $service->create(new CreateCategoryCommand('deleted-translation-parent'));
+        $deletedTranslationId = $service->createTranslation(
+            new CreateCategoryTranslationCommand($deletedCategoryId, 'en-US', 'Deleted parent', null),
+        );
+        $service->softDelete(new SoftDeleteCategoryCommand($deletedCategoryId));
+
+        try {
+            $service->createTranslation(
+                new CreateCategoryTranslationCommand($deletedCategoryId, 'ar-EG', 'Rejected', null),
+            );
+            self::fail('A Translation must not be created under a soft-deleted Category.');
+        } catch (CategoryNotFoundException) {
+            // Creation requires a non-deleted parent Category.
+        }
+
+        $service->updateTranslation(
+            new UpdateCategoryTranslationCommand($deletedTranslationId, 'Updated deleted parent', null),
+        );
+        self::assertSame('Updated deleted parent', $queryReader->findTranslationById($deletedTranslationId)?->name);
+
+        $service->softDeleteTranslation(new SoftDeleteCategoryTranslationCommand($deletedTranslationId));
+        self::assertNotNull($queryReader->findTranslationById($deletedTranslationId)?->deletedAt);
+
+        $service->restoreTranslation(new RestoreCategoryTranslationCommand($deletedTranslationId));
+        $restored = $queryReader->findTranslationById($deletedTranslationId);
+        self::assertNotNull($restored);
+        self::assertNull($restored->deletedAt);
+        self::assertSame($deletedCategoryId, $restored->categoryId);
     }
 
     public function testTranslationCreationRejectsDuplicateLogicalIdentityIncludingSoftDeletedRows(): void

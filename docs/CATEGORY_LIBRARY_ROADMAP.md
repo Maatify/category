@@ -36,20 +36,21 @@ maatify/category
   حالية أو Real MySQL/CI tests مناسبة.
 - `COMPLETED + PROVEN`: أُنجزت Phase في Draft الحالية مع evidence محدد.
 - `COMPLETED BY THIS BATCH`: إغلاق توثيقي/حوكمي أو audit ناتج عن Batch الحالية.
-- `READY FOR OWNER APPROVAL`: اجتازت الـBatch النهائية كل required gates، دون
-  أن يعني ذلك Merge أو Tag أو Release أو Publish.
+- `BLOCKED BY OWNER DECISION`: التنفيذ والـgates جاهزة، لكن تفعيل Final Release
+  Candidate يتطلب release metadata وموافقة المالك؛ ولا يعني ذلك Merge أو Tag أو
+  Release أو Publish.
 
 الحالة المجمعة على baseline `f29af0d65728c7c252b57f7b1def8e7a56d6b38d` هي:
 
 | Phase | الحالة | الدليل/الحدود |
 |---|---|---|
-| 0 | `COMPLETED BY THIS BATCH` | Standards lock، قرارات v1، ومصالحة الـRoadmap والوثائق |
+| 0 | `COMPLETED BY THIS BATCH` | Standards lock، قرارات v1، وحسم Translation parent-state contract مع Real MySQL proof |
 | 1 | `ALREADY IMPLEMENTED + PROVEN` | `4fabccafdce4638fa5f050c9f72fa8241e343a31` وComposer/CI الحالية |
 | 2 | `ALREADY IMPLEMENTED + PROVEN` | `18e212875e299e6e7c7d9c3b0b1c5304e9e7e133` واختبارات Real MySQL |
 | 3 | `COMPLETED + PROVEN` | `b1141d93cb61f3961950faf774737b57e1143b5e` واختبارات validation |
 | 4 | `ALREADY IMPLEMENTED + PROVEN` | عقود PDO/transaction وReal MySQL integration الحالية |
 | 5 | `ALREADY IMPLEMENTED + PROVEN` | Category lifecycle وordering/concurrency integration الحالية |
-| 6 | `ALREADY IMPLEMENTED + PROVEN` | Translation lifecycle وidentity/restore integration الحالية |
+| 6 | `ALREADY IMPLEMENTED + PROVEN` | Translation lifecycle وidentity/restore integration الحالية، وإثبات parent-state semantics على Real MySQL |
 | 7 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` وmanagement query tests |
 | 8 | `ALREADY IMPLEMENTED + PROVEN` | visible query service/read tests وancestor visibility integration |
 | 9 | `COMPLETED + PROVEN` | `2cdef539a82e3a9c410b38b33ff43eba12906c02` والقوائم bounded/deterministic |
@@ -60,7 +61,7 @@ maatify/category
 | 14 | `COMPLETED BY THIS BATCH` | documentation and package-presentation sweep |
 | 15 | `COMPLETED + PROVEN` | `f29af0d65728c7c252b57f7b1def8e7a56d6b38d` وstandalone consumer |
 | 16 | `COMPLETED BY THIS BATCH` | Final API freeze audit؛ لا Runtime gap blocking معروفة |
-| 17 | `READY FOR OWNER APPROVAL` بعد Final Verification | Release-candidate preparation فقط؛ لا إصدار فعلي |
+| 17 | `BLOCKED BY OWNER DECISION` | Implementation وverification gates جاهزة؛ Final RC activation تحتاج owner-approved release metadata، ولا إصدار فعلي |
 
 Phase 4–6 لا تعاد عبر Runtime implementation لمجرد إعادة الإثبات؛ evidence
 الحالية في Real MySQL tests هي proof المعتمد لها. وPhase 3/7/9/15 مغلقة
@@ -516,6 +517,27 @@ The Host owns semantic language validation and fallback/locale policy.
 This contract is resolved under the current local selective adoption recorded
 at `f386948aa873fef9960680411c8918d095d29b93`; no Translation standards
 blocker is open. The older snapshot claim is historical provenance only.
+
+### Translation parent-state contract
+
+The current Runtime closes the parent-state decision without changing Runtime
+behavior:
+
+* `createTranslation()` requires the Category to exist and be non-soft-deleted.
+  `CategoryStatusEnum::INACTIVE` does not block creation; the
+  mutation-support `findActiveById*` names mean non-deleted lifecycle state,
+  not status `ACTIVE`.
+* `updateTranslation()` depends on the Translation's own non-deleted lifecycle;
+  an inactive or soft-deleted parent Category does not block it.
+* `softDeleteTranslation()` depends on the Translation's own non-deleted
+  lifecycle; an inactive or soft-deleted parent Category does not block it.
+* `restoreTranslation()` depends on the Translation row's existence and
+  soft-deleted lifecycle; an inactive or soft-deleted parent Category does not
+  block it.
+
+Real MySQL proof is recorded by
+`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+Phase 0 therefore has no open parent-state decision.
 
 ---
 
@@ -1215,13 +1237,18 @@ RestoreCategoryTranslationCommand
 
 ### Parent Category State
 
-قبل التنفيذ يجب أن تكون Architecture حاسمة بشأن:
+The parent-state semantics are closed by the Phase 0 contract above and are
+proven by the Real MySQL integration test. Phase 6 does not leave these cases
+to the implementer:
 
-* إنشاء Translation لـsoft-deleted Category.
-* تعديل Translation لـsoft-deleted Category.
-* حذف/استعادة Translation عندما تكون Category نفسها محذوفة.
+* creation is allowed for an existing non-deleted Category, including
+  `INACTIVE`, and rejected for a soft-deleted Category;
+* update, soft delete, and restore are governed by the Translation lifecycle
+  itself and remain allowed when the parent Category is inactive or
+  soft-deleted.
 
-ممنوع ترك هذه semantics ليقررها implementer أثناء كتابة الكود.
+لا تُترك هذه semantics لقرار implementer أثناء كتابة الكود؛ العقد أعلاه هو
+المرجع المغلق.
 
 ---
 
@@ -1845,12 +1872,14 @@ blocking لـStable API، لذلك لا يوجد Runtime change خاص بهذه 
 
 ## 29. Phase 17 — Release Readiness
 
-**Status:** `READY FOR OWNER APPROVAL` فقط بعد نجاح Final Verification على exact
-final Batch HEAD؛ هذه الجاهزية لا تنفذ Tag أو Release أو Publish.
+**Status:** `BLOCKED BY OWNER DECISION`; implementation and verification gates
+are prepared and may be green, but Final Release Candidate activation requires
+owner-approved release metadata and publication timing. This state does not
+execute or imply Tag, Release, Publish, or Merge.
 
-### Exact Release Candidate Verification
+### Final readiness verification
 
-على exact candidate SHA يجب اجتياز كل Gates المنطبقة في Package وComposer وCI
+على exact final Batch HEAD يجب اجتياز كل Gates المنطبقة في Package وComposer وCI
 وBase Module وPresentation Standards. والدليل الخاص بـCategory يجب أن يشمل
 Real MySQL Integration، كل PHP minors المعتمدة، مراجعة API/Architecture،
 documentation sweep، clean repository، وstandalone installation test.
@@ -1871,9 +1900,10 @@ Full PHPUnit suite
 standalone consumer verification
 ```
 
-لا تُعلن Phase 17 `READY FOR OWNER APPROVAL` إلا إذا نجحت هذه البوابة كاملة.
-وتظل `v1.0.0` وموعد الإصدار وعمليات Merge/Tag/Release/Publish خارج التنفيذ
-حتى يعتمدها المالك.
+نجاح هذه البوابة يثبت implementation/readiness gates فقط؛ لا ينقل Phase 17 إلى
+`READY FOR OWNER APPROVAL` ولا يفعّل Final RC قبل اعتماد المالك للـrelease
+metadata وموعد النشر. وتظل `v1.0.0` وموعد الإصدار وعمليات
+Merge/Tag/Release/Publish خارج التنفيذ حتى يعتمدها المالك.
 
 ---
 
@@ -1883,8 +1913,8 @@ standalone consumer verification
 * Package Reference final.
 * Architecture final.
 * Roadmap updated with completed status.
-* CHANGELOG `[Unreleased]` candidate notes ready; `v1.0.0` and release date
-  remain owner-controlled until Tag/Release approval.
+* CHANGELOG `[Unreleased]` notes remain active; `v1.0.0`, release date, and
+  Final RC metadata remain owner-controlled until Tag/Release approval.
 * Composer metadata final.
 
 ---
@@ -2141,7 +2171,7 @@ Architecture Locked
 
 + Public API Frozen
 
-+ Release Candidate Fully Green
++ Readiness gates fully green when verified; Final RC activation remains owner-controlled
 ```
 
 عندها فقط يمكن اعتبار:

@@ -71,6 +71,27 @@ package-owned command operations. Their immutable `(category_id,
 language_code)` identity is enforced by the schema unique key and is never
 accepted by content-update commands.
 
+### Translation parent-state contract
+
+The current Runtime resolves parent state as follows, without introducing a
+new parent/Translation coupling rule:
+
+- `createTranslation()` requires a Category that exists and is not
+  soft-deleted. `CategoryStatusEnum::INACTIVE` does not block creation;
+  `findActiveByIdForUpdate()` means non-deleted lifecycle state here, not
+  status `ACTIVE`.
+- `updateTranslation()` checks and locks the Translation lifecycle only. An
+  inactive or soft-deleted parent Category does not block the update.
+- `softDeleteTranslation()` checks and locks the Translation lifecycle only.
+  An inactive or soft-deleted parent Category does not block the operation.
+- `restoreTranslation()` checks and locks the Translation row's existence and
+  lifecycle only. An inactive or soft-deleted parent Category does not block
+  restoration.
+
+The real MySQL proof is maintained in
+`CategoryPdoIntegrationTest::testTranslationMutationsFollowParentLifecycleStateContractOnMySql`.
+This is a closed v1 contract, not an open implementation decision.
+
 ## Query contract
 
 The package exposes two separate public query ports:
@@ -113,6 +134,15 @@ The freeze consequence is documentation-only: the stable inventory is recorded
 in the root Package Reference, while `findByCode()` remains internal
 mutation-support only and pagination, search, and public management get-by-code
 remain deferred or absent as stated above.
+
+## Release presentation state
+
+Implementation and verification gates are prepared, but the package is not
+presented as a Final Release Candidate or as ready for release. Final RC
+activation remains `BLOCKED BY OWNER DECISION` until the owner approves the
+release metadata and publication timing. `[Unreleased]` remains in place;
+there is no Tag, GitHub Release, or Packagist publication. `SECURITY.md` may
+therefore remain in Development State.
 
 ## Non-goals
 

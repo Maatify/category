@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-These candidate notes target the prepared `v1.0.0` release line. No stable tag
-or release date is claimed until the owner approves publication.
+These unreleased notes describe the proposed `v1.0.0` release line. No stable
+tag, release date, or owner-approved release metadata is claimed.
 
 ### Added
 

@@ -15,7 +15,7 @@
 
 Framework-neutral hierarchical categories and translations for reusable PHP applications.
 
-**Status:** v1.0.0 release-candidate preparation · not published
+**Status:** v1.0.0 preparation · owner release metadata pending · not published
 
 </div>
 
