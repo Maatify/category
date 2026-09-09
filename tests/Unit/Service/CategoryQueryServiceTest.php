@@ -10,6 +10,7 @@ use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryNotFoundException;
@@ -49,19 +50,27 @@ final class CategoryQueryServiceTest extends TestCase
         (new CategoryQueryService($this->createStub(CategoryReadQueryInterface::class)))->getById(0);
     }
 
+    public function testVisibleListCriteriaRejectsOutOfBoundsMaximums(): void
+    {
+        $this->expectException(CategoryInvalidArgumentException::class);
+
+        new CategoryVisibleListCriteriaDTO(CategoryVisibleListCriteriaDTO::MAX_MAX_RESULTS + 1);
+    }
+
     public function testListOperationsReturnTypedCollectionsFromTheReader(): void
     {
         $categories = new CategoryCollectionDTO([$this->category(1)]);
         $translations = new CategoryTranslationCollectionDTO([$this->translation(2)]);
+        $criteria = new CategoryVisibleListCriteriaDTO(2);
         $reader = $this->createMock(CategoryReadQueryInterface::class);
-        $reader->expects(self::once())->method('listVisibleRootCategories')->willReturn($categories);
-        $reader->expects(self::once())->method('listVisibleChildren')->with(1)->willReturn($categories);
-        $reader->expects(self::once())->method('listVisibleTranslations')->with(1)->willReturn($translations);
+        $reader->expects(self::once())->method('listVisibleRootCategories')->with($criteria)->willReturn($categories);
+        $reader->expects(self::once())->method('listVisibleChildren')->with(1, $criteria)->willReturn($categories);
+        $reader->expects(self::once())->method('listVisibleTranslations')->with(1, $criteria)->willReturn($translations);
         $service = new CategoryQueryService($reader);
 
-        self::assertSame($categories, $service->listRootCategories());
-        self::assertSame($categories, $service->listChildren(1));
-        self::assertSame($translations, $service->listTranslations(1));
+        self::assertSame($categories, $service->listRootCategories($criteria));
+        self::assertSame($categories, $service->listChildren(1, $criteria));
+        self::assertSame($translations, $service->listTranslations(1, $criteria));
     }
 
     private function category(int $id): CategoryDTO

@@ -78,6 +78,9 @@ The package exposes two separate public query ports:
   `display_order, id`; Translation lists are ordered by `language_code, id`.
 - `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
   consumer visibility reads and apply the complete ancestor visibility rule.
+  Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most
+  100 rows without exposing status/deleted-state controls. Category lists use
+  `display_order, id`; Translation lists use `language_code, id`.
 
 Management reads do not reuse consumer visibility queries. The v1 contract has
 no public management get-by-code, search, or local pagination implementation.

@@ -11,9 +11,11 @@ use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryTranslationCollectionDTO;
 use Maatify\Category\DTO\CategoryTranslationDTO;
+use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
+use PDOStatement;
 
 /** Dedicated PDO adapter for visible Category query behavior. */
 final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
@@ -59,20 +61,24 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         return is_array($row) ? $this->hydrateCategory($row) : null;
     }
 
-    public function listVisibleRootCategories(): CategoryCollectionDTO
+    public function listVisibleRootCategories(
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryCollectionDTO
     {
-        $statement = $this->pdo->query(
+        $statement = $this->pdo->prepare(
             'SELECT `id`, `parent_id`, `code`, `status`, `display_order`, '
             . '`created_at`, `updated_at`, `deleted_at` '
             . 'FROM `' . self::CATEGORY_TABLE . '` '
             . 'WHERE `parent_id` IS NULL '
             . 'AND `status` = \'active\' '
             . 'AND `deleted_at` IS NULL '
-            . 'ORDER BY `display_order` ASC, `id` ASC',
+            . 'ORDER BY `display_order` ASC, `id` ASC '
+            . 'LIMIT :max_results',
         );
         if ($statement === false) {
             throw CategoryPersistenceException::queryFailed('visible root Categories');
         }
+        $this->executeBounded($statement, $criteria);
 
         /** @var list<array<string, mixed>> $rows */
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -80,7 +86,10 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         return $this->hydrateCategories($rows);
     }
 
-    public function listVisibleChildren(int $parentId): CategoryCollectionDTO
+    public function listVisibleChildren(
+        int $parentId,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryCollectionDTO
     {
         $statement = $this->pdo->prepare(
             'WITH RECURSIVE `category_ancestors` AS ('
@@ -108,20 +117,28 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             . 'WHERE `ancestor`.`status` <> \'active\' '
             . 'OR `ancestor`.`deleted_at` IS NOT NULL'
             . ') '
-            . 'ORDER BY `child`.`display_order` ASC, `child`.`id` ASC',
+            . 'ORDER BY `child`.`display_order` ASC, `child`.`id` ASC '
+            . 'LIMIT :max_results',
         );
-        $statement->execute([
-            'ancestor_start_id' => $parentId,
-            'children_parent_id' => $parentId,
-            'requested_parent_id' => $parentId,
-        ]);
+        $this->executeBounded(
+            $statement,
+            $criteria,
+            [
+                'ancestor_start_id' => $parentId,
+                'children_parent_id' => $parentId,
+                'requested_parent_id' => $parentId,
+            ],
+        );
         /** @var list<array<string, mixed>> $rows */
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
         return $this->hydrateCategories($rows);
     }
 
-    public function listVisibleTranslations(int $categoryId): CategoryTranslationCollectionDTO
+    public function listVisibleTranslations(
+        int $categoryId,
+        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
+    ): CategoryTranslationCollectionDTO
     {
         $statement = $this->pdo->prepare(
             'WITH RECURSIVE `category_ancestors` AS ('
@@ -149,17 +166,39 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             . 'WHERE `ancestor`.`status` <> \'active\' '
             . 'OR `ancestor`.`deleted_at` IS NOT NULL'
             . ') '
-            . 'ORDER BY `translation`.`language_code` ASC, `translation`.`id` ASC',
+            . 'ORDER BY `translation`.`language_code` ASC, `translation`.`id` ASC '
+            . 'LIMIT :max_results',
         );
-        $statement->execute([
-            'translation_ancestor_start_id' => $categoryId,
-            'translation_category_id' => $categoryId,
-            'visible_translation_category_id' => $categoryId,
-        ]);
+        $this->executeBounded(
+            $statement,
+            $criteria,
+            [
+                'translation_ancestor_start_id' => $categoryId,
+                'translation_category_id' => $categoryId,
+                'visible_translation_category_id' => $categoryId,
+            ],
+        );
         /** @var list<array<string, mixed>> $rows */
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
         return $this->hydrateTranslations($rows);
+    }
+
+    /** @param array<string, int|string> $params */
+    private function executeBounded(
+        PDOStatement $statement,
+        CategoryVisibleListCriteriaDTO $criteria,
+        array $params = [],
+    ): void {
+        foreach ($params as $name => $value) {
+            $statement->bindValue(
+                ':' . $name,
+                $value,
+                is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR,
+            );
+        }
+        $statement->bindValue(':max_results', $criteria->maxResults, PDO::PARAM_INT);
+        $statement->execute();
     }
 
     /** @param array<string, mixed> $row */

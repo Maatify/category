@@ -1184,7 +1184,7 @@ Translation mutation CRUD كاملة.
 على الأقل:
 
 * Get Category by ID.
-* Get Category by code إذا كان contract النهائي يحتاجه.
+* لا يضاف public management get-by-code في `v1`.
 * List Categories.
 * List roots.
 * List direct children.
@@ -1371,7 +1371,11 @@ Standard.
 
 ### Exit Gate
 
-كل list contract deterministic ومحدودة/موثقة بشكل production-safe، مع قرار صريح بشأن Pagination وSearch وGet-by-code قبل بدء التنفيذ.
+كل Management وConsumer list contract deterministic ومحدودة/موثقة بشكل
+production-safe. Consumer visibility تستخدم `CategoryVisibleListCriteriaDTO`
+المنفصلة، وتحافظ على filtering الخاص بالحالة والحذف وقاعدة ancestor visibility؛
+لا توجد صلاحية لتجاوزها. Pagination وSearch وGet-by-code مؤجلة/غير مضافة في
+`v1` بقرار صريح.
 
 قرار `v1`: Pagination وSearch وpublic management get-by-code مؤجلة/غير معلنة.
 القوائم غير المرقمة bounded بحد أقصى 100 صف، وترتيب Category هو

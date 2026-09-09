@@ -67,6 +67,7 @@ The immutable record DTOs are:
 - `CategoryTranslationCollectionDTO`
 - `CategoryListCriteriaDTO`
 - `CategoryTranslationListCriteriaDTO`
+- `CategoryVisibleListCriteriaDTO`
 
 ### Commands
 
@@ -112,6 +113,10 @@ the stable Category code remains immutable after creation.
   application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
+- Consumer visibility list methods accept only the typed
+  `CategoryVisibleListCriteriaDTO`, which bounds each call to 1–100 rows. It
+  exposes no status or deleted-state override, preserving consumer visibility
+  semantics and the complete ancestor rule.
 - `CategoryManagementReadQueryInterface` is the dedicated management read port
   and is separate from both mutation-support reads and consumer visibility
   reads.
@@ -125,6 +130,10 @@ at most 100 rows per call. Management Translation lists accept
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Translation lists are ordered by `language_code, id`.
 The package does not add local pagination, search, or language fallback.
+Consumer Category lists use the same maximum of 100 through their separate
+criteria DTO; root and child lists use `display_order, id`, and Translation
+lists use `language_code, id`. The bound is applied by the persistence query
+with a typed integer parameter; pagination and search remain deferred.
 
 ## Business invariants
 
@@ -160,7 +169,8 @@ Visible query methods:
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
 any ancestor in its complete parent path is inactive or soft-deleted. Query
-methods return typed DTOs and do not select a language or apply fallback.
+methods return typed DTOs and do not select a language or apply fallback. Their
+criteria cannot opt out of inactive/deleted filtering.
 
 ## Persistence contract
 

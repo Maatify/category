@@ -31,8 +31,9 @@ Slim, HTTP, permissions, and presentation layers.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
-- Bounded management reads with explicit status and deleted-state criteria,
-  separate from consumer visibility.
+- Deterministic, bounded consumer visibility lists and management reads with
+  separate typed criteria; management criteria expose explicit status and
+  deleted-state controls while consumer criteria do not.
 - No associative arrays as public or domain contracts.
 
 ## Requirements
