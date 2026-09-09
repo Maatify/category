@@ -217,7 +217,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             $this->contentFieldSelect()
             . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
             . ' ORDER BY `field`.`category_id` ASC, `field`.`ordering_scope` ASC, '
-            . '`field`.`field_key` ASC, `field`.`display_order` ASC, `field`.`id` ASC LIMIT :max_results',
+            . '`field`.`display_order` ASC, `field`.`id` ASC LIMIT :max_results',
         );
         $this->executeBounded($statement, $params, $criteria->maxResults);
         /** @var list<array<string, mixed>> $rows */

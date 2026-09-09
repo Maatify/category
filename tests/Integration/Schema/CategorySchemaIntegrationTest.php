@@ -58,8 +58,8 @@ final class CategorySchemaIntegrationTest extends TestCase
     {
         self::assertSame([
             self::CATEGORY_TABLE,
-            self::CONTENT_TABLE,
             self::CONTENT_FIELD_TABLE,
+            self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
@@ -80,8 +80,8 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->installSchema();
         self::assertSame([
             self::CATEGORY_TABLE,
-            self::CONTENT_TABLE,
             self::CONTENT_FIELD_TABLE,
+            self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
         ], $this->tableNames());
         self::assertSame([
@@ -443,7 +443,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             . 'WHERE TABLE_SCHEMA = DATABASE() '
             . 'AND TABLE_NAME IN ('
             . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::CONTENT_FIELD_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
-            . ' ORDER BY TABLE_NAME',
+            . ' ORDER BY BINARY TABLE_NAME',
         );
 
         if ($statement === false) {
@@ -473,7 +473,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             . 'WHERE TRIGGER_SCHEMA = DATABASE() '
             . 'AND TRIGGER_NAME IN ('
             . "'" . self::INSERT_TRIGGER . "', '" . self::UPDATE_TRIGGER . "')"
-            . ' ORDER BY TRIGGER_NAME',
+            . ' ORDER BY BINARY TRIGGER_NAME',
         );
 
         if ($statement === false) {

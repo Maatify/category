@@ -42,13 +42,14 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     {
         $service = $this->commandService($this->connection());
         $queryService = new CategoryQueryService(new PdoCategoryReadQuery($this->connection()));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection()));
         $categoryId = $service->create(new CreateCategoryCommand('field-scopes-category'));
 
         $neutralFirst = $service->createContentField(
-            new CreateCategoryContentFieldCommand($categoryId, 'usage_instructions', null, null, CategoryContentFieldFormatEnum::TEXT, 'Use gently.'),
+            new CreateCategoryContentFieldCommand($categoryId, 'alpha_information', null, null, CategoryContentFieldFormatEnum::TEXT, 'Use gently.'),
         );
         $neutralSecond = $service->createContentField(
-            new CreateCategoryContentFieldCommand($categoryId, 'general_information', null, null, CategoryContentFieldFormatEnum::HTML, '<p>Details</p>'),
+            new CreateCategoryContentFieldCommand($categoryId, 'zeta_instructions', null, null, CategoryContentFieldFormatEnum::HTML, '<p>Details</p>'),
         );
         $languageOnly = $service->createContentField(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', 'en-US', null, CategoryContentFieldFormatEnum::JSON, '{"audience":["adult"]}'),
@@ -84,11 +85,18 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
         );
 
         $service->updateContentFieldDisplayOrder(
-            new UpdateCategoryContentFieldDisplayOrderCommand($neutralSecond, 1),
+            new UpdateCategoryContentFieldDisplayOrderCommand($neutralFirst, 2),
         );
         self::assertSame(
             [$neutralSecond, $neutralFirst],
             $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO())),
+        );
+        self::assertSame(
+            [$neutralSecond, $neutralFirst],
+            $this->ids($management->listContentFields(new CategoryContentFieldListCriteriaDTO(
+                categoryId: $categoryId,
+                scope: new CategoryContentFieldScopeDTO(),
+            ))),
         );
     }
 
@@ -110,14 +118,30 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     {
         $service = $this->commandService($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('field-identity-category'));
-        $service->createContentField(
+        $fieldId = $service->createContentField(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::TEXT, 'neutral'),
         );
 
-        $this->expectException(CategoryContentFieldAlreadyExistsException::class);
-        $service->createContentField(
-            new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::HTML, '<p>duplicate</p>'),
-        );
+        $service->softDeleteContentField(new SoftDeleteCategoryContentFieldCommand($fieldId));
+
+        try {
+            $service->createContentField(
+                new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::HTML, '<p>duplicate</p>'),
+            );
+            self::fail('A soft-deleted field must continue reserving its exact identity.');
+        } catch (CategoryContentFieldAlreadyExistsException) {
+        }
+
+        $service->restoreContentField(new RestoreCategoryContentFieldCommand($fieldId));
+        $restored = (new CategoryManagementQueryService(
+            new PdoCategoryManagementReadQuery($this->connection()),
+        ))->getContentFieldById($fieldId);
+        self::assertSame($fieldId, $restored->id);
+        self::assertSame($categoryId, $restored->categoryId);
+        self::assertSame('targeting', $restored->fieldKey);
+        self::assertNull($restored->languageCode);
+        self::assertNull($restored->platform);
+        self::assertNull($restored->deletedAt);
     }
 
     public function testSameKeyIsAllowedInAnotherScopeAndManagementScopeFilterIsExact(): void

@@ -239,7 +239,7 @@ function standalone_consumer_database_objects(\PDO $pdo, string $objectType): ar
         'SELECT ' . ($objectType === 'tables' ? 'TABLE_NAME' : 'TRIGGER_NAME') . ' '
         . 'FROM information_schema.' . ($objectType === 'tables' ? 'TABLES' : 'TRIGGERS') . ' '
         . 'WHERE ' . ($objectType === 'tables' ? 'TABLE_SCHEMA' : 'TRIGGER_SCHEMA') . ' = DATABASE() '
-        . 'ORDER BY 1',
+        . 'ORDER BY BINARY ' . ($objectType === 'tables' ? 'TABLE_NAME' : 'TRIGGER_NAME'),
     );
     if ($statement === false) {
         standalone_consumer_fail('Unable to inspect standalone database objects.');
@@ -302,8 +302,8 @@ try {
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'tables') === [
             'maa_category_categories',
-            'maa_category_category_contents',
             'maa_category_category_content_fields',
+            'maa_category_category_contents',
             'maa_category_category_image_assignments',
         ],
         'The standalone schema did not create exactly its four package-owned tables.',
