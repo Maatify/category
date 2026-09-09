@@ -18,7 +18,7 @@ Framework-neutral hierarchical categories and translations for reusable PHP appl
 
 `maatify/category` provides typed Category domain/application contracts, PDO
 adapters, MySQL schema, hierarchy invariants, lifecycle operations, ordering,
-and visible query/list behavior. It is independent of Catalog, Product, Admin,
+and separate management and visible query/list behavior. It is independent of Catalog, Product, Admin,
 Slim, HTTP, permissions, and presentation layers.
 
 ## Key Features
@@ -31,6 +31,8 @@ Slim, HTTP, permissions, and presentation layers.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
+- Bounded management reads with explicit status and deleted-state criteria,
+  separate from consumer visibility.
 - No associative arrays as public or domain contracts.
 
 ## Requirements
