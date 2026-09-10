@@ -187,23 +187,7 @@ CREATE TABLE `maa_category_category_image_assignments`
     `deleted_at`             DATETIME NULL COMMENT 'Host Clock timestamp assigned by the Category application on soft delete; NULL means not deleted',
     `default_scope_identity` VARCHAR(512) GENERATED ALWAYS AS (
         CASE
-            WHEN `is_default` = 1 AND `deleted_at` IS NULL THEN CONCAT(
-                'C', CAST(`category_id` AS CHAR), '|',
-                CASE
-                    WHEN `language_code` IS NULL THEN 'N:'
-                    ELSE CONCAT('L', CHAR_LENGTH(`language_code`), ':', `language_code`)
-                END,
-                '|',
-                CASE
-                    WHEN `platform` IS NULL THEN 'N:'
-                    ELSE CONCAT('L', CHAR_LENGTH(`platform`), ':', `platform`)
-                END,
-                '|',
-                CASE
-                    WHEN `role_id` IS NULL THEN 'N:'
-                    ELSE CONCAT('R', CAST(`role_id` AS CHAR))
-                END
-            )
+            WHEN `is_default` = 1 AND `deleted_at` IS NULL THEN `ordering_scope`
             ELSE NULL
         END
     ) STORED COMMENT 'Conditional generated exact-scope identity; only an active default row participates in the unique key',
