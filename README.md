@@ -14,7 +14,7 @@
 [![Contributing Guide](https://img.shields.io/badge/Contributing-Guide-blue.svg)](CONTRIBUTING.md)
 
 Framework-neutral hierarchical categories, contents, extensible Host-defined
-content fields, and Category-owned image assignments for reusable PHP
+content fields, a Category-owned Image Role registry, and Category-owned image assignments for reusable PHP
 applications.
 
 **Status:** v1.0.0 preparation · owner release metadata pending · not published
@@ -36,13 +36,16 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 - Typed immutable Category and Category Content DTOs.
 - Typed extensible Category Content Field DTOs with text, HTML, and JSON formats.
-- Typed Category Image Assignment DTOs with exact language/platform scopes.
+- Typed Category Image Role DTOs with immutable globally unique keys and typed lifecycle status.
+- Typed Category Image Assignment DTOs with exact language/platform/role scopes.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
 - Category and Content create, update, soft-delete, and restore lifecycle
   mutations, plus Category status and display-order mutations.
 - Image Assignment create, exact-scope ordering, soft-delete, and restore
   mutations; stable identity remains reserved after soft deletion.
+- Image Role create, status update, soft-delete, restore, and bounded management
+  reads; role keys remain permanently reserved after soft deletion.
 - Content Field create, value/format update, exact-scope ordering, soft-delete,
   restore, management reads, and exact consumer reads; field keys remain Host-defined.
 - Transaction and row-locking contracts for hierarchy/lifecycle invariants.
@@ -55,9 +58,9 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes nineteen typed mutation Commands, immutable Category,
-Content, and Image Assignment/Content Field DTOs, five bounded criteria DTOs,
-three enums, typed service and
+The package exposes twenty-three typed mutation Commands, immutable Category,
+Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
+criteria DTOs, five enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
 constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
@@ -72,8 +75,12 @@ Management reads and consumer visibility reads are separate contracts.
 Management criteria can select status and deleted state; consumer criteria
 cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
 bounded to at most 100 rows. Category lists use `display_order, id`; Content
-lists use `language_code, id`; Image Assignment and Content Field lists use
-exact scopes and deterministic `display_order, id` ordering within each scope.
+lists use `language_code, id`; Image Role lists use `role_key, id`; Image
+Assignment and Content Field lists use exact scopes and deterministic
+`display_order, id` ordering within each scope.
+Management Image Assignment criteria can independently omit the Role filter,
+match the exact NULL Role, or match one concrete Role while retaining exact
+language/platform filtering.
 
 ## Category Content model
 
@@ -88,15 +95,30 @@ fallback content; the Host owns semantic language validation and locale policy.
 
 Category owns a direct relation to host-provided Media Asset identities. Each
 assignment has an immutable stable identity of
-`(category_id, media_asset_id, language_code, platform)`, with all four nullable
-scope combinations supported. NULL is an exact scope value, not fallback;
-empty strings are invalid, no platform enum is hardcoded, and the same Media
-Asset may be used in another scope. Category does not own Media, Platform, or
-Language lifecycle and creates no foreign key to those host concepts.
+`(category_id, media_asset_id, role_id, language_code, platform)`, with
+`role_id`, `language_code`, and `platform` each nullable and every exact
+combination supported. NULL is an exact scope value, not fallback; an absent
+Role is the generic/unclassified scope. New role-scoped assignments require an
+active, non-deleted Role; existing assignments become invisible to consumers
+while their Role is inactive or soft-deleted, but remain available to
+management reads. Empty strings are invalid, no platform enum is hardcoded, and
+the same Media Asset may be used in another scope. Category does not own Media,
+Platform, or Language lifecycle and creates no foreign key to those host
+concepts.
+
+## Category Image Role model
+
+Category owns the Image Role registry. `role_key` is an immutable, globally
+unique Host-defined key and remains reserved after soft deletion. Roles have
+typed `active`/`inactive` status independent from `deleted_at`; management reads
+support get-by-ID, get-by-key, bounded lists, explicit status, and deleted-state
+filters. Role semantics, cardinality, and media policy remain Host-owned.
 
 Consumer reads require an exact scope, exclude deleted assignments, and hide
 assignments when any Category ancestor is inactive or deleted. Management reads
-can omit scope filtering or request exact NULL/NULL scope explicitly.
+can omit scope filtering or request an exact scope, including explicit NULL for
+Role, language, and platform. Omitting the scope filter is distinct from
+requesting the generic/unclassified NULL Role scope.
 
 ## Category Content Field model
 

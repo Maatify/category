@@ -34,6 +34,10 @@ tag, release date, or owner-approved release metadata is claimed.
   ordering, soft-delete/restore lifecycle, management reads, and ancestor-aware
   consumer reads. Category stores only the host-provided Media Asset identity;
   Media lifecycle remains outside the package.
+- Added the package-owned Category Image Role registry with immutable globally
+  unique keys, typed active/inactive status, soft-delete/restore lifecycle,
+  permanent key reservation, management reads, and Role-aware exact Image
+  Assignment identity, ordering, and consumer visibility.
 - Added first-class Host-defined Category Content Fields with exact nullable
   language/platform scopes, typed text/html/json formats, LONGTEXT storage,
   NULL-safe identity reserved across soft deletion, independent shared ordering,

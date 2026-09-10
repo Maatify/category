@@ -30,6 +30,7 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(private PDO $pdo) {}
@@ -212,6 +213,12 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             $scopeWhere[] = '`assignment`.`platform` = :image_platform';
             $scopeParams['image_platform'] = $scope->platform;
         }
+        if ($scope->roleId === null) {
+            $scopeWhere[] = '`assignment`.`role_id` IS NULL';
+        } else {
+            $scopeWhere[] = '`assignment`.`role_id` = :image_role_id';
+            $scopeParams['image_role_id'] = $scope->roleId;
+        }
 
         $statement = $this->pdo->prepare(
             'WITH RECURSIVE `category_ancestors` AS ('
@@ -225,7 +232,8 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             . 'ON `child`.`parent_id` = `parent`.`id`'
             . ') '
             . 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
-            . '`assignment`.`media_asset_id`, `assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
+            . '`assignment`.`language_code`, `assignment`.`platform`, '
             . '`assignment`.`display_order`, `assignment`.`created_at`, '
             . '`assignment`.`updated_at`, `assignment`.`deleted_at` '
             . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment` '
@@ -240,6 +248,12 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             . 'WHERE `ancestor`.`status` <> \'active\' '
             . 'OR `ancestor`.`deleted_at` IS NOT NULL'
             . ') '
+            . 'AND (`assignment`.`role_id` IS NULL OR EXISTS ('
+            . 'SELECT 1 FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role` '
+            . 'WHERE `role`.`id` = `assignment`.`role_id` '
+            . 'AND `role`.`status` = \'active\' '
+            . 'AND `role`.`deleted_at` IS NULL'
+            . ')) '
             . 'AND ' . implode(' AND ', $scopeWhere) . ' '
             . 'ORDER BY `assignment`.`display_order` ASC, `assignment`.`id` ASC '
             . 'LIMIT :max_results',
@@ -435,6 +449,7 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             id: $this->integerValue($row, 'id'),
             categoryId: $this->integerValue($row, 'category_id'),
             mediaAssetId: $this->integerValue($row, 'media_asset_id'),
+            roleId: $this->nullableIntegerValue($row, 'role_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
             displayOrder: $this->integerValue($row, 'display_order'),
@@ -500,6 +515,20 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         }
 
         return $value;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function nullableIntegerValue(array $row, string $column): ?int
+    {
+        $value = $row[$column] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        if (!is_int($value) && !is_string($value)) {
+            throw CategoryPersistenceException::unexpectedColumnType($column);
+        }
+
+        return (int) $value;
     }
 
     /** @param array<string, mixed> $row */

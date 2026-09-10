@@ -14,6 +14,7 @@ final class CategorySchemaIntegrationTest extends TestCase
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
     private const INSERT_TRIGGER = 'trg_maa_category_categories_parent_not_self_ai';
     private const UPDATE_TRIGGER = 'trg_maa_category_categories_parent_not_self_bu';
@@ -61,6 +62,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             self::CONTENT_FIELD_TABLE,
             self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
+            self::IMAGE_ROLE_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
@@ -72,6 +74,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->assertTableStorage(self::CONTENT_TABLE);
         $this->assertTableStorage(self::CONTENT_FIELD_TABLE);
         $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
+        $this->assertTableStorage(self::IMAGE_ROLE_TABLE);
 
         $this->dropSchema();
         self::assertSame([], $this->tableNames());
@@ -83,6 +86,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             self::CONTENT_FIELD_TABLE,
             self::CONTENT_TABLE,
             self::IMAGE_ASSIGNMENT_TABLE,
+            self::IMAGE_ROLE_TABLE,
         ], $this->tableNames());
         self::assertSame([
             self::INSERT_TRIGGER,
@@ -92,6 +96,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $this->assertTableStorage(self::CONTENT_TABLE);
         $this->assertTableStorage(self::CONTENT_FIELD_TABLE);
         $this->assertTableStorage(self::IMAGE_ASSIGNMENT_TABLE);
+        $this->assertTableStorage(self::IMAGE_ROLE_TABLE);
     }
 
     public function testValidCategoryHierarchyAndContentCanBeStored(): void
@@ -106,6 +111,72 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame(2, $this->rowCount(self::CATEGORY_TABLE));
         self::assertSame(2, $this->rowCount(self::CONTENT_TABLE));
         self::assertSame(2, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
+    }
+
+    public function testImageRoleIdentityConstraintIsDatabaseEnforced(): void
+    {
+        $this->insertRole(1, 'gallery', 'active');
+
+        $this->expectException(PDOException::class);
+        $this->insertRole(2, 'gallery', 'inactive');
+    }
+
+    public function testImageRoleStatusRequiresExactLowercaseValues(): void
+    {
+        $collationStatement = $this->connection()->prepare(
+            'SELECT COLLATION_NAME FROM information_schema.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column',
+        );
+        $collationStatement->execute([
+            'table' => self::IMAGE_ROLE_TABLE,
+            'column' => 'status',
+        ]);
+        self::assertSame('utf8mb4_bin', $collationStatement->fetchColumn());
+
+        /** @var list<array{string, string}> $variants */
+        $variants = [
+            ['uppercase-active', 'ACTIVE'],
+            ['uppercase-inactive', 'INACTIVE'],
+            ['trailing-space-active', 'active '],
+            ['trailing-space-inactive', 'inactive '],
+        ];
+        foreach ($variants as [$roleKey, $status]) {
+            $this->assertImageRoleInsertRejected(
+                $roleKey,
+                $status,
+                sprintf('The database must reject non-exact Image Role status %s.', $status),
+            );
+        }
+    }
+
+    public function testImageAssignmentIdentityIncludesNullableRoleAndRoleScopes(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertRole(1, 'gallery', 'active');
+        $this->insertImageAssignment(1, 1, 100, null, null);
+        $this->insertImageAssignment(2, 1, 100, null, null, 1);
+
+        $this->expectException(PDOException::class);
+        $this->insertImageAssignment(3, 1, 100, null, null, 1);
+    }
+
+    public function testImageRoleForeignKeyIsRestrictive(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertRole(1, 'gallery', 'active');
+        $this->insertImageAssignment(1, 1, 100, null, null, 1);
+
+        try {
+            $this->connection()->exec('DELETE FROM `' . self::IMAGE_ROLE_TABLE . '` WHERE `id` = 1');
+            self::fail('A referenced Image Role must not be physically deleted.');
+        } catch (PDOException) {
+        }
+
+        try {
+            $this->connection()->exec('UPDATE `' . self::IMAGE_ROLE_TABLE . '` SET `id` = 2 WHERE `id` = 1');
+            self::fail('A referenced Image Role identity must not be physically updated.');
+        } catch (PDOException) {
+        }
     }
 
     public function testCategoryCodeMustBeUnique(): void
@@ -324,8 +395,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             PREG_SPLIT_NO_EMPTY,
         );
 
-        if (!is_array($statements) || count($statements) !== 6) {
-            throw new RuntimeException('The canonical Category schema must contain exactly four tables and two triggers.');
+        if (!is_array($statements) || count($statements) !== 7) {
+            throw new RuntimeException('The canonical Category schema must contain exactly five tables and two triggers.');
         }
 
         $tableStatements = 0;
@@ -347,8 +418,8 @@ final class CategorySchemaIntegrationTest extends TestCase
             $this->connection()->exec($statement);
         }
 
-        if ($tableStatements !== 4 || $triggerStatements !== 2) {
-            throw new RuntimeException('The canonical Category schema must contain exactly four tables and two triggers.');
+        if ($tableStatements !== 5 || $triggerStatements !== 2) {
+            throw new RuntimeException('The canonical Category schema must contain exactly five tables and two triggers.');
         }
     }
 
@@ -359,6 +430,7 @@ final class CategorySchemaIntegrationTest extends TestCase
         $connection->exec('DROP TRIGGER IF EXISTS `' . self::UPDATE_TRIGGER . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_FIELD_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::IMAGE_ASSIGNMENT_TABLE . '`');
+        $connection->exec('DROP TABLE IF EXISTS `' . self::IMAGE_ROLE_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CONTENT_TABLE . '`');
         $connection->exec('DROP TABLE IF EXISTS `' . self::CATEGORY_TABLE . '`');
     }
@@ -452,24 +524,43 @@ final class CategorySchemaIntegrationTest extends TestCase
         ]);
     }
 
+    private function insertRole(int $id, string $roleKey, string $status): void
+    {
+        $statement = $this->connection()->prepare(
+            'INSERT INTO `' . self::IMAGE_ROLE_TABLE . '` '
+            . '(`id`, `role_key`, `status`, `created_at`, `updated_at`, `deleted_at`) '
+            . 'VALUES (:id, :role_key, :status, :created_at, :updated_at, :deleted_at)',
+        );
+        $statement->execute([
+            'id' => $id,
+            'role_key' => $roleKey,
+            'status' => $status,
+            'created_at' => '2026-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'deleted_at' => null,
+        ]);
+    }
+
     private function insertImageAssignment(
         int $id,
         int $categoryId,
         int $mediaAssetId,
         ?string $languageCode,
         ?string $platform,
+        ?int $roleId = null,
     ): void {
         $statement = $this->connection()->prepare(
             'INSERT INTO `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
-            . '(`id`, `category_id`, `media_asset_id`, `language_code`, `platform`, '
+            . '(`id`, `category_id`, `media_asset_id`, `role_id`, `language_code`, `platform`, '
             . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
-            . 'VALUES (:id, :category_id, :media_asset_id, :language_code, :platform, '
+            . 'VALUES (:id, :category_id, :media_asset_id, :role_id, :language_code, :platform, '
             . ':display_order, :created_at, :updated_at, :deleted_at)',
         );
         $statement->execute([
             'id' => $id,
             'category_id' => $categoryId,
             'media_asset_id' => $mediaAssetId,
+            'role_id' => $roleId,
             'language_code' => $languageCode,
             'platform' => $platform,
             'display_order' => 1,
@@ -487,6 +578,17 @@ final class CategorySchemaIntegrationTest extends TestCase
     ): void {
         try {
             $this->insertContentField($fieldKey, $format, $value);
+        } catch (PDOException) {
+            return;
+        }
+
+        self::fail($message);
+    }
+
+    private function assertImageRoleInsertRejected(string $roleKey, string $status, string $message): void
+    {
+        try {
+            $this->insertRole(1, $roleKey, $status);
         } catch (PDOException) {
             return;
         }
@@ -524,7 +626,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             'SELECT TABLE_NAME FROM information_schema.TABLES '
             . 'WHERE TABLE_SCHEMA = DATABASE() '
             . 'AND TABLE_NAME IN ('
-            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::CONTENT_FIELD_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
+            . "'" . self::CATEGORY_TABLE . "', '" . self::CONTENT_TABLE . "', '" . self::CONTENT_FIELD_TABLE . "', '" . self::IMAGE_ROLE_TABLE . "', '" . self::IMAGE_ASSIGNMENT_TABLE . "')"
             . ' ORDER BY BINARY TABLE_NAME',
         );
 

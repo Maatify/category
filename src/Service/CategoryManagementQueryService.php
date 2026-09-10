@@ -16,6 +16,9 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageRoleCollectionDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
+use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
@@ -23,6 +26,7 @@ use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Exception\CategoryImageRoleNotFoundException;
 use Maatify\Category\Exception\CategoryContentFieldNotFoundException;
 
 /** Coordinates the public management Category read contract. */
@@ -99,6 +103,39 @@ final readonly class CategoryManagementQueryService implements CategoryManagemen
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO {
         return $this->reader->listImageAssignments($criteria);
+    }
+
+    public function getImageRoleById(
+        int $roleId,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryImageRoleDTO {
+        $id = (new CategoryIdDTO($roleId, 'roleId'))->value;
+        $role = $this->reader->findImageRoleById($id, $deletedState);
+
+        if ($role === null) {
+            throw CategoryImageRoleNotFoundException::withId($id);
+        }
+
+        return $role;
+    }
+
+    public function getImageRoleByKey(
+        string $roleKey,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryImageRoleDTO {
+        CategoryImageRoleDTO::assertValidRoleKey($roleKey);
+        $role = $this->reader->findImageRoleByKey($roleKey, $deletedState);
+
+        if ($role === null) {
+            throw CategoryImageRoleNotFoundException::withKey($roleKey);
+        }
+
+        return $role;
+    }
+
+    public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO
+    {
+        return $this->reader->listImageRoles($criteria);
     }
 
     public function getContentFieldById(

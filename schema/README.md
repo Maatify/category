@@ -4,7 +4,7 @@ The canonical stable contract is [CATEGORY_PACKAGE_REFERENCE.md](../CATEGORY_PAC
 
 This directory contains the package-owned persistence contract for Categories
 and Category Contents, extensible Category Content Fields, plus Category Image
-Assignments.
+Assignments and the Category Image Role registry.
 
 The package requires MySQL 8.0.16 or later. This minimum is part of the storage
 contract because the database schema relies on enforced `CHECK` constraints.
@@ -14,10 +14,11 @@ Integration verification uses the same required runtime version.
 
 - `maa_category_categories`
 - `maa_category_category_contents`
+- `maa_category_category_image_roles`
 - `maa_category_category_content_fields`
 - `maa_category_category_image_assignments`
 
-Apply [category.sql](category.sql). It creates exactly the four tables and the
+Apply [category.sql](category.sql). It creates exactly the five tables and the
 package-owned self-parent triggers:
 
 - `trg_maa_category_categories_parent_not_self_ai`
@@ -30,14 +31,25 @@ delete and update operations. Category creation obtains the next positive
 `display_order` for the nullable `parent_id` scope through the shared
 `maatify/persistence` Ordering API inside the application transaction.
 
+Category Image Roles are package-owned registry records with immutable,
+globally unique `role_key` values and typed exact-lowercase `active`/`inactive`
+status stored with `utf8mb4_bin` and enforced by a binary `CHECK`. A
+soft-deleted key remains reserved and restoration preserves the same identity.
+Role semantics and media policy remain Host-owned.
+
 Category Image Assignments are owned by Category and store only a validated
 host-provided `media_asset_id`; there is deliberately no Media, Platform, or
-Language foreign key. The exact scope is `(language_code, platform)`, where
-each nullable dimension is a real value and not a fallback request. The stable
-identity `(category_id, media_asset_id, language_code, platform)` remains unique
+Language foreign key. The exact scope is `(role_id, language_code, platform)`,
+where every nullable dimension is a real value and not a fallback request.
+`role_id` is an internal optional foreign key to the Role registry; NULL is the
+generic/unclassified scope. The stable identity
+`(category_id, media_asset_id, role_id, language_code, platform)` remains unique
 across soft deletion through generated NULL-safe identity columns. The
 generated `ordering_scope` lets the application use the shared Ordering API
-independently for each Category and exact scope.
+independently for each Category and exact Role/language/platform scope.
+Role-scoped assignments require an active, non-deleted Role on creation;
+inactive or deleted Roles hide existing assignments from consumer reads while
+management reads retain them.
 
 Category Content creation, content updates, soft deletion, and restoration
 are exposed through the package command service; consumers do not need direct

@@ -15,21 +15,24 @@ final readonly class CreateCategoryImageAssignmentCommand implements \JsonSerial
     public CategoryImageAssignmentScopeDTO $scope;
     public ?string $languageCode;
     public ?string $platform;
+    public ?int $roleId;
 
     public function __construct(
         int|string $categoryId,
         int|string $mediaAssetId,
         ?string $languageCode = null,
         ?string $platform = null,
+        int|string|null $roleId = null,
     ) {
         $this->categoryId = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
         $this->mediaAssetId = (new CategoryIdDTO($mediaAssetId, 'mediaAssetId'))->value;
-        $this->scope = new CategoryImageAssignmentScopeDTO($languageCode, $platform);
+        $this->scope = new CategoryImageAssignmentScopeDTO($languageCode, $platform, $roleId);
         $this->languageCode = $this->scope->languageCode;
         $this->platform = $this->scope->platform;
+        $this->roleId = $this->scope->roleId;
     }
 
-    /** @return array{categoryId: int, mediaAssetId: int, languageCode: ?string, platform: ?string} */
+    /** @return array{categoryId: int, mediaAssetId: int, languageCode: ?string, platform: ?string, roleId: ?int} */
     public function jsonSerialize(): mixed
     {
         return [
@@ -37,6 +40,7 @@ final readonly class CreateCategoryImageAssignmentCommand implements \JsonSerial
             'mediaAssetId' => $this->mediaAssetId,
             'languageCode' => $this->languageCode,
             'platform' => $this->platform,
+            'roleId' => $this->roleId,
         ];
     }
 }

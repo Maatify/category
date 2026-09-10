@@ -9,8 +9,8 @@ currently pinned to adoption commit `f386948aa873fef9960680411c8918d095d29b93`.
 ## Purpose
 
 `maatify/category` is a reusable Base Module for hierarchical Categories,
-optional Category Content, extensible Host-defined Category Content Fields, and
-Category-owned Image Assignments. It can be consumed by a Catalog, a navigation system,
+optional Category Content, extensible Host-defined Category Content Fields, a
+Category-owned Image Role registry, and Category-owned Image Assignments. It can be consumed by a Catalog, a navigation system,
 an access taxonomy, or another Host without knowing the Host's framework or
 schema.
 
@@ -18,11 +18,11 @@ schema.
 
 The package owns:
 
-- Category, Content, and Content Field DTOs, typed mutation Commands, and input validation.
+- Category, Content, Image Role, Image Assignment, and Content Field DTOs, typed mutation Commands, and input validation.
 - Category mutation/query contracts.
 - Business orchestration and domain exceptions.
 - Package-local PDO persistence adapters and transaction boundaries.
-- The four package-owned MySQL tables and their internal constraints.
+- The five package-owned MySQL tables and their internal constraints.
 
 The Package owns the syntactic and storage validation of non-NULL
 `language_code` values required by its contract and Runtime. The Host owns dependency injection, HTTP,
@@ -38,14 +38,21 @@ Content is identified logically by `(category_id, language_code)`; a NULL
 language code means unlocalized Content, a non-NULL code means localized
 Content, and content may change while that identity cannot.
 
+Category Image Roles are package-owned registry records with immutable,
+globally unique `role_key` values and typed `active`/`inactive` status. Keys
+remain reserved after soft deletion, and Role semantics/cardinality remain
+Host-owned.
+
 Category Image Assignments are direct Category-owned references to a host
 Media Asset identity. Their immutable logical identity is
-`(category_id, media_asset_id, language_code, platform)`. `language_code` and
-`platform` are independent nullable exact scope dimensions, so the supported
-scopes are NULL/NULL, language/NULL, NULL/platform, and language/platform; no
-fallback or hardcoded platform enum is defined. Category does not own the
-Media Asset, Language, or Platform lifecycle and creates no foreign key to
-those host concepts.
+`(category_id, media_asset_id, role_id, language_code, platform)`. `role_id`,
+`language_code`, and `platform` are independent nullable exact scope dimensions,
+so every combination is supported; NULL Role is the generic/unclassified
+scope. New role-scoped assignments require an active, non-deleted Role, while
+inactive/deleted Roles hide existing assignments from consumer reads. No
+fallback or hardcoded platform enum is defined. Category does not own the Media
+Asset, Language, or Platform lifecycle and creates no foreign key to those host
+concepts.
 
 Category Content Fields are arbitrary Host-defined key/value records. Their
 immutable logical identity is `(category_id, field_key, language_code, platform)`
@@ -142,9 +149,10 @@ The package exposes two separate public query ports:
   Their typed criteria explicitly select Category status and deleted state,
   and bound each list to at most 100 rows. Category lists are ordered by
   `display_order, id`; Content lists are ordered by `language_code, id`; Image
-  Assignment lists are ordered deterministically by Category, exact generated
-  scope, `display_order, id`; Content Field lists are ordered by Category, exact
-  generated scope, `display_order, id`.
+  Role lists are ordered by `role_key, id`; Image Assignment lists are ordered
+  deterministically by Category, exact generated scope, `display_order, id`;
+  Content Field lists are ordered by Category, exact generated scope,
+  `display_order, id`.
 - `CategoryReadQueryInterface` and `CategoryQueryServiceInterface` expose
   consumer visibility reads and apply the complete ancestor visibility rule.
   Their separate `CategoryVisibleListCriteriaDTO` bounds every list to at most
@@ -168,9 +176,13 @@ implicit fallback.
 
 Visible Image Assignment reads exclude soft-deleted rows, require the
 requested Category's complete ancestor chain to be active and non-deleted, and
-match language/platform with NULL-safe exact predicates. They never search a
-different scope as fallback. Management criteria distinguish an omitted scope
-filter (`scope = null`) from an exact NULL/NULL scope object.
+match Role/language/platform with NULL-safe exact predicates. Role-scoped rows
+also require an active, non-deleted Role. They never search a different scope
+as fallback. Management Image Assignment criteria distinguish the exact
+language/platform scope from the Role filter and support omitted Role, exact
+NULL Role, or one concrete Role. `scope = null` omits all language/platform
+predicates; an explicit scope with no `roleFilter` preserves the legacy exact
+`scope->roleId` behavior.
 Visible Content Field reads exclude soft-deleted fields, require an exact
 `CategoryContentFieldScopeDTO`, apply complete ancestor visibility, and never
 fallback. Management Content Field criteria use `scope = null` for no scope

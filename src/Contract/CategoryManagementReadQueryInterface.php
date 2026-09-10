@@ -13,6 +13,9 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageRoleCollectionDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
+use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
@@ -52,6 +55,18 @@ interface CategoryManagementReadQueryInterface
     public function listImageAssignments(
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO;
+
+    public function findImageRoleById(
+        int $roleId,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryImageRoleDTO;
+
+    public function findImageRoleByKey(
+        string $roleKey,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryImageRoleDTO;
+
+    public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO;
 
     public function findContentFieldById(
         int $fieldId,

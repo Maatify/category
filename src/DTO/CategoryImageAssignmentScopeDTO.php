@@ -9,9 +9,12 @@ use Maatify\Category\Exception\CategoryInvalidArgumentException;
 /** Exact Category Image Assignment scope; null dimensions are meaningful. */
 final readonly class CategoryImageAssignmentScopeDTO implements \JsonSerializable
 {
+    public ?int $roleId;
+
     public function __construct(
         public ?string $languageCode = null,
         public ?string $platform = null,
+        int|string|null $roleId = null,
     ) {
         if ($languageCode !== null && trim($languageCode) === '') {
             throw CategoryInvalidArgumentException::emptyField('languageCode');
@@ -28,14 +31,19 @@ final readonly class CategoryImageAssignmentScopeDTO implements \JsonSerializabl
         if ($platform !== null && mb_strlen($platform) > 255) {
             throw CategoryInvalidArgumentException::fieldTooLong('platform', 255);
         }
+
+        $this->roleId = $roleId === null
+            ? null
+            : (new CategoryIdDTO($roleId, 'roleId'))->value;
     }
 
-    /** @return array{languageCode: ?string, platform: ?string} */
+    /** @return array{languageCode: ?string, platform: ?string, roleId: ?int} */
     public function jsonSerialize(): mixed
     {
         return [
             'languageCode' => $this->languageCode,
             'platform' => $this->platform,
+            'roleId' => $this->roleId,
         ];
     }
 }

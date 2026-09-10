@@ -34,6 +34,7 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
             $command->categoryId,
             $command->languageCode,
             $command->platform,
+            $command->roleId,
         );
         $this->lockCreationScope($orderingScope);
         $displayOrder = $this->orderingManager->getNextPosition(
@@ -45,8 +46,10 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
         $statement = $this->pdo->prepare(
             'INSERT INTO `' . self::ASSIGNMENT_TABLE . '` '
             . '(`category_id`, `media_asset_id`, `language_code`, `platform`, '
+            . '`role_id`, '
             . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
             . 'VALUES (:category_id, :media_asset_id, :language_code, :platform, '
+            . ':role_id, '
             . ':display_order, :created_at, :updated_at, NULL)',
         );
         $timestamp = $this->formatTimestamp($occurredAt);
@@ -56,6 +59,7 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
                 'media_asset_id' => $command->mediaAssetId,
                 'language_code' => $command->languageCode,
                 'platform' => $command->platform,
+                'role_id' => $command->roleId,
                 'display_order' => $displayOrder,
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
@@ -69,6 +73,7 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
                     $command->languageCode,
                     $command->platform,
                     $exception,
+                    $command->roleId,
                 );
             }
 
@@ -180,7 +185,12 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
         );
     }
 
-    private function orderingScope(int $categoryId, ?string $languageCode, ?string $platform): string
+    private function orderingScope(
+        int $categoryId,
+        ?string $languageCode,
+        ?string $platform,
+        ?int $roleId,
+    ): string
     {
         $language = $languageCode === null
             ? 'N:'
@@ -189,7 +199,9 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
             ? 'N:'
             : 'L' . mb_strlen($platform) . ':' . $platform;
 
-        return 'C' . $categoryId . '|' . $language . '|' . $platformValue;
+        $role = $roleId === null ? 'N:' : 'R' . $roleId;
+
+        return 'C' . $categoryId . '|' . $language . '|' . $platformValue . '|' . $role;
     }
 
     private function formatTimestamp(DateTimeImmutable $occurredAt): string
