@@ -45,6 +45,11 @@
 --   - ordering_scope is a generated composite scope consumed by the shared
 --     maatify/persistence Ordering API; it includes Category identity and all
 --     exact nullable dimensions because ordering is independent per scope.
+--   - is_default is an explicit assignment property. Each exact scope allows
+--     zero or one active default; no fallback, auto-default, or promotion is
+--     performed. Soft deletion and restoration leave an assignment non-default.
+--   - default_scope_identity is a conditional generated uniqueness identity;
+--     only an active default row participates in its unique key.
 --
 -- Image Role contract:
 --   - Category owns the immutable role_key registry and active/inactive
@@ -175,20 +180,45 @@ CREATE TABLE `maa_category_category_image_assignments`
             END
         )
     ) STORED COMMENT 'Generated exact Category plus role/language/platform ordering scope for maatify/persistence',
+    `is_default`             TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Explicit default marker within the exact Category, Role, language, and platform scope; zero or one active default is allowed',
     `display_order`          INT NOT NULL COMMENT 'Business-controlled positive order within the exact Category and scope; assigned by the Category application through maatify/persistence',
     `created_at`             DATETIME NOT NULL COMMENT 'Host Clock timestamp assigned by the Category application when the assignment is created',
-    `updated_at`             DATETIME NOT NULL COMMENT 'Host Clock timestamp assigned by the Category application on ordering, soft delete, or restore',
+    `updated_at`             DATETIME NOT NULL COMMENT 'Host Clock timestamp assigned by the Category application on ordering, default mutation, soft delete, or restore',
     `deleted_at`             DATETIME NULL COMMENT 'Host Clock timestamp assigned by the Category application on soft delete; NULL means not deleted',
+    `default_scope_identity` VARCHAR(512) GENERATED ALWAYS AS (
+        CASE
+            WHEN `is_default` = 1 AND `deleted_at` IS NULL THEN CONCAT(
+                'C', CAST(`category_id` AS CHAR), '|',
+                CASE
+                    WHEN `language_code` IS NULL THEN 'N:'
+                    ELSE CONCAT('L', CHAR_LENGTH(`language_code`), ':', `language_code`)
+                END,
+                '|',
+                CASE
+                    WHEN `platform` IS NULL THEN 'N:'
+                    ELSE CONCAT('L', CHAR_LENGTH(`platform`), ':', `platform`)
+                END,
+                '|',
+                CASE
+                    WHEN `role_id` IS NULL THEN 'N:'
+                    ELSE CONCAT('R', CAST(`role_id` AS CHAR))
+                END
+            )
+            ELSE NULL
+        END
+    ) STORED COMMENT 'Conditional generated exact-scope identity; only an active default row participates in the unique key',
 
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_maa_category_category_image_assignments_identity` (
         `category_id`, `media_asset_id`, `role_id_identity`, `language_code_identity`, `platform_identity`
     ),
+    UNIQUE KEY `uq_maa_category_category_image_assignments_default_scope` (`default_scope_identity`),
     KEY `idx_maa_category_category_image_assignments_ordering` (
         `ordering_scope`, `deleted_at`, `display_order`, `id`
     ),
     CONSTRAINT `chk_maa_category_category_image_assignments_media_asset_id` CHECK (`media_asset_id` > 0),
     CONSTRAINT `chk_maa_category_category_image_assignments_role_id` CHECK (`role_id` IS NULL OR `role_id` > 0),
+    CONSTRAINT `chk_maa_category_category_image_assignments_is_default` CHECK (`is_default` IN (0, 1)),
     CONSTRAINT `chk_maa_category_category_image_assignments_language_code` CHECK (
         `language_code` IS NULL
         OR (CHAR_LENGTH(TRIM(`language_code`)) > 0 AND CHAR_LENGTH(`language_code`) <= 16)

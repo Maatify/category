@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
+use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
 use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
@@ -106,18 +108,88 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
         );
     }
 
+    public function setDefault(
+        SetCategoryImageAssignmentDefaultCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $orderingScope = $this->activeOrderingScope($command->assignmentId);
+        if ($orderingScope === false) {
+            return false;
+        }
+
+        $this->lockDefaultScope($orderingScope);
+        if (!$this->lockActiveAssignmentInScope($command->assignmentId, $orderingScope)) {
+            return false;
+        }
+
+        $timestamp = $this->formatTimestamp($occurredAt);
+        $clearStatement = $this->pdo->prepare(
+            'UPDATE `' . self::ASSIGNMENT_TABLE . '` '
+            . 'SET `is_default` = :clear_default, `updated_at` = :clear_updated_at '
+            . 'WHERE `ordering_scope` = :clear_scope AND `deleted_at` IS NULL '
+            . 'AND `is_default` = 1',
+        );
+        $clearStatement->execute([
+            'clear_default' => 0,
+            'clear_updated_at' => $timestamp,
+            'clear_scope' => $orderingScope,
+        ]);
+
+        $setStatement = $this->pdo->prepare(
+            'UPDATE `' . self::ASSIGNMENT_TABLE . '` '
+            . 'SET `is_default` = :set_default, `updated_at` = :set_updated_at '
+            . 'WHERE `id` = :set_id AND `deleted_at` IS NULL',
+        );
+        $setStatement->execute([
+            'set_default' => 1,
+            'set_updated_at' => $timestamp,
+            'set_id' => $command->assignmentId,
+        ]);
+
+        return true;
+    }
+
+    public function clearDefault(
+        ClearCategoryImageAssignmentDefaultCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $orderingScope = $this->activeOrderingScope($command->assignmentId);
+        if ($orderingScope === false) {
+            return false;
+        }
+
+        $this->lockDefaultScope($orderingScope);
+        if (!$this->lockActiveAssignmentInScope($command->assignmentId, $orderingScope)) {
+            return false;
+        }
+
+        $statement = $this->pdo->prepare(
+            'UPDATE `' . self::ASSIGNMENT_TABLE . '` '
+            . 'SET `is_default` = :clear_default, `updated_at` = :updated_at '
+            . 'WHERE `id` = :id AND `deleted_at` IS NULL AND `is_default` = 1',
+        );
+        $statement->execute([
+            'clear_default' => 0,
+            'updated_at' => $this->formatTimestamp($occurredAt),
+            'id' => $command->assignmentId,
+        ]);
+
+        return true;
+    }
+
     public function softDelete(
         SoftDeleteCategoryImageAssignmentCommand $command,
         DateTimeImmutable $occurredAt,
     ): bool {
         $statement = $this->pdo->prepare(
             'UPDATE `' . self::ASSIGNMENT_TABLE . '` '
-            . 'SET `deleted_at` = :deleted_at, `updated_at` = :updated_at '
+            . 'SET `deleted_at` = :deleted_at, `is_default` = :is_default, `updated_at` = :updated_at '
             . 'WHERE `id` = :id AND `deleted_at` IS NULL',
         );
         $timestamp = $this->formatTimestamp($occurredAt);
         $statement->execute([
             'deleted_at' => $timestamp,
+            'is_default' => 0,
             'updated_at' => $timestamp,
             'id' => $command->assignmentId,
         ]);
@@ -131,11 +203,12 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
     ): bool {
         $statement = $this->pdo->prepare(
             'UPDATE `' . self::ASSIGNMENT_TABLE . '` '
-            . 'SET `deleted_at` = NULL, `updated_at` = :updated_at '
+            . 'SET `deleted_at` = NULL, `is_default` = :is_default, `updated_at` = :updated_at '
             . 'WHERE `id` = :id AND `deleted_at` IS NOT NULL',
         );
         $statement->execute([
             'updated_at' => $this->formatTimestamp($occurredAt),
+            'is_default' => 0,
             'id' => $command->assignmentId,
         ]);
 
@@ -159,6 +232,34 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
         }
 
         return $value;
+    }
+
+    private function lockDefaultScope(string $orderingScope): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id` FROM `' . self::ASSIGNMENT_TABLE . '` '
+            . 'WHERE `ordering_scope` = :ordering_scope FOR UPDATE',
+        );
+        $statement->execute(['ordering_scope' => $orderingScope]);
+    }
+
+    private function lockActiveAssignmentInScope(int $assignmentId, string $orderingScope): bool
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `ordering_scope` FROM `' . self::ASSIGNMENT_TABLE . '` '
+            . 'WHERE `id` = :assignment_id AND `deleted_at` IS NULL LIMIT 1 FOR UPDATE',
+        );
+        $statement->execute(['assignment_id' => $assignmentId]);
+        $value = $statement->fetchColumn();
+
+        if ($value === false) {
+            return false;
+        }
+        if (!is_string($value)) {
+            throw CategoryPersistenceException::unexpectedColumnType('ordering_scope');
+        }
+
+        return $value === $orderingScope;
     }
 
     /** The service owns the transaction around this lock and insert. */

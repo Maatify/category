@@ -225,6 +225,44 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame(4, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
     }
 
+    public function testImageAssignmentDefaultIsUniquePerExactScopeAndUsesConditionalIdentity(): void
+    {
+        $this->insertCategory(1, null, 'clothing', 'active');
+        $this->insertImageAssignment(1, 1, 100, null, null, null, true);
+
+        try {
+            $this->insertImageAssignment(2, 1, 101, null, null, null, true);
+            self::fail('MySQL must reject two active defaults in one exact scope.');
+        } catch (PDOException) {
+        }
+
+        $this->connection()->exec(
+            "UPDATE `" . self::IMAGE_ASSIGNMENT_TABLE . "` SET `deleted_at` = '2026-01-02 00:00:00' WHERE `id` = 1",
+        );
+        $deletedIdentityStatement = $this->connection()->query(
+            'SELECT `default_scope_identity` FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` WHERE `id` = 1',
+        );
+        self::assertNotFalse($deletedIdentityStatement);
+        $deletedIdentity = $deletedIdentityStatement->fetchColumn();
+        self::assertNull($deletedIdentity);
+
+        $this->insertImageAssignment(2, 1, 101, null, null, null, true);
+        $activeIdentityStatement = $this->connection()->query(
+            'SELECT `default_scope_identity` FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` WHERE `id` = 2',
+        );
+        self::assertNotFalse($activeIdentityStatement);
+        $activeIdentity = $activeIdentityStatement->fetchColumn();
+        self::assertSame('C1|N:|N:|N:', $activeIdentity);
+
+        try {
+            $this->connection()->exec(
+                'UPDATE `' . self::IMAGE_ASSIGNMENT_TABLE . '` SET `is_default` = 2 WHERE `id` = 2',
+            );
+            self::fail('MySQL must reject values outside the is_default 0/1 domain.');
+        } catch (PDOException) {
+        }
+    }
+
     public function testContentFieldFormatCheckRequiresExactLowercaseValues(): void
     {
         $this->insertCategory(1, null, 'clothing', 'active');
@@ -548,13 +586,14 @@ final class CategorySchemaIntegrationTest extends TestCase
         ?string $languageCode,
         ?string $platform,
         ?int $roleId = null,
+        bool $isDefault = false,
     ): void {
         $statement = $this->connection()->prepare(
             'INSERT INTO `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
             . '(`id`, `category_id`, `media_asset_id`, `role_id`, `language_code`, `platform`, '
-            . '`display_order`, `created_at`, `updated_at`, `deleted_at`) '
+            . '`is_default`, `display_order`, `created_at`, `updated_at`, `deleted_at`) '
             . 'VALUES (:id, :category_id, :media_asset_id, :role_id, :language_code, :platform, '
-            . ':display_order, :created_at, :updated_at, :deleted_at)',
+            . ':is_default, :display_order, :created_at, :updated_at, :deleted_at)',
         );
         $statement->execute([
             'id' => $id,
@@ -563,6 +602,7 @@ final class CategorySchemaIntegrationTest extends TestCase
             'role_id' => $roleId,
             'language_code' => $languageCode,
             'platform' => $platform,
+            'is_default' => $isDefault ? 1 : 0,
             'display_order' => 1,
             'created_at' => '2026-01-01 00:00:00',
             'updated_at' => '2026-01-01 00:00:00',

@@ -24,6 +24,7 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
         public DateTimeImmutable $updatedAt,
         public ?DateTimeImmutable $deletedAt,
         public ?int $roleId = null,
+        public bool $isDefault = false,
     ) {
         if ($id < 1) {
             throw CategoryInvalidArgumentException::nonPositiveId('id');
@@ -50,7 +51,7 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
         $this->platform = $scope->platform;
     }
 
-    /** @return array{id: int, categoryId: int, mediaAssetId: int, roleId: ?int, languageCode: ?string, platform: ?string, displayOrder: int, createdAt: string, updatedAt: string, deletedAt: ?string} */
+    /** @return array{id: int, categoryId: int, mediaAssetId: int, roleId: ?int, languageCode: ?string, platform: ?string, displayOrder: int, createdAt: string, updatedAt: string, deletedAt: ?string, isDefault: bool} */
     public function jsonSerialize(): mixed
     {
         return [
@@ -64,6 +65,7 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
             'createdAt' => $this->createdAt->format(DATE_ATOM),
             'updatedAt' => $this->updatedAt->format(DATE_ATOM),
             'deletedAt' => $this->deletedAt?->format(DATE_ATOM),
+            'isDefault' => $this->isDefault,
         ];
     }
 }

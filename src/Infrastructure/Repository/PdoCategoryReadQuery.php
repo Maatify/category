@@ -237,6 +237,7 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             . 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
             . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
             . '`assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`is_default`, '
             . '`assignment`.`display_order`, `assignment`.`created_at`, '
             . '`assignment`.`updated_at`, `assignment`.`deleted_at` '
             . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment` '
@@ -455,6 +456,7 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
             roleId: $this->nullableIntegerValue($row, 'role_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
+            isDefault: $this->booleanValue($row, 'is_default'),
             displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
@@ -532,6 +534,20 @@ final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
         }
 
         return (int) $value;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function booleanValue(array $row, string $column): bool
+    {
+        $value = $row[$column] ?? null;
+        if ($value === 0 || $value === '0') {
+            return false;
+        }
+        if ($value === 1 || $value === '1') {
+            return true;
+        }
+
+        throw CategoryPersistenceException::unexpectedColumnType($column);
     }
 
     /** @param array<string, mixed> $row */

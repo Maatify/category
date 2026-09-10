@@ -86,6 +86,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
             createdAt: $timestamp,
             updatedAt: $timestamp,
             deletedAt: null,
+            isDefault: true,
         );
         $contentField = new CategoryContentFieldDTO(
             id: 17,
