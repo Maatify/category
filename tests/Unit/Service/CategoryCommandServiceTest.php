@@ -19,10 +19,12 @@ use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
@@ -378,12 +380,16 @@ final class CategoryCommandServiceTest extends TestCase
         $service->updateImageAssignmentDisplayOrder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand($createdId, 2),
         );
+        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($createdId));
+        $service->clearImageAssignmentDefault(new ClearCategoryImageAssignmentDefaultCommand($createdId));
         $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($createdId));
         $service->restoreImageAssignment(new RestoreCategoryImageAssignmentCommand($createdId));
 
         self::assertSame(77, $createdId);
         self::assertNotNull($imageRepository->created);
         self::assertNotNull($imageRepository->displayOrderUpdated);
+        self::assertNotNull($imageRepository->defaultSet);
+        self::assertNotNull($imageRepository->defaultCleared);
         self::assertNotNull($imageRepository->softDeleted);
         self::assertNotNull($imageRepository->restored);
         self::assertSame(5, $imageRepository->created->categoryId);
@@ -391,7 +397,9 @@ final class CategoryCommandServiceTest extends TestCase
         self::assertSame(2, $imageRepository->displayOrderUpdated->displayOrder);
         self::assertSame($createdId, $imageRepository->softDeleted->assignmentId);
         self::assertSame($createdId, $imageRepository->restored->assignmentId);
-        self::assertSame(4, $transaction->runs);
+        self::assertSame($createdId, $imageRepository->defaultSet->assignmentId);
+        self::assertSame($createdId, $imageRepository->defaultCleared->assignmentId);
+        self::assertSame(6, $transaction->runs);
     }
 
     private function service(
@@ -701,6 +709,8 @@ final class InMemoryCategoryImageAssignmentCommandRepository implements Category
 {
     public ?CreateCategoryImageAssignmentCommand $created = null;
     public ?UpdateCategoryImageAssignmentDisplayOrderCommand $displayOrderUpdated = null;
+    public ?SetCategoryImageAssignmentDefaultCommand $defaultSet = null;
+    public ?ClearCategoryImageAssignmentDefaultCommand $defaultCleared = null;
     public ?SoftDeleteCategoryImageAssignmentCommand $softDeleted = null;
     public ?RestoreCategoryImageAssignmentCommand $restored = null;
 
@@ -716,6 +726,24 @@ final class InMemoryCategoryImageAssignmentCommandRepository implements Category
         DateTimeImmutable $occurredAt,
     ): bool {
         $this->displayOrderUpdated = $command;
+
+        return true;
+    }
+
+    public function setDefault(
+        SetCategoryImageAssignmentDefaultCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->defaultSet = $command;
+
+        return true;
+    }
+
+    public function clearDefault(
+        ClearCategoryImageAssignmentDefaultCommand $command,
+        DateTimeImmutable $occurredAt,
+    ): bool {
+        $this->defaultCleared = $command;
 
         return true;
     }

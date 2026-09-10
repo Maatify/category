@@ -38,6 +38,11 @@ tag, release date, or owner-approved release metadata is claimed.
   ordering, soft-delete/restore lifecycle, management reads, and ancestor-aware
   consumer reads. Category stores only the host-provided Media Asset identity;
   Media lifecycle remains outside the package.
+- Added explicit Category Image Assignment defaults within exact
+  (category_id, role_id, language_code, platform) scopes. Each scope allows
+  zero or one active default, with shared-transaction Set/Clear mutations and a
+  conditional generated MySQL uniqueness identity; no automatic fallback or
+  promotion exists.
 - Added the package-owned Category Image Role registry with immutable globally
   unique keys, typed active/inactive status, soft-delete/restore lifecycle,
   permanent key reservation, management reads, and Role-aware exact Image

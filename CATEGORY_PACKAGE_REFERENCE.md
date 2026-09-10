@@ -75,7 +75,12 @@ non-deleted Role; existing assignments are hidden from consumer reads while the
 Role is inactive or deleted, but remain visible to management reads. Empty
 strings are invalid, and no platform enum or fallback is defined. The same
 Media Asset may be used in different scopes. Ordering is independent for each
-Category and exact scope.
+Category and exact scope. Default is an explicit property of Category Image
+Assignment within one exact scope; zero or one default is allowed and no
+automatic fallback or promotion exists. The default is independent from
+`display_order`; soft-deleting a default clears it and restoring the assignment
+leaves it non-default. The `isDefault` value is exposed by visible, management,
+and mutation-support Image Assignment hydration.
 
 ### Category Image Role model
 
@@ -163,6 +168,8 @@ The immutable record DTOs are:
 - `RestoreCategoryImageRoleCommand`
 - `CreateCategoryImageAssignmentCommand`
 - `UpdateCategoryImageAssignmentDisplayOrderCommand`
+- `SetCategoryImageAssignmentDefaultCommand`
+- `ClearCategoryImageAssignmentDefaultCommand`
 - `SoftDeleteCategoryImageAssignmentCommand`
 - `RestoreCategoryImageAssignmentCommand`
 - `CreateCategoryContentFieldCommand`
@@ -193,7 +200,8 @@ immutable identity.
   delete/restore, parent movement, cycle prevention, Category soft delete,
   restore, status, and display order, plus Image Role creation, status update,
   soft deletion, restoration, and Image Assignment creation, exact scope
-  ordering, soft deletion, and restoration, plus Content Field creation,
+  ordering, explicit default assignment/clearing, soft deletion, and
+  restoration, plus Content Field creation,
   value/format updates, exact-scope ordering, soft deletion, and restoration.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
   identity and list reads.
@@ -260,6 +268,8 @@ CreateCategoryImageAssignmentCommand(string|int $categoryId,
                                      string|int|null $roleId = null)
 UpdateCategoryImageAssignmentDisplayOrderCommand(string|int $assignmentId,
                                                  int $displayOrder)
+SetCategoryImageAssignmentDefaultCommand(string|int $assignmentId)
+ClearCategoryImageAssignmentDefaultCommand(string|int $assignmentId)
 SoftDeleteCategoryImageAssignmentCommand(string|int $assignmentId)
 RestoreCategoryImageAssignmentCommand(string|int $assignmentId)
 
@@ -310,7 +320,8 @@ CategoryImageAssignmentDTO(int $id, int $categoryId, int $mediaAssetId,
                            ?string $languageCode, ?string $platform,
                            int $displayOrder, DateTimeImmutable $createdAt,
                            DateTimeImmutable $updatedAt,
-                           ?DateTimeImmutable $deletedAt, ?int $roleId = null)
+                           ?DateTimeImmutable $deletedAt, ?int $roleId = null,
+                           bool $isDefault = false)
 CategoryContentFieldScopeDTO(?string $languageCode = null,
                              ?string $platform = null)
 CategoryContentFieldDTO(int $id, int $categoryId, string $fieldKey,
@@ -371,6 +382,8 @@ CategoryCommandServiceInterface
   softDeleteImageRole(SoftDeleteCategoryImageRoleCommand): void
   restoreImageRole(RestoreCategoryImageRoleCommand): void
   createImageAssignment(CreateCategoryImageAssignmentCommand): int
+  setImageAssignmentDefault(SetCategoryImageAssignmentDefaultCommand): void
+  clearImageAssignmentDefault(ClearCategoryImageAssignmentDefaultCommand): void
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
   restore(RestoreCategoryCommand): void
@@ -434,6 +447,8 @@ CategoryImageRoleCommandRepositoryInterface
 CategoryImageAssignmentCommandRepositoryInterface
   create(CreateCategoryImageAssignmentCommand, DateTimeImmutable): int
   updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand, DateTimeImmutable): bool
+  setDefault(SetCategoryImageAssignmentDefaultCommand, DateTimeImmutable): bool
+  clearDefault(ClearCategoryImageAssignmentDefaultCommand, DateTimeImmutable): bool
   softDelete(SoftDeleteCategoryImageAssignmentCommand, DateTimeImmutable): bool
   restore(RestoreCategoryImageAssignmentCommand, DateTimeImmutable): bool
 
@@ -602,6 +617,12 @@ ancestor path to be active and non-deleted.
   rows; the same Media Asset may be assigned in other exact scopes.
 - Image Assignment ordering is independent per Category and exact
   language/platform/Role scope. NULL Role is distinct from every concrete Role.
+- Default is an explicit property of Category Image Assignment within one exact
+  scope (category_id, role_id, language_code, platform); zero or one active
+  default is allowed. Set/Clear are explicit mutations; creation never
+  auto-selects a default, and changing display_order does not change it.
+  Soft-deleting a default clears it in the same mutation, restoration leaves it
+  non-default, and no fallback or promotion occurs.
 - Content Field identity `(category_id, field_key, language_code, platform)` is
   immutable and unique, including soft-deleted rows; NULL scopes use
   NULL-safe database identity values.
@@ -677,8 +698,13 @@ NULL-normalized language/platform identities for their own immutable
 four-part identity and generated exact-scope ordering keys for locking and
 ordering. Image Assignments use generated NULL-normalized Role/language/platform
 identities for their immutable five-part identity and generated exact-scope
-ordering keys. Image Assignment `role_id` has an internal restrictive foreign
-key to the Image Role registry; there are no Host-table foreign keys. Image
+ordering keys. Image Assignments also persist `is_default` as `TINYINT(1)` with
+an enforced `0/1` check. A conditional generated `default_scope_identity` is
+non-NULL only for an active default and has a unique key, so MySQL enforces
+zero or one active default per exact scope without preventing multiple
+non-default or soft-deleted rows. Image Assignment `role_id` has an internal
+restrictive foreign key to the Image Role registry; there are no Host-table
+foreign keys. Image
 Role `status` and Content Field `format` use case-sensitive `utf8mb4_bin`
 column collations, and `JSON_VALID(value)` is enforced for exact lowercase
 `json` rows.
@@ -698,6 +724,13 @@ Ordering API, including nullable root scopes and atomic `updated_at` mutation.
 Creation locks the target scope inside the package transaction before asking
 the API for `MAX(display_order) + 1`. The package does not implement a local
 ordering or pagination substitute.
+
+Default assignment and clearing use the same shared transaction runner and PDO
+instance. The write adapter locks every row in the target generated exact
+scope, revalidates the active target, clears any current active default, and
+then sets the requested target. This scope lock and the conditional generated
+unique key provide application- and database-level protection against
+concurrent default changes.
 
 `CategoryCommandService` wraps orchestrated mutations with the shared
 `TransactionRunnerInterface`. The Host provides `PdoTransactionRunner` using

@@ -7,6 +7,7 @@ namespace Maatify\Category\Contract;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
@@ -17,6 +18,7 @@ use Maatify\Category\Command\RestoreCategoryImageRoleCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageRoleCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
@@ -36,6 +38,10 @@ interface CategoryCommandServiceInterface
     public function createContent(CreateCategoryContentCommand $command): int;
 
     public function createImageAssignment(CreateCategoryImageAssignmentCommand $command): int;
+
+    public function setImageAssignmentDefault(SetCategoryImageAssignmentDefaultCommand $command): void;
+
+    public function clearImageAssignmentDefault(ClearCategoryImageAssignmentDefaultCommand $command): void;
 
     public function createImageRole(CreateCategoryImageRoleCommand $command): int;
 

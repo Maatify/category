@@ -11,6 +11,7 @@ use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
@@ -987,6 +988,69 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $createdId = $service->create(new CreateCategoryCommand('after-write-failure'));
         self::assertSame($createdId, (new PdoCategoryQueryReader($connection, new FixedCategoryClock()))->findByCode('after-write-failure')?->id);
         self::assertFalse($connection->inTransaction());
+    }
+
+    public function testConcurrentDefaultChangesWaitOnTheExactScopeAndPreserveOneDefault(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-default-category'));
+        $firstId = $service->createImageAssignment(
+            new CreateCategoryImageAssignmentCommand($categoryId, 705),
+        );
+        $secondId = $service->createImageAssignment(
+            new CreateCategoryImageAssignmentCommand($categoryId, 706),
+        );
+
+        $locker = $this->newConnection();
+        $locker->beginTransaction();
+        $lockStatement = $locker->prepare(
+            'SELECT id FROM maa_category_category_image_assignments '
+            . 'WHERE ordering_scope = (SELECT ordering_scope '
+            . 'FROM maa_category_category_image_assignments WHERE id = :assignment_id) '
+            . 'FOR UPDATE',
+        );
+        $lockStatement->execute(['assignment_id' => $firstId]);
+        self::assertNotFalse($lockStatement->fetchColumn());
+
+        $blockedConnection = $this->newConnection();
+        $this->setLockWaitTimeout($blockedConnection);
+        $blockedService = $this->service($blockedConnection);
+
+        try {
+            $this->assertLockWaitTimeout(
+                function () use ($blockedService, $secondId): void {
+                    $blockedService->setImageAssignmentDefault(
+                        new SetCategoryImageAssignmentDefaultCommand($secondId),
+                    );
+                },
+                $blockedConnection,
+                'A concurrent default change must wait for the exact default scope lock.',
+            );
+
+            $locker->rollBack();
+            $blockedService->setImageAssignmentDefault(
+                new SetCategoryImageAssignmentDefaultCommand($secondId),
+            );
+
+            $defaultStatement = $this->connection()->prepare(
+                'SELECT id FROM maa_category_category_image_assignments '
+                . 'WHERE category_id = :category_id '
+                . 'AND language_code IS NULL AND platform IS NULL AND role_id IS NULL '
+                . 'AND deleted_at IS NULL AND is_default = 1',
+            );
+            $defaultStatement->execute(['category_id' => $categoryId]);
+            $defaultIds = [];
+            foreach ($defaultStatement->fetchAll(PDO::FETCH_COLUMN) as $id) {
+                if (!is_int($id) && !is_string($id)) {
+                    self::fail('The active default Image Assignment identity must be scalar.');
+                }
+                $defaultIds[] = (int) $id;
+            }
+            self::assertSame([$secondId], $defaultIds);
+        } finally {
+            $this->closeConnection($locker);
+            $this->closeConnection($blockedConnection);
+        }
     }
 
     private function service(PDO $connection, ?FixedCategoryClock $clock = null): CategoryCommandService

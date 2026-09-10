@@ -7,6 +7,8 @@ use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
@@ -351,6 +353,9 @@ try {
     $imageAssignmentId = $commandService->createImageAssignment(
         new CreateCategoryImageAssignmentCommand($categoryId, 700),
     );
+    $secondImageAssignmentId = $commandService->createImageAssignment(
+        new CreateCategoryImageAssignmentCommand($categoryId, 702),
+    );
     $localizedImageAssignmentId = $commandService->createImageAssignment(
         new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
     );
@@ -375,11 +380,34 @@ try {
         && $contentId > 0
         && $localizedContentId > 0
         && $imageAssignmentId > 0
+        && $secondImageAssignmentId > 0
         && $localizedImageAssignmentId > 0
         && $imageRoleId > 0
         && $roleImageAssignmentId > 0
         && $contentFieldId > 0,
         'Standalone mutation returned invalid IDs.',
+    );
+
+    $commandService->setImageAssignmentDefault(
+        new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
+    );
+    $commandService->setImageAssignmentDefault(
+        new SetCategoryImageAssignmentDefaultCommand($secondImageAssignmentId),
+    );
+    standalone_consumer_require(
+        !$managementService->getImageAssignmentById($imageAssignmentId)->isDefault
+        && $managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault,
+        'Standalone default assignment switch did not clear the previous default.',
+    );
+    $commandService->clearImageAssignmentDefault(
+        new ClearCategoryImageAssignmentDefaultCommand($secondImageAssignmentId),
+    );
+    standalone_consumer_require(
+        !$managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault,
+        'Standalone default clear did not remove the explicit default.',
+    );
+    $commandService->setImageAssignmentDefault(
+        new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
     );
 
     $category = $queryService->getById($categoryId);
@@ -412,7 +440,7 @@ try {
         'Standalone query did not return both unlocalized and localized Content.',
     );
     standalone_consumer_require(
-        $queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 1,
+        $queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 2,
         'Standalone exact unlocalized Image Assignment query returned the wrong rows.',
     );
     standalone_consumer_require(
@@ -497,9 +525,16 @@ try {
         'Standalone management read service returned the wrong Image Assignment.',
     );
     standalone_consumer_require(
+        $managementService->getImageAssignmentById($imageAssignmentId)->isDefault
+        && !$managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault
+        && !$managementService->getImageAssignmentById($localizedImageAssignmentId)->isDefault
+        && !$managementService->getImageAssignmentById($roleImageAssignmentId)->isDefault,
+        'Standalone management hydration returned the wrong Image Assignment default state.',
+    );
+    standalone_consumer_require(
         $managementService->listImageAssignments(
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
-        )->count() === 3,
+        )->count() === 4,
         'Standalone management Image Assignment list did not return all scopes.',
     );
     standalone_consumer_require(

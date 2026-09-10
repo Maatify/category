@@ -142,7 +142,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     {
         $statement = $this->pdo->prepare(
             'SELECT `id`, `category_id`, `media_asset_id`, `role_id`, `language_code`, `platform`, '
-            . '`display_order`, `created_at`, `updated_at`, `deleted_at` '
+            . '`is_default`, `display_order`, `created_at`, `updated_at`, `deleted_at` '
             . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
             . 'WHERE `id` = :id LIMIT 1'
             . ($forUpdate ? ' FOR UPDATE' : ''),
@@ -245,6 +245,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
             mediaAssetId: $this->integerValue($row, 'media_asset_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
+            isDefault: $this->booleanValue($row, 'is_default'),
             displayOrder: $this->integerValue($row, 'display_order'),
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
@@ -343,6 +344,20 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         }
 
         return (int) $value;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function booleanValue(array $row, string $column): bool
+    {
+        $value = $row[$column] ?? null;
+        if ($value === 0 || $value === '0') {
+            return false;
+        }
+        if ($value === 1 || $value === '1') {
+            return true;
+        }
+
+        throw CategoryPersistenceException::unexpectedColumnType($column);
     }
 
     /** @param array<string, mixed> $row */

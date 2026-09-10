@@ -16,6 +16,7 @@ use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageRoleDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
+use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
@@ -29,6 +30,7 @@ use Maatify\Category\Command\RestoreCategoryImageRoleCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageRoleCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
@@ -100,6 +102,24 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
             $this->requireActiveImageRoleForUpdate($command->roleId);
 
             return $this->imageAssignmentCommandRepository->create($command, $this->clock->now());
+        });
+    }
+
+    public function setImageAssignmentDefault(SetCategoryImageAssignmentDefaultCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            if (!$this->imageAssignmentCommandRepository->setDefault($command, $this->clock->now())) {
+                throw CategoryImageAssignmentNotFoundException::withId($command->assignmentId);
+            }
+        });
+    }
+
+    public function clearImageAssignmentDefault(ClearCategoryImageAssignmentDefaultCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            if (!$this->imageAssignmentCommandRepository->clearDefault($command, $this->clock->now())) {
+                throw CategoryImageAssignmentNotFoundException::withId($command->assignmentId);
+            }
         });
     }
 

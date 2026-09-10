@@ -51,7 +51,14 @@ generated `ordering_scope` lets the application use the shared Ordering API
 independently for each Category and exact Role/language/platform scope.
 Role-scoped assignments require an active, non-deleted Role on creation;
 inactive or deleted Roles hide existing assignments from consumer reads while
-management reads retain them.
+management reads retain them. Default is an explicit property of Category Image
+Assignment within one exact scope (category_id, role_id, language_code,
+platform); zero or one active default is allowed and no automatic fallback or
+promotion exists. is_default is constrained to 0/1, and a conditional
+generated default_scope_identity is unique only for active default rows, so
+multiple non-default and soft-deleted rows remain allowed. Default mutation is
+explicit through Set/Clear commands, independent of display_order; soft
+deletion clears it and restoration leaves the assignment non-default.
 
 Category Content creation, content updates, soft deletion, and restoration
 are exposed through the package command service; consumers do not need direct

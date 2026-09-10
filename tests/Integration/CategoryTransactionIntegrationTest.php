@@ -7,6 +7,7 @@ namespace Maatify\Category\Tests\Integration;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
@@ -81,6 +82,59 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
         }
 
         self::assertNotNull($reader->findByCode('host-commit-category'));
+    }
+
+    public function testHostCommitAndRollbackControlImageAssignmentDefaultMutation(): void
+    {
+        $connection = $this->connection();
+        $service = $this->service($connection);
+        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
+        $categoryId = $service->create(new CreateCategoryCommand('host-default-transaction-category'));
+        $firstId = $service->createImageAssignment(
+            new CreateCategoryImageAssignmentCommand($categoryId, 1003),
+        );
+        $secondId = $service->createImageAssignment(
+            new CreateCategoryImageAssignmentCommand($categoryId, 1004),
+        );
+
+        $connection->beginTransaction();
+        try {
+            $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
+            self::assertTrue($connection->inTransaction());
+            $firstAssignment = $reader->findImageAssignmentById($firstId);
+            self::assertNotNull($firstAssignment);
+            self::assertTrue($firstAssignment->isDefault);
+            $connection->rollBack();
+        } finally {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+        }
+
+        $firstAssignment = $reader->findImageAssignmentById($firstId);
+        self::assertNotNull($firstAssignment);
+        self::assertFalse($firstAssignment->isDefault);
+
+        $connection->beginTransaction();
+        try {
+            $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($secondId));
+            self::assertTrue($connection->inTransaction());
+            $secondAssignment = $reader->findImageAssignmentById($secondId);
+            self::assertNotNull($secondAssignment);
+            self::assertTrue($secondAssignment->isDefault);
+            $connection->commit();
+        } finally {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+        }
+
+        $firstAssignment = $reader->findImageAssignmentById($firstId);
+        $secondAssignment = $reader->findImageAssignmentById($secondId);
+        self::assertNotNull($firstAssignment);
+        self::assertNotNull($secondAssignment);
+        self::assertFalse($firstAssignment->isDefault);
+        self::assertTrue($secondAssignment->isDefault);
     }
 
     public function testCategoryFailureDoesNotCloseTheCallerOwnedTransaction(): void

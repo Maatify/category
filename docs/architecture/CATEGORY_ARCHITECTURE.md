@@ -55,6 +55,11 @@ inactive/deleted Roles hide existing assignments from consumer reads. No
 fallback or hardcoded platform enum is defined. Category does not own the Media
 Asset, Language, or Platform lifecycle and creates no foreign key to those host
 concepts.
+Default is an explicit property of Category Image Assignment within one exact
+scope (category_id, role_id, language_code, platform); zero or one active
+default is allowed and no automatic fallback or promotion exists. Default
+assignment is independent from display_order. Soft deletion clears a default
+and restoration leaves the assignment non-default.
 
 Category Content Fields are arbitrary Host-defined key/value records. Their
 immutable logical identity is `(category_id, field_key, language_code, platform)`
@@ -107,6 +112,13 @@ and `ScopedOrderingManager` operations. The shared runner starts and closes a
 transaction only when no transaction is active; a caller-owned transaction on
 that PDO remains owned by the Host.
 
+Image Assignment default Set/Clear mutations use that same runner and PDO. The
+repository locks all rows in the assignment's generated exact ordering_scope,
+revalidates the target as active, clears the current default in that scope, and
+sets the target. The schema's conditional generated default_scope_identity
+unique key is the final database invariant: it is non-NULL only for active
+defaults, allowing zero or one default without restricting non-default rows.
+
 The schema uses MySQL 8.0.16+ because enforced `CHECK` constraints are part of
 the status contract. Package-owned triggers enforce `parent_id <> id` after
 database-generated identity allocation and on updates.
@@ -125,6 +137,11 @@ lifecycle. Assignment soft deletion does not release its stable identity, so
 the same exact assignment cannot be recreated; restoration preserves the same
 row and identity. An assignment is not a Category child for Category
 soft-delete blocking purposes.
+The setImageAssignmentDefault and clearImageAssignmentDefault operations are
+explicit assignment mutations. Creation never selects a default, ordering
+never changes one, Clear leaves the exact scope with zero defaults, and Set
+replaces any existing default in that same exact scope. Soft deletion clears
+the marker in the same mutation; restoration does not promote the assignment.
 
 ### Content parent-state contract
 

@@ -37,13 +37,15 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 - Typed immutable Category and Category Content DTOs.
 - Typed extensible Category Content Field DTOs with text, HTML, and JSON formats.
 - Typed Category Image Role DTOs with immutable globally unique keys and typed lifecycle status.
-- Typed Category Image Assignment DTOs with exact language/platform/role scopes.
+- Typed Category Image Assignment DTOs with exact language/platform/role scopes
+  and an explicit default marker.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
 - Category and Content create, update, soft-delete, and restore lifecycle
   mutations, plus Category status and display-order mutations.
-- Image Assignment create, exact-scope ordering, soft-delete, and restore
-  mutations; stable identity remains reserved after soft deletion.
+- Image Assignment create, exact-scope ordering, explicit default assignment,
+  soft-delete, and restore mutations; stable identity remains reserved after
+  soft deletion.
 - Image Role create, status update, soft-delete, restore, and bounded management
   reads; role keys remain permanently reserved after soft deletion.
 - Content Field create, value/format update, exact-scope ordering, soft-delete,
@@ -59,7 +61,7 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes twenty-three typed mutation Commands, immutable Category,
+The package exposes twenty-five typed mutation Commands, immutable Category,
 Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
 criteria DTOs, five enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
@@ -103,7 +105,11 @@ Role is the generic/unclassified scope. New role-scoped assignments require an
 active, non-deleted Role; existing assignments become invisible to consumers
 while their Role is inactive or soft-deleted, but remain available to
 management reads. Empty strings are invalid, no platform enum is hardcoded, and
-the same Media Asset may be used in another scope. Category does not own Media,
+the same Media Asset may be used in another scope. Default is an explicit
+property of Category Image Assignment within one exact scope; zero or one
+default is allowed and no automatic fallback or promotion exists. The default
+is independent from `display_order`; soft-deleting a default clears it and
+restoring the assignment leaves it non-default. Category does not own Media,
 Platform, or Language lifecycle and creates no foreign key to those host
 concepts.
 
