@@ -87,7 +87,7 @@ and mutation-support Image Assignment hydration.
 Image Roles are package-owned registry records with an immutable, globally
 unique `role_key`. `status` is typed `active`/`inactive` and independent from
 soft deletion. Role keys remain permanently reserved after soft deletion;
-restore preserves the same Role identity and status. The management service
+restore preserves the same Role identity and status. The management API
 provides get-by-ID, get-by-key, and bounded list reads with explicit status and
 deleted-state criteria. Role semantics, cardinality, and media policy remain
 Host-owned.
@@ -112,6 +112,14 @@ explicit reorder commands.
 ## Runtime API
 
 The production namespace is `Maatify\Category\`.
+
+The public application entry point is `Maatify\Category\Api\CategoryFactory`.
+The Host supplies its existing `PDO` connection and
+`Maatify\SharedCommon\Contracts\ClockInterface`; the Factory returns one
+`CategoryFacadeInterface`. The facade exposes domain APIs through
+`categories()`, `contents()`, `contentFields()`, `imageRoles()`, and
+`images()` (Image Assignments). Domain APIs preserve the existing consumer,
+management, transaction, ordering, and timestamp behavior.
 
 ### Status
 
@@ -195,18 +203,28 @@ immutable identity.
 
 ### Services and contracts
 
-- `CategoryCommandServiceInterface` and `CategoryCommandService` own mutation
-  orchestration for creation, content creation/content update/soft
-  delete/restore, parent movement, cycle prevention, Category soft delete,
-  restore, status, and display order, plus Image Role creation, status update,
-  soft deletion, restoration, and Image Assignment creation, exact scope
-  ordering, explicit default assignment/clearing, soft deletion, and
-  restoration, plus Content Field creation,
-  value/format updates, exact-scope ordering, soft deletion, and restoration.
-- `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
-  identity and list reads.
-- `CategoryManagementQueryServiceInterface` and
-  `CategoryManagementQueryService` expose management identity and list reads.
+- `CategoryFacadeInterface` is the single package entry point. Its accessors
+  return the five domain APIs: `categories()`, `contents()`,
+  `contentFields()`, `imageRoles()`, and `images()`. The `images()` accessor is
+  intentionally the Image Assignment API; it does not own Media.
+- `CategoryFactory::create(PDO $pdo, ClockInterface $clock):
+  CategoryFacadeInterface` is the framework-neutral host-wiring entry point.
+  It builds all PDO adapters, one shared transaction runner, and one shared
+  ordering manager around the supplied primitives.
+- `CategoryServiceInterface`/`CategoryService` own Category mutation
+  orchestration and Category consumer/management reads only.
+- `ContentServiceInterface`/`ContentService` own Category Content mutation
+  orchestration and Content consumer/management reads only.
+- `ContentFieldServiceInterface`/`ContentFieldService` own Category Content
+  Field mutation orchestration and Field consumer/management reads only.
+- `ImageRoleServiceInterface`/`ImageRoleService` own Image Role lifecycle and
+  management reads only.
+- `ImageAssignmentServiceInterface`/`ImageAssignmentService` own Image
+  Assignment lifecycle, exact-scope ordering/default behavior, and
+  consumer/management reads only.
+- Each domain API is a thin public delegation boundary over its matching
+  domain service. Business orchestration is not duplicated in the facade,
+  Factory, or API wrappers.
 - `CategoryCommandRepositoryInterface` is the Category write port.
 - `CategoryContentCommandRepositoryInterface` is the Content
   lifecycle write port.
@@ -231,7 +249,7 @@ immutable identity.
   and is separate from both mutation-support reads and consumer visibility
   reads.
 - `Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface` defines
-  the shared transaction boundary used by the application service. The Host
+  the shared transaction boundary used by the domain services. The Factory
   wires `PdoTransactionRunner` with the same PDO instance used by Category
   repositories and shared Ordering operations.
 
@@ -374,55 +392,66 @@ CategoryImageAssignmentRoleFilterModeEnum: OMITTED = 'omitted',
 #### Public contracts and method signatures
 
 ```text
-CategoryCommandServiceInterface
+CategoryFacadeInterface
+  categories(): CategoryApiInterface
+  contents(): ContentApiInterface
+  contentFields(): ContentFieldApiInterface
+  imageRoles(): ImageRoleApiInterface
+  images(): ImageAssignmentApiInterface
+
+CategoryApiInterface [Maatify\Category\Api\Domain]
   create(CreateCategoryCommand): int
-  createContent(CreateCategoryContentCommand): int
-  createImageRole(CreateCategoryImageRoleCommand): int
-  updateImageRoleStatus(UpdateCategoryImageRoleStatusCommand): void
-  softDeleteImageRole(SoftDeleteCategoryImageRoleCommand): void
-  restoreImageRole(RestoreCategoryImageRoleCommand): void
-  createImageAssignment(CreateCategoryImageAssignmentCommand): int
-  setImageAssignmentDefault(SetCategoryImageAssignmentDefaultCommand): void
-  clearImageAssignmentDefault(ClearCategoryImageAssignmentDefaultCommand): void
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
   restore(RestoreCategoryCommand): void
   updateStatus(UpdateCategoryStatusCommand): void
   updateDisplayOrder(UpdateCategoryDisplayOrderCommand): void
-  updateContent(UpdateCategoryContentCommand): void
-  softDeleteContent(SoftDeleteCategoryContentCommand): void
-  restoreContent(RestoreCategoryContentCommand): void
-  updateImageAssignmentDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
-  softDeleteImageAssignment(SoftDeleteCategoryImageAssignmentCommand): void
-  restoreImageAssignment(RestoreCategoryImageAssignmentCommand): void
-  createContentField(CreateCategoryContentFieldCommand): int
-  updateContentField(UpdateCategoryContentFieldCommand): void
-  updateContentFieldDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
-  softDeleteContentField(SoftDeleteCategoryContentFieldCommand): void
-  restoreContentField(RestoreCategoryContentFieldCommand): void
-
-CategoryQueryServiceInterface
   getById(int): CategoryDTO
-  listRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
-  listImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
-  listContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
+  listRootCategories(CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listChildren(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
+  listForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listRootCategoriesForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listChildrenForManagement(int, CategoryListCriteriaDTO): CategoryCollectionDTO
 
-CategoryManagementQueryServiceInterface
-  getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
-  listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
-  listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
-  listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
-  getContentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
-  listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
-  getImageRoleById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
-  getImageRoleByKey(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
-  listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
-  getImageAssignmentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
-  listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
-  getContentFieldById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
-  listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+ContentApiInterface
+  create(CreateCategoryContentCommand): int
+  update(UpdateCategoryContentCommand): void
+  softDelete(SoftDeleteCategoryContentCommand): void
+  restore(RestoreCategoryContentCommand): void
+  listVisibleForCategory(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
+  listForManagement(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+
+ContentFieldApiInterface
+  create(CreateCategoryContentFieldCommand): int
+  update(UpdateCategoryContentFieldCommand): void
+  updateDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
+  softDelete(SoftDeleteCategoryContentFieldCommand): void
+  restore(RestoreCategoryContentFieldCommand): void
+  listVisibleForCategory(int, CategoryContentFieldScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
+  listForManagement(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+
+ImageRoleApiInterface
+  create(CreateCategoryImageRoleCommand): int
+  updateStatus(UpdateCategoryImageRoleStatusCommand): void
+  softDelete(SoftDeleteCategoryImageRoleCommand): void
+  restore(RestoreCategoryImageRoleCommand): void
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  getByKeyForManagement(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  listForManagement(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+
+ImageAssignmentApiInterface [images()]
+  create(CreateCategoryImageAssignmentCommand): int
+  updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
+  setDefault(SetCategoryImageAssignmentDefaultCommand): void
+  clearDefault(ClearCategoryImageAssignmentDefaultCommand): void
+  softDelete(SoftDeleteCategoryImageAssignmentCommand): void
+  restore(RestoreCategoryImageAssignmentCommand): void
+  listVisibleForCategory(int, CategoryImageAssignmentScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
+  listForManagement(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
 
 CategoryCommandRepositoryInterface
   create(CreateCategoryCommand, DateTimeImmutable): int
@@ -508,16 +537,36 @@ v1 get-by-code contract.
 #### Services and PDO adapters
 
 ```text
-CategoryCommandService(CategoryCommandRepositoryInterface,
+CategoryFactory::create(PDO $pdo, ClockInterface $clock): CategoryFacadeInterface
+CategoryService(CategoryCommandRepositoryInterface,
+                CategoryQueryReaderInterface,
+                CategoryReadQueryInterface,
+                CategoryManagementReadQueryInterface,
+                TransactionRunnerInterface,
+                ClockInterface)
+ContentService(CategoryContentCommandRepositoryInterface,
+               CategoryQueryReaderInterface,
+               CategoryReadQueryInterface,
+               CategoryManagementReadQueryInterface,
+               TransactionRunnerInterface,
+               ClockInterface)
+ContentFieldService(CategoryContentFieldCommandRepositoryInterface,
+                    CategoryQueryReaderInterface,
+                    CategoryReadQueryInterface,
+                    CategoryManagementReadQueryInterface,
+                    TransactionRunnerInterface,
+                    ClockInterface)
+ImageRoleService(CategoryImageRoleCommandRepositoryInterface,
+                 CategoryQueryReaderInterface,
+                 CategoryManagementReadQueryInterface,
+                 TransactionRunnerInterface,
+                 ClockInterface)
+ImageAssignmentService(CategoryImageAssignmentCommandRepositoryInterface,
                        CategoryQueryReaderInterface,
-                       CategoryContentCommandRepositoryInterface,
-                       CategoryImageAssignmentCommandRepositoryInterface,
-                       CategoryContentFieldCommandRepositoryInterface,
+                       CategoryReadQueryInterface,
+                       CategoryManagementReadQueryInterface,
                        TransactionRunnerInterface,
-                       ClockInterface,
-                       ?CategoryImageRoleCommandRepositoryInterface = null)
-CategoryQueryService(CategoryReadQueryInterface)
-CategoryManagementQueryService(CategoryManagementReadQueryInterface)
+                       ClockInterface)
 
 PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentCommandRepository(PDO)
@@ -577,15 +626,15 @@ mutation-support names `findActiveById()` and `findActiveByIdForUpdate()` mean
 non-deleted Category lifecycle state; they do not mean
 `CategoryStatusEnum::ACTIVE`.
 
-- `createContent()` requires the Category to exist and have
+- `contents()->create()` requires the Category to exist and have
   `deleted_at IS NULL`. A Category with status `INACTIVE` is valid; a
   soft-deleted Category is rejected.
-- `updateContent()` depends on the Content's own non-deleted lifecycle
+- `contents()->update()` depends on the Content's own non-deleted lifecycle
   and is allowed when the parent Category is inactive or soft-deleted.
-- `softDeleteContent()` depends on the Content's own non-deleted
+- `contents()->softDelete()` depends on the Content's own non-deleted
   lifecycle and is allowed when the parent Category is inactive or
   soft-deleted.
-- `restoreContent()` depends on the Content row existing in its
+- `contents()->restore()` depends on the Content row existing in its
   soft-deleted lifecycle and is allowed when the parent Category is inactive
   or soft-deleted.
 
@@ -595,7 +644,7 @@ They are the v1 contract; no parent-state redesign is implied.
 
 ### Image Assignment parent-state contract
 
-`createImageAssignment()` requires a Category that exists and is not
+`images()->create()` requires a Category that exists and is not
 soft-deleted; `CategoryStatusEnum::INACTIVE` is allowed. After an Image
 Assignment is created, ordering, soft-delete, and restore operations depend on
 the assignment's own lifecycle. An Image Assignment is not a Category child
@@ -684,7 +733,8 @@ language/NULL platform. To keep language/platform exact while omitting the
 Role predicate, pass `CategoryImageAssignmentRoleFilterDTO::omitted()`. Use
 `CategoryImageAssignmentRoleFilterDTO::exactNull()` for an explicit NULL Role
 filter or `::forRole($roleId)` for one concrete Role. Image Role reads are
-management-only and are not part of `CategoryQueryService`.
+management-only and are exposed by `imageRoles()`; they are not part of
+`categories()` or any consumer visibility API.
 
 ## Persistence contract
 
@@ -740,13 +790,13 @@ then sets the requested target. This scope lock and the conditional generated
 unique key provide application- and database-level protection against
 concurrent default changes.
 
-`CategoryCommandService` wraps orchestrated mutations with the shared
-`TransactionRunnerInterface`. The Host provides `PdoTransactionRunner` using
-the same PDO instance supplied to Category repositories and Ordering
-operations. When the Host already owns a transaction on that PDO, the shared
-runner participates without committing or rolling it back; outer transaction
-ownership remains with the Host. Category does not provide a local transaction
-implementation.
+Each domain service wraps its orchestrated mutations with the shared
+`TransactionRunnerInterface`. `CategoryFactory` provides
+`PdoTransactionRunner` using the same PDO instance supplied to every Category
+repository and Ordering operation. When the Host already owns a transaction on
+that PDO, the shared runner participates without committing or rolling it back;
+outer transaction ownership remains with the Host. Category does not provide a
+local transaction implementation.
 
 Package-owned storage/hydration failures use the appropriate
 `CategoryPersistenceException` hierarchy. An external `PDOException` is not

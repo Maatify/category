@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
+use Maatify\Category\Api\CategoryFactory;
+use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
+use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
@@ -20,21 +24,8 @@ use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmen
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleAlreadyExistsException;
 use Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleUnavailableException;
-use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
-use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
-use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\ImageRole\Infrastructure\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
-use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
-use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
-use Maatify\Category\Api\Service\CategoryCommandService;
-use Maatify\Category\Api\Service\CategoryManagementQueryService;
-use Maatify\Category\Api\Service\CategoryQueryService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
-use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use PDO;
 
 final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -43,76 +34,76 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
+        $management = $this->roleService($connection);
 
-        $galleryId = $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
-        $heroId = $service->createImageRole(
+        $galleryId = $management->create(new CreateCategoryImageRoleCommand('gallery'));
+        $heroId = $management->create(
             new CreateCategoryImageRoleCommand('hero', CategoryImageRoleStatusEnum::INACTIVE),
         );
 
-        self::assertSame('gallery', $management->getImageRoleById($galleryId)->roleKey);
-        self::assertSame($galleryId, $management->getImageRoleByKey('gallery')->id);
+        self::assertSame('gallery', $management->getByIdForManagement($galleryId)->roleKey);
+        self::assertSame($galleryId, $management->getByKeyForManagement('gallery')->id);
         self::assertSame(
             [$galleryId, $heroId],
-            $this->roleIds($management->listImageRoles(new CategoryImageRoleListCriteriaDTO())),
+            $this->roleIds($management->listForManagement(new CategoryImageRoleListCriteriaDTO())),
         );
         self::assertSame(
             [$galleryId],
-            $this->roleIds($management->listImageRoles(new CategoryImageRoleListCriteriaDTO(
+            $this->roleIds($management->listForManagement(new CategoryImageRoleListCriteriaDTO(
                 status: CategoryImageRoleStatusEnum::ACTIVE,
             ))),
         );
 
         try {
-            $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
+            $management->create(new CreateCategoryImageRoleCommand('gallery'));
             self::fail('Role keys must be unique.');
         } catch (CategoryImageRoleAlreadyExistsException $exception) {
             self::assertStringContainsString('gallery', $exception->getMessage());
         }
 
-        $service->updateImageRoleStatus(
+        $management->updateStatus(
             new UpdateCategoryImageRoleStatusCommand($galleryId, CategoryImageRoleStatusEnum::INACTIVE),
         );
         self::assertSame(
             CategoryImageRoleStatusEnum::INACTIVE,
-            $management->getImageRoleById($galleryId)->status,
+            $management->getByIdForManagement($galleryId)->status,
         );
 
-        $service->softDeleteImageRole(new SoftDeleteCategoryImageRoleCommand($galleryId));
+        $management->softDelete(new SoftDeleteCategoryImageRoleCommand($galleryId));
         try {
-            $management->getImageRoleById($galleryId);
+            $management->getByIdForManagement($galleryId);
             self::fail('Soft-deleted Roles must be hidden from the default management read.');
         } catch (CategoryImageRoleNotFoundException $exception) {
             self::assertStringContainsString((string) $galleryId, $exception->getMessage());
         }
         self::assertSame(
             $galleryId,
-            $management->getImageRoleByKey('gallery', CategoryDeletedStateEnum::DELETED_ONLY)->id,
+            $management->getByKeyForManagement('gallery', CategoryDeletedStateEnum::DELETED_ONLY)->id,
         );
         self::assertSame(
             [$galleryId],
-            $this->roleIds($management->listImageRoles(new CategoryImageRoleListCriteriaDTO(
+            $this->roleIds($management->listForManagement(new CategoryImageRoleListCriteriaDTO(
                 deletedState: CategoryDeletedStateEnum::DELETED_ONLY,
             ))),
         );
 
         try {
-            $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
+            $management->create(new CreateCategoryImageRoleCommand('gallery'));
             self::fail('Soft-deleted Role keys must remain reserved.');
         } catch (CategoryImageRoleAlreadyExistsException $exception) {
             self::assertStringContainsString('gallery', $exception->getMessage());
         }
 
-        $service->restoreImageRole(new RestoreCategoryImageRoleCommand($galleryId));
-        self::assertSame($galleryId, $management->getImageRoleById($galleryId)->id);
+        $management->restore(new RestoreCategoryImageRoleCommand($galleryId));
+        self::assertSame($galleryId, $management->getByIdForManagement($galleryId)->id);
         self::assertSame(
             CategoryImageRoleStatusEnum::INACTIVE,
-            $management->getImageRoleById($galleryId)->status,
+            $management->getByIdForManagement($galleryId)->status,
         );
-        $service->updateImageRoleStatus(
+        $management->updateStatus(
             new UpdateCategoryImageRoleStatusCommand($galleryId, CategoryImageRoleStatusEnum::ACTIVE),
         );
-        self::assertSame($galleryId, $management->getImageRoleByKey('gallery')->id);
+        self::assertSame($galleryId, $management->getByKeyForManagement('gallery')->id);
     }
 
     public function testRoleAssignmentUsesExactNullableScopeAndRoleVisibility(): void
@@ -120,55 +111,56 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         $connection = $this->connection();
         $service = $this->commandService($connection);
         $clock = new FixedCategoryClock();
-        $consumer = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
+        $consumer = $this->imageService($connection);
+        $management = $this->imageService($connection);
+        $roles = $this->roleService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('role-assignment-category'));
-        $galleryId = $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
-        $heroId = $service->createImageRole(new CreateCategoryImageRoleCommand('hero'));
+        $galleryId = $roles->create(new CreateCategoryImageRoleCommand('gallery'));
+        $heroId = $roles->create(new CreateCategoryImageRoleCommand('hero'));
 
-        $genericId = $service->createImageAssignment(
+        $genericId = $consumer->create(
             new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios'),
         );
-        $galleryFirstId = $service->createImageAssignment(
+        $galleryFirstId = $consumer->create(
             new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $galleryId),
         );
-        $gallerySecondId = $service->createImageAssignment(
+        $gallerySecondId = $consumer->create(
             new CreateCategoryImageAssignmentCommand($categoryId, 1001, 'ar', 'ios', $galleryId),
         );
-        $heroIdAssignment = $service->createImageAssignment(
+        $heroIdAssignment = $consumer->create(
             new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $heroId),
         );
 
         self::assertSame(
             [$genericId],
-            $this->assignmentIds($consumer->listImageAssignments(
+            $this->assignmentIds($consumer->listVisibleForCategory(
                 $categoryId,
                 new CategoryImageAssignmentScopeDTO('ar', 'ios'),
             )),
         );
         self::assertSame(
             [$galleryFirstId, $gallerySecondId],
-            $this->assignmentIds($consumer->listImageAssignments(
+            $this->assignmentIds($consumer->listVisibleForCategory(
                 $categoryId,
                 new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
             )),
         );
         self::assertSame(
             [$heroIdAssignment],
-            $this->assignmentIds($consumer->listImageAssignments(
+            $this->assignmentIds($consumer->listVisibleForCategory(
                 $categoryId,
                 new CategoryImageAssignmentScopeDTO('ar', 'ios', $heroId),
             )),
         );
         self::assertSame(
             [$genericId, $galleryFirstId, $gallerySecondId, $heroIdAssignment],
-            $this->assignmentIds($management->listImageAssignments(
+            $this->assignmentIds($management->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
             )),
         );
         self::assertSame(
             [$genericId],
-            $this->assignmentIds($management->listImageAssignments(
+            $this->assignmentIds($management->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO('ar', 'ios', null),
@@ -177,7 +169,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
         self::assertSame(
             [$genericId, $galleryFirstId, $gallerySecondId, $heroIdAssignment],
-            $this->assignmentIds($management->listImageAssignments(
+            $this->assignmentIds($management->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
@@ -187,7 +179,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
         self::assertSame(
             [$genericId],
-            $this->assignmentIds($management->listImageAssignments(
+            $this->assignmentIds($management->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
@@ -197,7 +189,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
         self::assertSame(
             [$galleryFirstId, $gallerySecondId],
-            $this->assignmentIds($management->listImageAssignments(
+            $this->assignmentIds($management->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
@@ -207,7 +199,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
 
         try {
-            $service->createImageAssignment(
+            $consumer->create(
                 new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $galleryId),
             );
             self::fail('The exact Category/Image/Role/scope identity must be unique.');
@@ -215,36 +207,36 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
             self::assertStringContainsString((string) $galleryId, $exception->getMessage());
         }
 
-        $service->updateImageRoleStatus(
+        $roles->updateStatus(
             new UpdateCategoryImageRoleStatusCommand($galleryId, CategoryImageRoleStatusEnum::INACTIVE),
         );
-        self::assertTrue($consumer->listImageAssignments(
+        self::assertTrue($consumer->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
         )->isEmpty());
         self::assertSame(
             [$galleryFirstId, $gallerySecondId],
-            $this->assignmentIds($management->listImageAssignments(new CategoryImageAssignmentListCriteriaDTO(
+            $this->assignmentIds($management->listForManagement(new CategoryImageAssignmentListCriteriaDTO(
                 categoryId: $categoryId,
                 scope: new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
             ))),
         );
 
-        $service->updateImageRoleStatus(
+        $roles->updateStatus(
             new UpdateCategoryImageRoleStatusCommand($galleryId, CategoryImageRoleStatusEnum::ACTIVE),
         );
-        self::assertCount(2, $consumer->listImageAssignments(
+        self::assertCount(2, $consumer->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
         ));
-        $service->softDeleteImageRole(new SoftDeleteCategoryImageRoleCommand($galleryId));
-        self::assertTrue($consumer->listImageAssignments(
+        $roles->softDelete(new SoftDeleteCategoryImageRoleCommand($galleryId));
+        self::assertTrue($consumer->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
         )->isEmpty());
 
-        $service->restoreImageRole(new RestoreCategoryImageRoleCommand($galleryId));
-        self::assertCount(2, $consumer->listImageAssignments(
+        $roles->restore(new RestoreCategoryImageRoleCommand($galleryId));
+        self::assertCount(2, $consumer->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
         ));
@@ -255,13 +247,15 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         $connection = $this->connection();
         $service = $this->commandService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('role-availability-category'));
-        $inactiveRoleId = $service->createImageRole(new CreateCategoryImageRoleCommand(
+        $roleService = $this->roleService($connection);
+        $imageService = $this->imageService($connection);
+        $inactiveRoleId = $roleService->create(new CreateCategoryImageRoleCommand(
             'inactive',
             CategoryImageRoleStatusEnum::INACTIVE,
         ));
 
         try {
-            $service->createImageAssignment(
+            $imageService->create(
                 new CreateCategoryImageAssignmentCommand($categoryId, 2000, null, null, $inactiveRoleId),
             );
             self::fail('Inactive Roles must reject new assignments.');
@@ -270,7 +264,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         }
 
         try {
-            $service->createImageAssignment(
+            $imageService->create(
                 new CreateCategoryImageAssignmentCommand($categoryId, 2001, null, null, 999999),
             );
             self::fail('Missing Roles must reject new assignments.');
@@ -278,12 +272,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
             self::assertStringContainsString('999999', $exception->getMessage());
         }
 
-        $service->updateImageRoleStatus(
+        $roleService->updateStatus(
             new UpdateCategoryImageRoleStatusCommand($inactiveRoleId, CategoryImageRoleStatusEnum::ACTIVE),
         );
-        $service->softDeleteImageRole(new SoftDeleteCategoryImageRoleCommand($inactiveRoleId));
+        $roleService->softDelete(new SoftDeleteCategoryImageRoleCommand($inactiveRoleId));
         try {
-            $service->createImageAssignment(
+            $imageService->create(
                 new CreateCategoryImageAssignmentCommand($categoryId, 2002, null, null, $inactiveRoleId),
             );
             self::fail('Soft-deleted Roles must reject new assignments.');
@@ -314,17 +308,23 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         return $ids;
     }
 
-    private function commandService(PDO $connection): CategoryCommandService
+    private function commandService(PDO $connection): CategoryApiInterface
     {
-        return new CategoryCommandService(
-            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
-            new PdoCategoryContentCommandRepository($connection),
-            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
-            new PdoCategoryImageRoleCommandRepository($connection),
-        );
+        return $this->application($connection)->categories();
+    }
+
+    private function imageService(PDO $connection): ImageAssignmentApiInterface
+    {
+        return $this->application($connection)->images();
+    }
+
+    private function roleService(PDO $connection): ImageRoleApiInterface
+    {
+        return $this->application($connection)->imageRoles();
+    }
+
+    private function application(PDO $connection): \Maatify\Category\Api\Contract\CategoryFacadeInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock());
     }
 }
