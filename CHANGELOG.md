@@ -14,7 +14,7 @@ tag, release date, or owner-approved release metadata is claimed.
 
 - Initial standalone extraction of the reusable Category and optional Category
   Content domain/application contracts.
-- MySQL schema, PDO repositories, transaction adapter, and real-engine
+- MySQL schema, PDO repositories, shared Persistence transaction runner, and real-engine
   Integration tests for hierarchy, lifecycle, ordering, and visibility.
 - Root Package Reference and standards-aligned Composer/CI configuration.
 
@@ -42,5 +42,9 @@ tag, release date, or owner-approved release metadata is claimed.
   language/platform scopes, typed text/html/json formats, LONGTEXT storage,
   NULL-safe identity reserved across soft deletion, independent shared ordering,
   management reads, and exact ancestor-aware consumer reads.
+- Migrated Category orchestration from its local transaction implementation to
+  the published `maatify/persistence:^1.3` transaction contract. Hosts provide
+  `PdoTransactionRunner` with the same PDO used by Category persistence;
+  caller-owned outer transactions remain Host-owned.
 
 [Unreleased]: https://github.com/Maatify/category/compare/main...HEAD

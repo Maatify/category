@@ -30,7 +30,7 @@ interface CategoryQueryReaderInterface
      * Finds and locks an active Category row for the current transaction.
      *
      * Implementations MUST execute this lookup with a row lock and callers
-     * MUST invoke it inside CategoryTransactionInterface::run().
+     * MUST invoke it inside TransactionRunnerInterface::run().
      */
     public function findActiveByIdForUpdate(int $categoryId): ?CategoryDTO;
 
@@ -38,7 +38,7 @@ interface CategoryQueryReaderInterface
      * Finds and locks a Category row regardless of soft-delete state.
      *
      * This is the restore lookup and MUST execute with a row lock inside the
-     * current CategoryTransactionInterface::run() transaction.
+     * current TransactionRunnerInterface::run() transaction.
      */
     public function findByIdForUpdate(int $categoryId): ?CategoryDTO;
 
@@ -56,7 +56,7 @@ interface CategoryQueryReaderInterface
      * Finds and locks a Category Content regardless of soft-delete state.
      *
      * This lookup MUST execute with a row lock inside the current
-     * CategoryTransactionInterface::run() transaction.
+     * TransactionRunnerInterface::run() transaction.
      */
     public function findContentByIdForUpdate(int $contentId): ?CategoryContentDTO;
 
