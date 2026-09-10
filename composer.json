@@ -29,6 +29,7 @@
   "autoload": {
     "psr-4": {
       "Maatify\\Category\\": "src/Category/",
+      "Maatify\\Category\\Api\\Domain\\": "src/Category/Api/",
       "Maatify\\Category\\Api\\": "src/Api/",
       "Maatify\\Category\\Common\\": "src/Common/",
       "Maatify\\Category\\Content\\": "src/Content/",

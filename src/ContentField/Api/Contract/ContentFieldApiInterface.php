@@ -6,7 +6,6 @@ namespace Maatify\Category\ContentField\Api\Contract;
 
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
-use Maatify\Category\ContentField\Contract\ContentFieldServiceInterface;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
@@ -17,6 +16,7 @@ use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/** Public application contract for ContentField business mutations and visible/management reads and lists. */
 interface ContentFieldApiInterface
 {
     public function create(CreateCategoryContentFieldCommand $command): int;
@@ -35,6 +35,7 @@ interface ContentFieldApiInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryContentFieldCollectionDTO;
 
+    /** @throws \Maatify\Category\ContentField\Exception\CategoryContentFieldNotFoundException */
     public function getByIdForManagement(
         int $fieldId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

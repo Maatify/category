@@ -7,7 +7,6 @@ namespace Maatify\Category\ImageAssignment\Api\Contract;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\ImageAssignment\Contract\ImageAssignmentServiceInterface;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
@@ -18,6 +17,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/** Public application contract for ImageAssignment business mutations and visible/management reads and lists. */
 interface ImageAssignmentApiInterface
 {
     public function create(CreateCategoryImageAssignmentCommand $command): int;
@@ -38,6 +38,7 @@ interface ImageAssignmentApiInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryImageAssignmentCollectionDTO;
 
+    /** @throws \Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException */
     public function getByIdForManagement(
         int $assignmentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

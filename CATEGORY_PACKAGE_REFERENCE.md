@@ -399,7 +399,7 @@ CategoryFacadeInterface
   imageRoles(): ImageRoleApiInterface
   images(): ImageAssignmentApiInterface
 
-CategoryApiInterface [Maatify\Category\Api\Domain]
+CategoryApiInterface [Maatify\Category\Api\Domain; src/Category/Api]
   create(CreateCategoryCommand): int
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void

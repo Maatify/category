@@ -3,10 +3,28 @@
 declare(strict_types=1);
 
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
+use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\RestoreCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
@@ -364,6 +382,54 @@ try {
         'Standalone mutation returned invalid IDs.',
     );
 
+    $temporaryCategoryId = $category->categories()->create(
+        new CreateCategoryCommand('standalone-consumer-temporary'),
+    );
+    $category->categories()->move(new MoveCategoryCommand($temporaryCategoryId, $categoryId));
+    $category->categories()->updateDisplayOrder(
+        new UpdateCategoryDisplayOrderCommand($temporaryCategoryId, 2),
+    );
+    $category->categories()->softDelete(new SoftDeleteCategoryCommand($temporaryCategoryId));
+    $category->categories()->restore(new RestoreCategoryCommand($temporaryCategoryId));
+    $category->categories()->softDelete(new SoftDeleteCategoryCommand($temporaryCategoryId));
+
+    $category->categories()->updateStatus(
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE),
+    );
+    $category->categories()->updateStatus(
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::ACTIVE),
+    );
+    $category->contents()->update(
+        new UpdateCategoryContentCommand($localizedContentId, 'Standalone Category English Updated', null),
+    );
+    $category->contents()->softDelete(new SoftDeleteCategoryContentCommand($localizedContentId));
+    $category->contents()->restore(new RestoreCategoryContentCommand($localizedContentId));
+    $category->images()->updateDisplayOrder(
+        new UpdateCategoryImageAssignmentDisplayOrderCommand($imageAssignmentId, 2),
+    );
+    $category->images()->softDelete(new SoftDeleteCategoryImageAssignmentCommand($imageAssignmentId));
+    $category->images()->restore(new RestoreCategoryImageAssignmentCommand($imageAssignmentId));
+    $category->imageRoles()->updateStatus(
+        new UpdateCategoryImageRoleStatusCommand($imageRoleId, CategoryImageRoleStatusEnum::INACTIVE),
+    );
+    $category->imageRoles()->updateStatus(
+        new UpdateCategoryImageRoleStatusCommand($imageRoleId, CategoryImageRoleStatusEnum::ACTIVE),
+    );
+    $category->imageRoles()->softDelete(new SoftDeleteCategoryImageRoleCommand($imageRoleId));
+    $category->imageRoles()->restore(new RestoreCategoryImageRoleCommand($imageRoleId));
+    $category->contentFields()->update(
+        new UpdateCategoryContentFieldCommand(
+            $contentFieldId,
+            CategoryContentFieldFormatEnum::JSON,
+            '{"enabled":false}',
+        ),
+    );
+    $category->contentFields()->updateDisplayOrder(
+        new UpdateCategoryContentFieldDisplayOrderCommand($contentFieldId, 2),
+    );
+    $category->contentFields()->softDelete(new SoftDeleteCategoryContentFieldCommand($contentFieldId));
+    $category->contentFields()->restore(new RestoreCategoryContentFieldCommand($contentFieldId));
+
     $category->images()->setDefault(
         new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
     );
@@ -548,10 +614,7 @@ try {
         'Standalone management Content Field list did not return the exact scope.',
     );
     $category->categories()->updateStatus(
-        new \Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand(
-            $categoryId,
-            CategoryStatusEnum::INACTIVE,
-        ),
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE),
     );
     $updatedCategory = $category->categories()->getByIdForManagement($categoryId, CategoryDeletedStateEnum::NON_DELETED);
     $updatedAtStatement = $pdo->prepare(

@@ -16,6 +16,7 @@ use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/** Public application contract for ContentField business mutations and visible/management reads and lists. */
 interface ContentFieldServiceInterface
 {
     public function create(CreateCategoryContentFieldCommand $command): int;
@@ -34,6 +35,7 @@ interface ContentFieldServiceInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryContentFieldCollectionDTO;
 
+    /** @throws \Maatify\Category\ContentField\Exception\CategoryContentFieldNotFoundException */
     public function getByIdForManagement(
         int $fieldId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

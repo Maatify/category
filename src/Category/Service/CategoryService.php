@@ -28,7 +28,12 @@ use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
-/** Owns Category lifecycle, hierarchy, and ordering orchestration only. */
+/**
+ * Coordinates Category business rules and consumes Host-provided mutation time.
+ * Coordinates the public visible Category read contract.
+ * Coordinates the public management Category read contract.
+ * Owns Category lifecycle, hierarchy, and ordering orchestration only.
+ */
 final readonly class CategoryService implements CategoryServiceInterface
 {
     public function __construct(
@@ -48,6 +53,8 @@ final readonly class CategoryService implements CategoryServiceInterface
             }
 
             if ($command->parentId !== null) {
+                // Serialize parent validation with soft-delete and other
+                // hierarchy mutations before inserting the child.
                 $this->requireActiveCategoryForUpdate($command->parentId);
             }
 

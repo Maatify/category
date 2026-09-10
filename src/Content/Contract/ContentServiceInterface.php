@@ -14,6 +14,7 @@ use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/** Public application contract for Content business mutations and visible/management reads and lists. */
 interface ContentServiceInterface
 {
     public function create(CreateCategoryContentCommand $command): int;
@@ -29,6 +30,7 @@ interface ContentServiceInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryContentCollectionDTO;
 
+    /** @throws \Maatify\Category\Content\Exception\CategoryContentNotFoundException */
     public function getByIdForManagement(
         int $contentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

@@ -16,6 +16,11 @@ use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/**
+ * Public application contract for Category business mutations.
+ * Public application contract for visible Category reads and lists.
+ * Public application contract for management Category reads.
+ */
 interface CategoryServiceInterface
 {
     public function create(CreateCategoryCommand $command): int;
@@ -30,6 +35,7 @@ interface CategoryServiceInterface
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void;
 
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
     public function getById(int $categoryId): CategoryDTO;
 
     public function listRootCategories(
@@ -41,6 +47,7 @@ interface CategoryServiceInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryCollectionDTO;
 
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
     public function getByIdForManagement(
         int $categoryId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

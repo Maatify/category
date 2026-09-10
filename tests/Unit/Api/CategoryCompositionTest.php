@@ -7,6 +7,7 @@ namespace Maatify\Category\Tests\Unit\Api;
 use Maatify\Category\Api\CategoryFacade;
 use Maatify\Category\Api\CategoryFactory;
 use Maatify\Category\Api\Contract\CategoryFacadeInterface;
+use Maatify\Category\Api\Domain\CategoryApiInterface;
 use Maatify\Category\Api\Domain\CategoryApi;
 use Maatify\Category\Content\Api\ContentApi;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
@@ -37,7 +38,7 @@ final class CategoryCompositionTest extends TestCase
 {
     public function testFacadeExposesExactlyTheFiveDomainApis(): void
     {
-        $categories = $this->createStub(\Maatify\Category\Api\Domain\CategoryApiInterface::class);
+        $categories = $this->createStub(CategoryApiInterface::class);
         $contents = $this->createStub(ContentApiInterface::class);
         $fields = $this->createStub(ContentFieldApiInterface::class);
         $roles = $this->createStub(ImageRoleApiInterface::class);
@@ -89,6 +90,26 @@ final class CategoryCompositionTest extends TestCase
             15,
             (new ImageAssignmentApi($imageService))->create(new CreateCategoryImageAssignmentCommand(11, 99)),
         );
+    }
+
+    public function testEachDomainApiContractExposesExactlyItsDomainServiceOperations(): void
+    {
+        $contractServices = [
+            CategoryApiInterface::class => CategoryServiceInterface::class,
+            ContentApiInterface::class => ContentServiceInterface::class,
+            ContentFieldApiInterface::class => ContentFieldServiceInterface::class,
+            ImageRoleApiInterface::class => ImageRoleServiceInterface::class,
+            ImageAssignmentApiInterface::class => ImageAssignmentServiceInterface::class,
+        ];
+
+        foreach ($contractServices as $apiContract => $serviceContract) {
+            $apiMethods = $this->methodNames($apiContract);
+            $serviceMethods = $this->methodNames($serviceContract);
+            sort($apiMethods);
+            sort($serviceMethods);
+
+            self::assertSame($serviceMethods, $apiMethods, $apiContract . ' must preserve its service operation surface.');
+        }
     }
 
     public function testFactoryIsFrameworkNeutralAndRequiresHostPrimitives(): void

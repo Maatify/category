@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Maatify\Category\Api\Domain;
 
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Contract\CategoryServiceInterface;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
@@ -17,6 +16,11 @@ use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/**
+ * Public application contract for Category business mutations.
+ * Public application contract for visible Category reads and lists.
+ * Public application contract for management Category reads.
+ */
 interface CategoryApiInterface
 {
     public function create(CreateCategoryCommand $command): int;
@@ -31,6 +35,7 @@ interface CategoryApiInterface
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void;
 
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
     public function getById(int $categoryId): CategoryDTO;
 
     public function listRootCategories(
@@ -42,6 +47,7 @@ interface CategoryApiInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryCollectionDTO;
 
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
     public function getByIdForManagement(
         int $categoryId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

@@ -17,6 +17,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
+/** Public application contract for ImageAssignment business mutations and visible/management reads and lists. */
 interface ImageAssignmentServiceInterface
 {
     public function create(CreateCategoryImageAssignmentCommand $command): int;
@@ -37,6 +38,7 @@ interface ImageAssignmentServiceInterface
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryImageAssignmentCollectionDTO;
 
+    /** @throws \Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException */
     public function getByIdForManagement(
         int $assignmentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
