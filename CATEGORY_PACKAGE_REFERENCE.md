@@ -222,8 +222,10 @@ immutable identity.
 - `CategoryManagementReadQueryInterface` is the dedicated management read port
   and is separate from both mutation-support reads and consumer visibility
   reads.
-- `CategoryTransactionInterface` defines the transaction boundary used by the
-  application service.
+- `Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface` defines
+  the shared transaction boundary used by the application service. The Host
+  wires `PdoTransactionRunner` with the same PDO instance used by Category
+  repositories and shared Ordering operations.
 
 ### Complete public runtime inventory
 
@@ -480,8 +482,8 @@ CategoryQueryReaderInterface [internal mutation-support port]
   findContentFieldById(int): ?CategoryContentFieldDTO
   findContentFieldByIdForUpdate(int): ?CategoryContentFieldDTO
 
-CategoryTransactionInterface
-  run(Closure): mixed
+TransactionRunnerInterface (from maatify/persistence)
+  run(callable $callback): mixed
 ```
 
 `findByCode()` is intentionally present only on the internal
@@ -496,7 +498,7 @@ CategoryCommandService(CategoryCommandRepositoryInterface,
                        CategoryContentCommandRepositoryInterface,
                        CategoryImageAssignmentCommandRepositoryInterface,
                        CategoryContentFieldCommandRepositoryInterface,
-                       CategoryTransactionInterface,
+                       TransactionRunnerInterface,
                        ClockInterface,
                        ?CategoryImageRoleCommandRepositoryInterface = null)
 CategoryQueryService(CategoryReadQueryInterface)
@@ -510,7 +512,7 @@ PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryQueryReader(PDO)
 PdoCategoryReadQuery(PDO)
 PdoCategoryManagementReadQuery(PDO)
-PdoCategoryTransaction(PDO)
+PdoTransactionRunner(PDO) [Host wiring from maatify/persistence]
 ```
 
 The concrete adapters implement the public contracts listed above and contain
@@ -690,6 +692,14 @@ Creation locks the target scope inside the package transaction before asking
 the API for `MAX(display_order) + 1`. The package does not implement a local
 ordering or pagination substitute.
 
+`CategoryCommandService` wraps orchestrated mutations with the shared
+`TransactionRunnerInterface`. The Host provides `PdoTransactionRunner` using
+the same PDO instance supplied to Category repositories and Ordering
+operations. When the Host already owns a transaction on that PDO, the shared
+runner participates without committing or rolling it back; outer transaction
+ownership remains with the Host. Category does not provide a local transaction
+implementation.
+
 Package-owned storage/hydration failures use the appropriate
 `CategoryPersistenceException` hierarchy. An external `PDOException` is not
 wrapped and propagates unchanged.
@@ -699,7 +709,7 @@ wrapped and propagates unchanged.
 The package is `maatify/category`, type `library`, under the
 `Maatify\Category\` PSR-4 namespace. Its direct runtime requirements are PHP
 `^8.4`, `ext-mbstring`, `ext-pdo`, `ext-pdo_mysql`, `maatify/exceptions:^1.0`,
-`maatify/persistence:^1.2.0`, and `maatify/shared-common:^1.0`. Development
+`maatify/persistence:^1.3`, and `maatify/shared-common:^1.0`. Development
 tools are declared separately in `require-dev`; the reusable library does not
 commit `composer.lock`.
 
@@ -720,7 +730,6 @@ for distinct failure semantics:
 - `CategoryCodeAlreadyExistsException`
 - `CategoryCycleException`
 - `CategoryHasNonDeletedChildrenException`
-- `CategoryTransactionException`
 - `CategoryPersistenceException`
 
 They use the stable hierarchy from `maatify/exceptions`.
@@ -741,7 +750,6 @@ Named factories exposed by the package are:
 - `CategoryPersistenceException::queryFailed()`,
   `invalidAutoIncrementIdentity()`, `invalidContentAutoIncrementIdentity()`,
   `invalidStorageValue()`, and `unexpectedColumnType()`.
-- `CategoryTransactionException::alreadyActive()`.
 
 ## Verification contract
 

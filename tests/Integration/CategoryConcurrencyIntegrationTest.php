@@ -28,11 +28,11 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandReposito
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
+use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use PDO;
 use PDOException;
 use Throwable;
@@ -918,7 +918,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
     public function testWriteFailureRollsBackPartialMutationsAndCleansTheConnection(): void
     {
         $connection = $this->connection();
-        $transaction = new PdoCategoryTransaction($connection);
+        $transaction = new PdoTransactionRunner($connection);
 
         try {
             $transaction->run(function () use ($connection): void {
@@ -964,7 +964,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryTransaction($connection),
+            new PdoTransactionRunner($connection),
             $clock ?? new FixedCategoryClock(),
             new PdoCategoryImageRoleCommandRepository($connection),
         );

@@ -7,7 +7,6 @@ namespace Maatify\Category\Service;
 use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
-use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryImageRoleCommandRepositoryInterface;
@@ -52,6 +51,7 @@ use Maatify\Category\Exception\CategoryPersistenceException;
 use Maatify\Category\Exception\CategoryContentFieldNotFoundException;
 use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\SharedCommon\Contracts\ClockInterface;
+use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 
 /** Coordinates Category business rules and owns application mutation time. */
 final readonly class CategoryCommandService implements CategoryCommandServiceInterface
@@ -62,7 +62,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         private CategoryContentCommandRepositoryInterface $contentCommandRepository,
         private CategoryImageAssignmentCommandRepositoryInterface $imageAssignmentCommandRepository,
         private CategoryContentFieldCommandRepositoryInterface $contentFieldCommandRepository,
-        private CategoryTransactionInterface $transaction,
+        private TransactionRunnerInterface $transaction,
         private ClockInterface $clock,
         private ?CategoryImageRoleCommandRepositoryInterface $imageRoleCommandRepository = null,
     ) {}
@@ -209,11 +209,13 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
 
     public function updateDisplayOrder(UpdateCategoryDisplayOrderCommand $command): void
     {
-        $this->requireActiveCategory($command->categoryId);
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveCategoryForUpdate($command->categoryId);
 
-        if (!$this->commandRepository->updateDisplayOrder($command, $this->clock->now())) {
-            throw CategoryNotFoundException::withId($command->categoryId);
-        }
+            if (!$this->commandRepository->updateDisplayOrder($command, $this->clock->now())) {
+                throw CategoryNotFoundException::withId($command->categoryId);
+            }
+        });
     }
 
     public function updateContent(UpdateCategoryContentCommand $command): void
@@ -230,9 +232,13 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
     public function updateImageAssignmentDisplayOrder(
         UpdateCategoryImageAssignmentDisplayOrderCommand $command,
     ): void {
-        if (!$this->imageAssignmentCommandRepository->updateDisplayOrder($command, $this->clock->now())) {
-            throw CategoryImageAssignmentNotFoundException::withId($command->assignmentId);
-        }
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveImageAssignmentForUpdate($command->assignmentId);
+
+            if (!$this->imageAssignmentCommandRepository->updateDisplayOrder($command, $this->clock->now())) {
+                throw CategoryImageAssignmentNotFoundException::withId($command->assignmentId);
+            }
+        });
     }
 
     public function updateContentField(UpdateCategoryContentFieldCommand $command): void
@@ -249,9 +255,13 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
     public function updateContentFieldDisplayOrder(
         UpdateCategoryContentFieldDisplayOrderCommand $command,
     ): void {
-        if (!$this->contentFieldCommandRepository->updateDisplayOrder($command, $this->clock->now())) {
-            throw CategoryContentFieldNotFoundException::withId($command->fieldId);
-        }
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveContentFieldForUpdate($command->fieldId);
+
+            if (!$this->contentFieldCommandRepository->updateDisplayOrder($command, $this->clock->now())) {
+                throw CategoryContentFieldNotFoundException::withId($command->fieldId);
+            }
+        });
     }
 
     public function softDeleteContent(SoftDeleteCategoryContentCommand $command): void
@@ -318,17 +328,6 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
                 throw CategoryContentFieldNotFoundException::withId($command->fieldId);
             }
         });
-    }
-
-    private function requireActiveCategory(int $categoryId): CategoryDTO
-    {
-        $category = $this->queryReader->findActiveById($categoryId);
-
-        if ($category === null) {
-            throw CategoryNotFoundException::withId($categoryId);
-        }
-
-        return $category;
     }
 
     private function requireActiveCategoryForUpdate(int $categoryId): CategoryDTO

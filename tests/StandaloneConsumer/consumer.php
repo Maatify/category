@@ -27,11 +27,11 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandReposito
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
 use Maatify\Category\Service\CategoryQueryService;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
+use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
 
 /** @return never */
@@ -332,7 +332,7 @@ try {
         new PdoCategoryContentCommandRepository($pdo),
         new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
-        new PdoCategoryTransaction($pdo),
+        new PdoTransactionRunner($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
         new PdoCategoryImageRoleCommandRepository($pdo),
     );

@@ -25,13 +25,13 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommand
 use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\Category\Service\CategoryManagementQueryService;
 use Maatify\Category\Service\CategoryQueryService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
+use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use PDO;
 
 final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -244,7 +244,7 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryTransaction($connection),
+            new PdoTransactionRunner($connection),
             new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
         );
     }

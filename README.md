@@ -48,7 +48,8 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
   reads; role keys remain permanently reserved after soft deletion.
 - Content Field create, value/format update, exact-scope ordering, soft-delete,
   restore, management reads, and exact consumer reads; field keys remain Host-defined.
-- Transaction and row-locking contracts for hierarchy/lifecycle invariants.
+- Shared Persistence transaction and row-locking contracts for
+  hierarchy/lifecycle invariants; the Host owns outer transaction boundaries.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
 - MySQL recursive ancestor visibility filtering for query/list reads.
 - Deterministic, bounded consumer visibility lists and management reads with

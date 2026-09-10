@@ -21,7 +21,9 @@ The package owns:
 - Category, Content, Image Role, Image Assignment, and Content Field DTOs, typed mutation Commands, and input validation.
 - Category mutation/query contracts.
 - Business orchestration and domain exceptions.
-- Package-local PDO persistence adapters and transaction boundaries.
+- Package-local PDO persistence adapters and transaction orchestration through
+  the shared Persistence transaction contract; the Host owns transaction
+  wiring and outer transaction boundaries.
 - The five package-owned MySQL tables and their internal constraints.
 
 The Package owns the syntactic and storage validation of non-NULL
@@ -90,6 +92,15 @@ shifting, transaction coordination, nullable root scopes, and atomic
 asks that API for the next position inside the application transaction, and
 persists the returned value. Category does not provide a local ordering or
 pagination implementation.
+
+`CategoryCommandService` depends directly on
+`Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface` and uses
+`run()` for every orchestrated mutation, including Category, Image Assignment,
+and Content Field display-order updates. The Host provides
+`PdoTransactionRunner` with the same PDO instance used by Category repositories
+and `ScopedOrderingManager` operations. The shared runner starts and closes a
+transaction only when no transaction is active; a caller-owned transaction on
+that PDO remains owned by the Host.
 
 The schema uses MySQL 8.0.16+ because enforced `CHECK` constraints are part of
 the status contract. Package-owned triggers enforce `parent_id <> id` after

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Unit\Service;
 
-use Closure;
 use DateTimeImmutable;
 use DateTimeZone;
-use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
@@ -38,12 +36,14 @@ use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Exception\CategoryCycleException;
 use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Service\CategoryCommandService;
 use Maatify\SharedCommon\Contracts\ClockInterface;
+use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
@@ -195,8 +195,72 @@ final class CategoryCommandServiceTest extends TestCase
 
         self::assertSame(CategoryStatusEnum::INACTIVE, $commandRepository->statusUpdated?->status);
         self::assertSame(3, $commandRepository->displayOrderUpdated?->displayOrder);
+        self::assertSame([5, 5], $queryReader->lockedIds);
+        self::assertSame(2, $transaction->runs);
+    }
+
+    public function testAllDisplayOrderMutationsUseTheSharedTransactionRunnerAndLockRows(): void
+    {
+        $assignment = new CategoryImageAssignmentDTO(
+            id: 21,
+            categoryId: 5,
+            mediaAssetId: 900,
+            languageCode: null,
+            platform: null,
+            displayOrder: 1,
+            createdAt: $this->createdAt(),
+            updatedAt: $this->createdAt(),
+            deletedAt: null,
+        );
+        $field = new CategoryContentFieldDTO(
+            id: 31,
+            categoryId: 5,
+            fieldKey: 'badge',
+            languageCode: null,
+            platform: null,
+            format: CategoryContentFieldFormatEnum::TEXT,
+            value: 'new',
+            displayOrder: 1,
+            createdAt: $this->createdAt(),
+            updatedAt: $this->createdAt(),
+            deletedAt: null,
+        );
+        $queryReader = new InMemoryCategoryQueryReader(
+            [$this->category(5, null)],
+            [],
+            [$assignment],
+            [$field],
+        );
+        $commandRepository = new InMemoryCategoryCommandRepository();
+        $imageRepository = new InMemoryCategoryImageAssignmentCommandRepository();
+        $fieldRepository = new InMemoryCategoryContentFieldCommandRepository();
+        $transaction = new InMemoryCategoryTransaction();
+        $service = new CategoryCommandService(
+            $commandRepository,
+            $queryReader,
+            new InMemoryCategoryContentCommandRepository(),
+            $imageRepository,
+            $fieldRepository,
+            $transaction,
+            new FixedClock(),
+        );
+
+        $service->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand(5, 2));
+        $service->updateImageAssignmentDisplayOrder(
+            new UpdateCategoryImageAssignmentDisplayOrderCommand(21, 2),
+        );
+        $service->updateContentFieldDisplayOrder(
+            new UpdateCategoryContentFieldDisplayOrderCommand(31, 2),
+        );
+
+        self::assertSame(3, $transaction->runs);
+        self::assertSame(3, $transaction->commits);
         self::assertSame([5], $queryReader->lockedIds);
-        self::assertSame(1, $transaction->runs);
+        self::assertSame([21], $queryReader->lockedAssignmentIds);
+        self::assertSame([31], $queryReader->lockedContentFieldIds);
+        self::assertSame(2, $commandRepository->displayOrderUpdated?->displayOrder);
+        self::assertSame(2, $imageRepository->displayOrderUpdated?->displayOrder);
+        self::assertSame(2, $fieldRepository->displayOrderUpdated?->displayOrder);
     }
 
     public function testContentMutationCannotChangeItsLogicalIdentity(): void
@@ -327,7 +391,7 @@ final class CategoryCommandServiceTest extends TestCase
         self::assertSame(2, $imageRepository->displayOrderUpdated->displayOrder);
         self::assertSame($createdId, $imageRepository->softDeleted->assignmentId);
         self::assertSame($createdId, $imageRepository->restored->assignmentId);
-        self::assertSame(3, $transaction->runs);
+        self::assertSame(4, $transaction->runs);
     }
 
     private function service(
@@ -380,6 +444,12 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
     /** @var list<int> */
     public array $lockedContentIds = [];
 
+    /** @var list<int> */
+    public array $lockedAssignmentIds = [];
+
+    /** @var list<int> */
+    public array $lockedContentFieldIds = [];
+
     /** @var list<CategoryDTO> */
     private array $categories;
 
@@ -389,16 +459,21 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
     /** @var list<CategoryImageAssignmentDTO> */
     private array $assignments;
 
+    /** @var list<CategoryContentFieldDTO> */
+    private array $fields;
+
     /**
      * @param list<CategoryDTO>            $categories
      * @param list<CategoryContentDTO> $contents
      * @param list<CategoryImageAssignmentDTO> $assignments
+     * @param list<CategoryContentFieldDTO> $fields
      */
-    public function __construct(array $categories, array $contents = [], array $assignments = [])
+    public function __construct(array $categories, array $contents = [], array $assignments = [], array $fields = [])
     {
         $this->categories = $categories;
         $this->contents = $contents;
         $this->assignments = $assignments;
+        $this->fields = $fields;
     }
 
     public function findById(int $categoryId): ?CategoryDTO
@@ -490,6 +565,8 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
 
     public function findImageAssignmentByIdForUpdate(int $assignmentId): ?CategoryImageAssignmentDTO
     {
+        $this->lockedAssignmentIds[] = $assignmentId;
+
         return $this->findImageAssignmentById($assignmentId);
     }
 
@@ -505,6 +582,14 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
 
     public function findContentFieldByIdForUpdate(int $fieldId): ?CategoryContentFieldDTO
     {
+        $this->lockedContentFieldIds[] = $fieldId;
+
+        foreach ($this->fields as $field) {
+            if ($field->id === $fieldId) {
+                return $field;
+            }
+        }
+
         return null;
     }
 }
@@ -706,13 +791,13 @@ final class InMemoryCategoryContentFieldCommandRepository implements CategoryCon
 }
 
 /** @internal Test-only transaction port. */
-final class InMemoryCategoryTransaction implements CategoryTransactionInterface
+final class InMemoryCategoryTransaction implements TransactionRunnerInterface
 {
     public int $runs = 0;
     public int $commits = 0;
     public int $rollbacks = 0;
 
-    public function run(Closure $operation): mixed
+    public function run(callable $operation): mixed
     {
         $this->runs++;
 
