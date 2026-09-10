@@ -18,8 +18,8 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriter
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
-use Maatify\Category\Content\Mutation\Exception\CategoryContentNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
+use Maatify\Category\Content\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Api\Service\CategoryManagementQueryService;
 use PHPUnit\Framework\TestCase;
 

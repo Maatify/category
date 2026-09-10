@@ -16,7 +16,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Api\Service\CategoryQueryService;
 use PHPUnit\Framework\TestCase;
 

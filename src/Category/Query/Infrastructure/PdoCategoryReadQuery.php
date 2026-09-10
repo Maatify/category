@@ -17,7 +17,7 @@ use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryPersistenceException;
 use Maatify\SharedCommon\Contracts\ClockInterface;

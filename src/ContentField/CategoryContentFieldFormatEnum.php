@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ContentField\Mutation\Enum;
+namespace Maatify\Category\ContentField;
 
 use JsonException;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;

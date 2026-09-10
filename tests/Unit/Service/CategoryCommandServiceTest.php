@@ -38,7 +38,7 @@ use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDis
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Exception\CategoryCodeAlreadyExistsException;
 use Maatify\Category\Hierarchy\Exception\CategoryCycleException;
 use Maatify\Category\Lifecycle\Exception\CategoryHasNonDeletedChildrenException;

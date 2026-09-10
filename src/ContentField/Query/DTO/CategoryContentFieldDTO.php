@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\ContentField\Query\DTO;
 
 use DateTimeImmutable;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 

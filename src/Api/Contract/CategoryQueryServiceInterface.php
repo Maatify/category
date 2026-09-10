@@ -17,7 +17,7 @@ use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 interface CategoryQueryServiceInterface
 {
     /**
-     * @throws \Maatify\Category\Lifecycle\Exception\CategoryNotFoundException
+     * @throws \Maatify\Category\Exception\CategoryNotFoundException
      */
     public function getById(int $categoryId): CategoryDTO;
 

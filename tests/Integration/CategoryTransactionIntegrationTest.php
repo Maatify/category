@@ -12,9 +12,9 @@ use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDis
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
 use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
 use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;

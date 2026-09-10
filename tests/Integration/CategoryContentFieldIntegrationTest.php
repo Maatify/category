@@ -13,7 +13,7 @@ use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDis
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldAlreadyExistsException;

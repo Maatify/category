@@ -24,7 +24,7 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 /** Public application contract for management Category reads. */
 interface CategoryManagementQueryServiceInterface
 {
-    /** @throws \Maatify\Category\Lifecycle\Exception\CategoryNotFoundException */
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
     public function getById(
         int $categoryId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
@@ -36,7 +36,7 @@ interface CategoryManagementQueryServiceInterface
 
     public function listChildren(int $parentId, CategoryListCriteriaDTO $criteria): CategoryCollectionDTO;
 
-    /** @throws \Maatify\Category\Content\Mutation\Exception\CategoryContentNotFoundException */
+    /** @throws \Maatify\Category\Content\Exception\CategoryContentNotFoundException */
     public function getContentById(
         int $contentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
@@ -46,7 +46,7 @@ interface CategoryManagementQueryServiceInterface
         CategoryContentListCriteriaDTO $criteria,
     ): CategoryContentCollectionDTO;
 
-    /** @throws \Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentNotFoundException */
+    /** @throws \Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException */
     public function getImageAssignmentById(
         int $assignmentId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
@@ -56,13 +56,13 @@ interface CategoryManagementQueryServiceInterface
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO;
 
-    /** @throws \Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleNotFoundException */
+    /** @throws \Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException */
     public function getImageRoleById(
         int $roleId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
     ): CategoryImageRoleDTO;
 
-    /** @throws \Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleNotFoundException */
+    /** @throws \Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException */
     public function getImageRoleByKey(
         string $roleKey,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
@@ -70,7 +70,7 @@ interface CategoryManagementQueryServiceInterface
 
     public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO;
 
-    /** @throws \Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldNotFoundException */
+    /** @throws \Maatify\Category\ContentField\Exception\CategoryContentFieldNotFoundException */
     public function getContentFieldById(
         int $fieldId,
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,

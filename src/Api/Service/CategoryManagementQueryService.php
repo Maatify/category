@@ -23,11 +23,11 @@ use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
-use Maatify\Category\Content\Mutation\Exception\CategoryContentNotFoundException;
-use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentNotFoundException;
-use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleNotFoundException;
-use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
+use Maatify\Category\Content\Exception\CategoryContentNotFoundException;
+use Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException;
+use Maatify\Category\ContentField\Exception\CategoryContentFieldNotFoundException;
 
 /** Coordinates the public management Category read contract. */
 final readonly class CategoryManagementQueryService implements CategoryManagementQueryServiceInterface

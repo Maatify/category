@@ -18,7 +18,7 @@ use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;

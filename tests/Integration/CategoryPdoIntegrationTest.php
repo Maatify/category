@@ -19,7 +19,7 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Hierarchy\Exception\CategoryCycleException;
 use Maatify\Category\Lifecycle\Exception\CategoryHasNonDeletedChildrenException;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Content\Mutation\Exception\CategoryContentAlreadyExistsException;
 use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
 use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;

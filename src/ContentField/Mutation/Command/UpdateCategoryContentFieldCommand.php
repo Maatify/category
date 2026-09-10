@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\ContentField\Mutation\Command;
 
 use Maatify\Category\Common\DTO\CategoryIdDTO;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 
 /** Value-only mutation; Category Content Field identity is immutable. */
 final readonly class UpdateCategoryContentFieldCommand implements \JsonSerializable

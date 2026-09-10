@@ -15,7 +15,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
-use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Exception\CategoryNotFoundException;
 
 /** Coordinates the public visible Category read contract. */
 final readonly class CategoryQueryService implements CategoryQueryServiceInterface

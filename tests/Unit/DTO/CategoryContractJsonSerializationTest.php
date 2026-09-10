@@ -47,7 +47,7 @@ use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignm
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
-use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use PHPUnit\Framework\TestCase;
 

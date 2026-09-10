@@ -18,7 +18,7 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleAlreadyExistsException;
-use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleNotFoundException;
+use Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleUnavailableException;
 use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
 use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;

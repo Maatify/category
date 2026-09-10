@@ -279,7 +279,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     {
         $format = $this->stringValue($row, 'format');
         try {
-            $fieldFormat = \Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum::from($format);
+            $fieldFormat = \Maatify\Category\ContentField\CategoryContentFieldFormatEnum::from($format);
         } catch (\ValueError $exception) {
             throw CategoryPersistenceException::invalidStorageValue('format', $exception);
         }
