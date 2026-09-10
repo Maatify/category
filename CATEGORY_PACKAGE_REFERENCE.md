@@ -2,14 +2,15 @@
 
 `maatify/category` is the canonical, framework-neutral package for reusable
 hierarchical categories, optional Category Content, extensible Category Content
-Fields, and Category-owned Image Assignments. This file is the package's
+Fields, a Category-owned Image Role registry, and Category-owned Image
+Assignments. This file is the package's
 single stable contract reference. Detailed implementation notes belong under
 `docs/` and must link back here.
 
 ## Scope and boundaries
 
-The package owns Category, Category Content, Category Content Fields, and the
-direct Image Assignment relationship behavior only. It does not
+The package owns Category, Category Content, Category Content Fields, the Image
+Role registry, and direct Image Assignment relationship behavior. It does not
 own Catalog identity, Product, Pricing, Inventory, Media, HTTP, framework
 integration, permissions, presentation, or dependency-injection bindings.
 
@@ -21,6 +22,8 @@ The package is host-agnostic:
   keys only.
 - Image Assignments reference host-provided Media Asset identities without a
   Media, Platform, or Language foreign key or lifecycle dependency.
+- Image Roles use package-owned identities and lifecycle state, while the Host
+  defines role keys and their semantics.
 - Content Fields store host-defined `field_key`/value pairs without owning the
   semantic meaning of a key. Their exact nullable language/platform scopes and
   lifecycle are package-owned; the Host owns key semantics, HTML sanitization,
@@ -64,11 +67,25 @@ policy. The Package performs no implicit fallback.
 
 Category owns a direct, soft-deletable assignment relation to an external
 `mediaAssetId`. The immutable stable identity is
-`(category_id, media_asset_id, language_code, platform)`, including
-soft-deleted rows. `language_code` and `platform` are nullable exact scope
-dimensions; all four combinations are supported, empty strings are invalid,
-and no platform enum or fallback is defined. The same Media Asset may be used
-in different scopes. Ordering is independent for each Category and exact scope.
+`(category_id, media_asset_id, role_id, language_code, platform)`, including
+soft-deleted rows. `role_id`, `language_code`, and `platform` are nullable exact
+scope dimensions; every combination is supported, and NULL Role means the
+generic/unclassified scope. New role-scoped assignments require an active,
+non-deleted Role; existing assignments are hidden from consumer reads while the
+Role is inactive or deleted, but remain visible to management reads. Empty
+strings are invalid, and no platform enum or fallback is defined. The same
+Media Asset may be used in different scopes. Ordering is independent for each
+Category and exact scope.
+
+### Category Image Role model
+
+Image Roles are package-owned registry records with an immutable, globally
+unique `role_key`. `status` is typed `active`/`inactive` and independent from
+soft deletion. Role keys remain permanently reserved after soft deletion;
+restore preserves the same Role identity and status. The management service
+provides get-by-ID, get-by-key, and bounded list reads with explicit status and
+deleted-state criteria. Role semantics, cardinality, and media policy remain
+Host-owned.
 
 ### Category Content Field model
 
@@ -112,6 +129,9 @@ The immutable record DTOs are:
 - `CategoryContentDTO`
 - `CategoryCollectionDTO`
 - `CategoryContentCollectionDTO`
+- `CategoryImageRoleDTO`
+- `CategoryImageRoleCollectionDTO`
+- `CategoryImageRoleListCriteriaDTO`
 - `CategoryImageAssignmentScopeDTO`
 - `CategoryImageAssignmentDTO`
 - `CategoryImageAssignmentCollectionDTO`
@@ -136,6 +156,10 @@ The immutable record DTOs are:
 - `UpdateCategoryContentCommand`
 - `SoftDeleteCategoryContentCommand`
 - `RestoreCategoryContentCommand`
+- `CreateCategoryImageRoleCommand`
+- `UpdateCategoryImageRoleStatusCommand`
+- `SoftDeleteCategoryImageRoleCommand`
+- `RestoreCategoryImageRoleCommand`
 - `CreateCategoryImageAssignmentCommand`
 - `UpdateCategoryImageAssignmentDisplayOrderCommand`
 - `SoftDeleteCategoryImageAssignmentCommand`
@@ -166,8 +190,9 @@ immutable identity.
 - `CategoryCommandServiceInterface` and `CategoryCommandService` own mutation
   orchestration for creation, content creation/content update/soft
   delete/restore, parent movement, cycle prevention, Category soft delete,
-  restore, status, and display order, plus Image Assignment creation, exact
-  scope ordering, soft deletion, and restoration, plus Content Field creation,
+  restore, status, and display order, plus Image Role creation, status update,
+  soft deletion, restoration, and Image Assignment creation, exact scope
+  ordering, soft deletion, and restoration, plus Content Field creation,
   value/format updates, exact-scope ordering, soft deletion, and restoration.
 - `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
   identity and list reads.
@@ -180,10 +205,12 @@ immutable identity.
   lifecycle and ordering write port.
 - `CategoryContentFieldCommandRepositoryInterface` is the Content Field
   lifecycle and exact-scope ordering write port.
+- `CategoryImageRoleCommandRepositoryInterface` is the Image Role lifecycle
+  write port.
 - `CategoryQueryReaderInterface` is the mutation-support read port. Its
   `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock Category, Content, Image Assignment, and
-  Content Field rows inside the
+  explicit `ForUpdate` methods lock Category, Content, Image Role, Image
+  Assignment, and Content Field rows inside the
   application transaction.
 - `CategoryReadQueryInterface` is the dedicated visible query/read port and is
   separate from mutation-support reads.
@@ -218,10 +245,16 @@ UpdateCategoryContentCommand(string|int $contentId, string $name, ?string $descr
 SoftDeleteCategoryContentCommand(string|int $contentId)
 RestoreCategoryContentCommand(string|int $contentId)
 
+CreateCategoryImageRoleCommand(string $roleKey, CategoryImageRoleStatusEnum $status = ACTIVE)
+UpdateCategoryImageRoleStatusCommand(string|int $roleId, CategoryImageRoleStatusEnum $status)
+SoftDeleteCategoryImageRoleCommand(string|int $roleId)
+RestoreCategoryImageRoleCommand(string|int $roleId)
+
 CreateCategoryImageAssignmentCommand(string|int $categoryId,
                                      string|int $mediaAssetId,
                                      ?string $languageCode = null,
-                                     ?string $platform = null)
+                                     ?string $platform = null,
+                                     string|int|null $roleId = null)
 UpdateCategoryImageAssignmentDisplayOrderCommand(string|int $assignmentId,
                                                  int $displayOrder)
 SoftDeleteCategoryImageAssignmentCommand(string|int $assignmentId)
@@ -257,13 +290,21 @@ CategoryContentDTO(int $id, int $categoryId, ?string $languageCode,
                    DateTimeImmutable $createdAt,
                    DateTimeImmutable $updatedAt,
                    ?DateTimeImmutable $deletedAt)
+CategoryImageRoleDTO(int $id, string $roleKey, CategoryImageRoleStatusEnum $status,
+                     DateTimeImmutable $createdAt, DateTimeImmutable $updatedAt,
+                     ?DateTimeImmutable $deletedAt)
+CategoryImageRoleCollectionDTO(array $items)
+CategoryImageRoleListCriteriaDTO(?CategoryImageRoleStatusEnum $status = null,
+                                 CategoryDeletedStateEnum $deletedState = NON_DELETED,
+                                 int $maxResults = 100)
 CategoryImageAssignmentScopeDTO(?string $languageCode = null,
-                                ?string $platform = null)
+                                ?string $platform = null,
+                                string|int|null $roleId = null)
 CategoryImageAssignmentDTO(int $id, int $categoryId, int $mediaAssetId,
                            ?string $languageCode, ?string $platform,
                            int $displayOrder, DateTimeImmutable $createdAt,
                            DateTimeImmutable $updatedAt,
-                           ?DateTimeImmutable $deletedAt)
+                           ?DateTimeImmutable $deletedAt, ?int $roleId = null)
 CategoryContentFieldScopeDTO(?string $languageCode = null,
                              ?string $platform = null)
 CategoryContentFieldDTO(int $id, int $categoryId, string $fieldKey,
@@ -295,7 +336,7 @@ CategoryContentFieldListCriteriaDTO(?int $categoryId = null,
 ```
 
 All DTOs and collections are `final readonly` and `JsonSerializable`;
-collections also implement typed `IteratorAggregate` and `Countable`. The five
+collections also implement typed `IteratorAggregate` and `Countable`. The six
 criteria DTOs reject limits outside `1..100`.
 
 #### Enums
@@ -306,6 +347,7 @@ CategoryDeletedStateEnum: NON_DELETED = 'non_deleted',
                           INCLUDE_DELETED = 'include_deleted',
                           DELETED_ONLY = 'deleted_only'
 CategoryContentFieldFormatEnum: TEXT = 'text', HTML = 'html', JSON = 'json'
+CategoryImageRoleStatusEnum: ACTIVE = 'active', INACTIVE = 'inactive'
 ```
 
 #### Public contracts and method signatures
@@ -314,6 +356,10 @@ CategoryContentFieldFormatEnum: TEXT = 'text', HTML = 'html', JSON = 'json'
 CategoryCommandServiceInterface
   create(CreateCategoryCommand): int
   createContent(CreateCategoryContentCommand): int
+  createImageRole(CreateCategoryImageRoleCommand): int
+  updateImageRoleStatus(UpdateCategoryImageRoleStatusCommand): void
+  softDeleteImageRole(SoftDeleteCategoryImageRoleCommand): void
+  restoreImageRole(RestoreCategoryImageRoleCommand): void
   createImageAssignment(CreateCategoryImageAssignmentCommand): int
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
@@ -347,6 +393,9 @@ CategoryManagementQueryServiceInterface
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
   getContentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  getImageRoleById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  getImageRoleByKey(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
   getImageAssignmentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
   getContentFieldById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
@@ -365,6 +414,12 @@ CategoryContentCommandRepositoryInterface
   update(UpdateCategoryContentCommand, DateTimeImmutable): bool
   softDelete(SoftDeleteCategoryContentCommand, DateTimeImmutable): bool
   restore(RestoreCategoryContentCommand, DateTimeImmutable): bool
+
+CategoryImageRoleCommandRepositoryInterface
+  create(CreateCategoryImageRoleCommand, DateTimeImmutable): int
+  updateStatus(UpdateCategoryImageRoleStatusCommand, DateTimeImmutable): bool
+  softDelete(SoftDeleteCategoryImageRoleCommand, DateTimeImmutable): bool
+  restore(RestoreCategoryImageRoleCommand, DateTimeImmutable): bool
 
 CategoryImageAssignmentCommandRepositoryInterface
   create(CreateCategoryImageAssignmentCommand, DateTimeImmutable): int
@@ -394,6 +449,9 @@ CategoryManagementReadQueryInterface
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
   findContentById(int, CategoryDeletedStateEnum): ?CategoryContentDTO
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  findImageRoleById(int, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
+  findImageRoleByKey(string, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
+  listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
   findImageAssignmentById(int, CategoryDeletedStateEnum): ?CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
   findContentFieldById(int, CategoryDeletedStateEnum): ?CategoryContentFieldDTO
@@ -408,6 +466,7 @@ CategoryQueryReaderInterface [internal mutation-support port]
   hasNonDeletedChildrenForUpdate(int): bool
   findContentById(int): ?CategoryContentDTO
   findContentByIdForUpdate(int): ?CategoryContentDTO
+  findImageRoleByIdForUpdate(int): ?CategoryImageRoleDTO
   findImageAssignmentById(int): ?CategoryImageAssignmentDTO
   findImageAssignmentByIdForUpdate(int): ?CategoryImageAssignmentDTO
   findContentFieldById(int): ?CategoryContentFieldDTO
@@ -430,12 +489,14 @@ CategoryCommandService(CategoryCommandRepositoryInterface,
                        CategoryImageAssignmentCommandRepositoryInterface,
                        CategoryContentFieldCommandRepositoryInterface,
                        CategoryTransactionInterface,
-                       ClockInterface)
+                       ClockInterface,
+                       ?CategoryImageRoleCommandRepositoryInterface = null)
 CategoryQueryService(CategoryReadQueryInterface)
 CategoryManagementQueryService(CategoryManagementReadQueryInterface)
 
 PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentCommandRepository(PDO)
+PdoCategoryImageRoleCommandRepository(PDO)
 PdoCategoryImageAssignmentCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryQueryReader(PDO)
@@ -453,15 +514,21 @@ at most 100 rows per call. Management Content lists accept
 `CategoryContentListCriteriaDTO`, optionally filter by Category, apply an
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Content lists are ordered by `language_code, id`.
+Image Role lists are ordered by `role_key, id`.
 The package does not add local pagination, search, or language fallback. Content
 collections may contain the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
-apply exact nullable scope predicates only when a scope object is supplied,
+apply exact nullable language/platform/Role scope predicates only when a scope
+object is supplied,
 and are ordered by Category, exact scope, `display_order, id`. Visible Image
 Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
-deleted rows, and apply complete ancestor visibility with no fallback.
+deleted rows, and apply complete ancestor visibility plus active/non-deleted
+Role visibility with no fallback. Role-scoped assignment creation requires the
+Role to exist, be active, and be non-deleted.
+Management Image Role reads accept `CategoryImageRoleListCriteriaDTO` and
+provide get-by-ID/get-by-key and bounded status/deleted-state filtering.
 Management Content Field lists accept `CategoryContentFieldListCriteriaDTO`,
 apply an optional exact nullable scope predicate, and are ordered by Category,
 exact scope, and `display_order, id`. Visible Content Field lists
@@ -515,10 +582,13 @@ ancestor path to be active and non-deleted.
 - Parent movement rejects direct self-parenting and every indirect cycle,
   including `A → B → C → A`.
 - Soft delete is rejected while a Category has non-deleted children.
-- Image Assignment identity `(category_id, media_asset_id, language_code,
-  platform)` is immutable and unique, including soft-deleted rows; the same
-  Media Asset may be assigned in other exact scopes.
-- Image Assignment ordering is independent per Category and exact scope.
+- Image Role `role_key` is immutable and globally unique, including after soft
+  deletion; restoration preserves the Role identity and status.
+- Image Assignment identity `(category_id, media_asset_id, role_id,
+  language_code, platform)` is immutable and unique, including soft-deleted
+  rows; the same Media Asset may be assigned in other exact scopes.
+- Image Assignment ordering is independent per Category and exact
+  language/platform/Role scope. NULL Role is distinct from every concrete Role.
 - Content Field identity `(category_id, field_key, language_code, platform)` is
   immutable and unique, including soft-deleted rows; NULL scopes use
   NULL-safe database identity values.
@@ -529,15 +599,16 @@ ancestor path to be active and non-deleted.
   the package.
 - Content Field ordering is independent per Category and exact scope, uses
   explicit reorder commands, and is stable across soft delete/restore.
-- Restore reuses the same Category, Content, Image Assignment, or Content Field
-  identity.
+- Restore reuses the same Category, Content, Image Role, Image Assignment, or
+  Content Field identity.
 - Every mutation updates `updated_at` using the application `ClockInterface`.
 - Hierarchy/lifecycle checks and writes execute inside a real transaction with
   the required row locks.
 
 ## Query visibility contract
 
-Management query methods expose stored Category and Content state for
+Management query methods expose stored Category, Content, Image Role, and Image
+Assignment state for
 management/use-case consumers. They do not apply consumer ancestor visibility
 rules. Management reads provide Category get-by-ID, bounded all/root/child
 lists, Content get-by-ID, and bounded Content lists. Deleted records
@@ -551,7 +622,8 @@ Visible query methods:
 - List root Categories.
 - List direct children by `parent_id`.
 - Read Category Contents.
-- Read Image Assignments for an exact language/platform scope.
+- Read Image Assignments for an exact language/platform/Role scope.
+- Read Image Roles by ID/key and bounded lists.
 - Read Content Fields for an exact language/platform scope.
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
@@ -559,27 +631,32 @@ any ancestor in its complete parent path is inactive or soft-deleted. Query
 methods return typed DTOs and do not select a language or apply fallback. Their
 criteria cannot opt out of inactive/deleted filtering.
 Image Assignment and Content Field reads exclude soft-deleted rows and never
-fall back between exact scopes. Management `scope = null` means no scope
-filter; `new CategoryImageAssignmentScopeDTO()` or
-`new CategoryContentFieldScopeDTO()` means exact NULL/NULL scope.
+fall back between exact scopes. Role-scoped Image Assignment reads also require
+an active, non-deleted Role. Management `scope = null` means no scope filter;
+an explicit `CategoryImageAssignmentScopeDTO` filters all three nullable
+dimensions exactly, so `new CategoryImageAssignmentScopeDTO()` means exact
+NULL Role/NULL language/NULL platform rather than an omitted filter.
 
 ## Persistence contract
 
 The canonical schema is [`schema/category.sql`](schema/category.sql). It owns
-exactly four tables:
+exactly five tables:
 
 - `maa_category_categories`
 - `maa_category_category_contents`
+- `maa_category_category_image_roles`
 - `maa_category_category_image_assignments`
 - `maa_category_category_content_fields`
 
 The schema uses InnoDB, `utf8mb4`, `ON DELETE RESTRICT`, `ON UPDATE RESTRICT`,
-stable unique keys, status/language/platform `CHECK` enforcement, and
+stable unique keys, status/language/platform/Role `CHECK` enforcement, and
 package-owned self-parent triggers. A stored generated language identity maps
 NULL to one uniqueness value, so MySQL enforces both the single unlocalized
 row and the per-language uniqueness. Content Fields use generated
-NULL-normalized language/platform identities for their immutable four-part
-identity, and a generated exact-scope ordering key for locking and ordering.
+NULL-normalized Role/language/platform identities for the immutable five-part
+Image Assignment identity, and generated exact-scope ordering keys for locking
+and ordering. Image Assignment `role_id` has an internal restrictive foreign
+key to the Image Role registry; there are no Host-table foreign keys.
 Their declared format is checked with a case-sensitive `utf8mb4_bin` column
 collation, and `JSON_VALID(value)` is enforced for exact lowercase `json` rows.
 MySQL 8.0.16 or later is required because

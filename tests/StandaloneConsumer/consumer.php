@@ -6,22 +6,26 @@ use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
@@ -213,8 +217,8 @@ function standalone_consumer_install_schema(\PDO $pdo, string $schemaPath): void
         -1,
         PREG_SPLIT_NO_EMPTY,
     );
-    if (!is_array($statements) || count($statements) !== 6) {
-        standalone_consumer_fail('The installed Category schema must contain four tables and two triggers.');
+    if (!is_array($statements) || count($statements) !== 7) {
+        standalone_consumer_fail('The installed Category schema must contain five tables and two triggers.');
     }
 
     foreach ($statements as $statement) {
@@ -229,6 +233,7 @@ function standalone_consumer_drop_schema(\PDO $pdo): void
         'DROP TRIGGER IF EXISTS `trg_maa_category_categories_parent_not_self_bu`',
         'DROP TABLE IF EXISTS `maa_category_category_content_fields`',
         'DROP TABLE IF EXISTS `maa_category_category_image_assignments`',
+        'DROP TABLE IF EXISTS `maa_category_category_image_roles`',
         'DROP TABLE IF EXISTS `maa_category_category_contents`',
         'DROP TABLE IF EXISTS `maa_category_categories`',
     ] as $statement) {
@@ -309,8 +314,9 @@ try {
             'maa_category_category_content_fields',
             'maa_category_category_contents',
             'maa_category_category_image_assignments',
+            'maa_category_category_image_roles',
         ],
-        'The standalone schema did not create exactly its four package-owned tables.',
+        'The standalone schema did not create exactly its five package-owned tables.',
     );
     standalone_consumer_require(
         standalone_consumer_database_objects($pdo, 'triggers') === [
@@ -328,6 +334,7 @@ try {
         new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryTransaction($pdo),
         new SystemClock(new \DateTimeZone('UTC')),
+        new PdoCategoryImageRoleCommandRepository($pdo),
     );
     $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo));
     $managementReader = new PdoCategoryManagementReadQuery($pdo);
@@ -346,6 +353,12 @@ try {
     $localizedImageAssignmentId = $commandService->createImageAssignment(
         new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
     );
+    $imageRoleId = $commandService->createImageRole(
+        new CreateCategoryImageRoleCommand('gallery'),
+    );
+    $roleImageAssignmentId = $commandService->createImageAssignment(
+        new CreateCategoryImageAssignmentCommand($categoryId, 701, 'en-US', 'web', $imageRoleId),
+    );
     $contentFieldId = $commandService->createContentField(
         new CreateCategoryContentFieldCommand(
             $categoryId,
@@ -362,6 +375,8 @@ try {
         && $localizedContentId > 0
         && $imageAssignmentId > 0
         && $localizedImageAssignmentId > 0
+        && $imageRoleId > 0
+        && $roleImageAssignmentId > 0
         && $contentFieldId > 0,
         'Standalone mutation returned invalid IDs.',
     );
@@ -391,6 +406,13 @@ try {
             new CategoryImageAssignmentScopeDTO('en-US', 'web'),
         )->count() === 1,
         'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
+    );
+    standalone_consumer_require(
+        $queryService->listImageAssignments(
+            $categoryId,
+            new CategoryImageAssignmentScopeDTO('en-US', 'web', $imageRoleId),
+        )->count() === 1,
+        'Standalone exact Role-scoped Image Assignment query returned the wrong rows.',
     );
     $visibleContentFields = $queryService->listContentFields(
         $categoryId,
@@ -462,8 +484,25 @@ try {
     standalone_consumer_require(
         $managementService->listImageAssignments(
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
-        )->count() === 2,
-        'Standalone management Image Assignment list did not return both scopes.',
+        )->count() === 3,
+        'Standalone management Image Assignment list did not return all scopes.',
+    );
+    standalone_consumer_require(
+        $managementService->getImageRoleById($imageRoleId)->roleKey === 'gallery',
+        'Standalone management Role read returned the wrong Role.',
+    );
+    standalone_consumer_require(
+        $managementService->getImageRoleByKey('gallery')->id === $imageRoleId,
+        'Standalone management Role resolve returned the wrong Role.',
+    );
+    standalone_consumer_require(
+        $managementService->listImageRoles(
+            new CategoryImageRoleListCriteriaDTO(
+                status: CategoryImageRoleStatusEnum::ACTIVE,
+                maxResults: 10,
+            ),
+        )->count() === 1,
+        'Standalone management Role list did not return the stored Role.',
     );
     $managementContentField = $managementService->getContentFieldById($contentFieldId);
     standalone_consumer_require(

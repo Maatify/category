@@ -5,35 +5,30 @@ declare(strict_types=1);
 namespace Maatify\Category\DTO;
 
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 
-/** Bounded management criteria; null scope means no scope filter. */
-final readonly class CategoryImageAssignmentListCriteriaDTO implements \JsonSerializable
+/** Bounded management criteria for the package-owned Image Role registry. */
+final readonly class CategoryImageRoleListCriteriaDTO implements \JsonSerializable
 {
     public const DEFAULT_MAX_RESULTS = 100;
     public const MAX_MAX_RESULTS = 100;
 
     public function __construct(
-        public ?int $categoryId = null,
-        public ?CategoryImageAssignmentScopeDTO $scope = null,
+        public ?CategoryImageRoleStatusEnum $status = null,
         public CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
         public int $maxResults = self::DEFAULT_MAX_RESULTS,
     ) {
-        if ($categoryId !== null && $categoryId < 1) {
-            throw CategoryInvalidArgumentException::nonPositiveId('categoryId');
-        }
-
         if ($maxResults < 1 || $maxResults > self::MAX_MAX_RESULTS) {
             throw CategoryInvalidArgumentException::invalidListLimit($maxResults, self::MAX_MAX_RESULTS);
         }
     }
 
-    /** @return array{categoryId: ?int, scope: ?array{languageCode: ?string, platform: ?string, roleId: ?int}, deletedState: string, maxResults: int} */
+    /** @return array{status: ?string, deletedState: string, maxResults: int} */
     public function jsonSerialize(): mixed
     {
         return [
-            'categoryId' => $this->categoryId,
-            'scope' => $this->scope?->jsonSerialize(),
+            'status' => $this->status?->value,
             'deletedState' => $this->deletedState->value,
             'maxResults' => $this->maxResults,
         ];

@@ -234,7 +234,7 @@ final class CategoryCommandTest extends TestCase
         self::assertSame('en-US', $command->languageCode);
         self::assertSame('web', $command->platform);
         self::assertSame(
-            ['categoryId' => 42, 'mediaAssetId' => 900, 'languageCode' => 'en-US', 'platform' => 'web'],
+            ['categoryId' => 42, 'mediaAssetId' => 900, 'languageCode' => 'en-US', 'platform' => 'web', 'roleId' => null],
             $command->jsonSerialize(),
         );
         self::assertSame(

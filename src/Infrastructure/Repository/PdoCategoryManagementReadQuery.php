@@ -16,12 +16,16 @@ use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageRoleCollectionDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
+use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
 
@@ -31,6 +35,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(private PDO $pdo) {}
@@ -158,6 +163,12 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
                 $where[] = '`assignment`.`platform` = :image_platform';
                 $params['image_platform'] = $criteria->scope->platform;
             }
+            if ($criteria->scope->roleId === null) {
+                $where[] = '`assignment`.`role_id` IS NULL';
+            } else {
+                $where[] = '`assignment`.`role_id` = :image_role_id';
+                $params['image_role_id'] = $criteria->scope->roleId;
+            }
         }
 
         $statement = $this->pdo->prepare(
@@ -177,6 +188,71 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
 
         /** @var list<CategoryImageAssignmentDTO> $items */
         return new CategoryImageAssignmentCollectionDTO($items);
+    }
+
+    public function findImageRoleById(
+        int $roleId,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryImageRoleDTO {
+        $where = ['`id` = :role_id'];
+        $params = ['role_id' => $roleId];
+        $this->appendDeletedStateFilter($where, $params, $deletedState, 'role');
+
+        $statement = $this->pdo->prepare(
+            $this->imageRoleSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
+        );
+        $statement->execute($params);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateImageRole($row) : null;
+    }
+
+    public function findImageRoleByKey(
+        string $roleKey,
+        CategoryDeletedStateEnum $deletedState,
+    ): ?CategoryImageRoleDTO {
+        $where = ['`role_key` = :role_key'];
+        $params = ['role_key' => $roleKey];
+        $this->appendDeletedStateFilter($where, $params, $deletedState, 'role');
+
+        $statement = $this->pdo->prepare(
+            $this->imageRoleSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
+        );
+        $statement->execute($params);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateImageRole($row) : null;
+    }
+
+    public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO
+    {
+        $where = [];
+        /** @var array<string, int|string> $params */
+        $params = [];
+        if ($criteria->status !== null) {
+            $where[] = '`role`.`status` = :role_status';
+            $params['role_status'] = $criteria->status->value;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'role');
+
+        $statement = $this->pdo->prepare(
+            $this->imageRoleSelect()
+            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
+            . ' ORDER BY BINARY `role`.`role_key` ASC, `role`.`id` ASC LIMIT :max_results',
+        );
+        $this->executeBounded($statement, $params, $criteria->maxResults);
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        $items = [];
+        foreach ($rows as $row) {
+            $items[] = $this->hydrateImageRole($row);
+        }
+
+        /** @var list<CategoryImageRoleDTO> $items */
+        return new CategoryImageRoleCollectionDTO($items);
     }
 
     public function findContentFieldById(
@@ -299,10 +375,18 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
     private function imageAssignmentSelect(): string
     {
         return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
-            . '`assignment`.`media_asset_id`, `assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
+            . '`assignment`.`language_code`, `assignment`.`platform`, '
             . '`assignment`.`display_order`, `assignment`.`created_at`, '
-            . '`assignment`.`updated_at`, `assignment`.`deleted_at` '
+            . '`assignment`.`updated_at`, `assignment`.`deleted_at`, `assignment`.`ordering_scope` '
             . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
+    }
+
+    private function imageRoleSelect(): string
+    {
+        return 'SELECT `role`.`id`, `role`.`role_key`, `role`.`status`, '
+            . '`role`.`created_at`, `role`.`updated_at`, `role`.`deleted_at` '
+            . 'FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role`';
     }
 
     private function contentFieldSelect(): string
@@ -407,9 +491,30 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             id: $this->integerValue($row, 'id'),
             categoryId: $this->integerValue($row, 'category_id'),
             mediaAssetId: $this->integerValue($row, 'media_asset_id'),
+            roleId: $this->nullableIntegerValue($row, 'role_id'),
             languageCode: $this->nullableStringValue($row, 'language_code'),
             platform: $this->nullableStringValue($row, 'platform'),
             displayOrder: $this->integerValue($row, 'display_order'),
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateImageRole(array $row): CategoryImageRoleDTO
+    {
+        $status = $this->stringValue($row, 'status');
+        try {
+            $roleStatus = CategoryImageRoleStatusEnum::from($status);
+        } catch (\ValueError $exception) {
+            throw CategoryPersistenceException::invalidStorageValue('status', $exception);
+        }
+
+        return new CategoryImageRoleDTO(
+            id: $this->integerValue($row, 'id'),
+            roleKey: $this->stringValue($row, 'role_key'),
+            status: $roleStatus,
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
             deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
@@ -472,6 +577,20 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         }
 
         return $value;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function nullableIntegerValue(array $row, string $column): ?int
+    {
+        $value = $row[$column] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        if (!is_int($value) && !is_string($value)) {
+            throw CategoryPersistenceException::unexpectedColumnType($column);
+        }
+
+        return (int) $value;
     }
 
     /** @param array<string, mixed> $row */

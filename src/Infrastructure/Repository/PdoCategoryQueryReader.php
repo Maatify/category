@@ -10,6 +10,8 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
+use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryPersistenceException;
@@ -21,6 +23,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     private const CATEGORY_TABLE = 'maa_category_categories';
     private const CONTENT_TABLE = 'maa_category_category_contents';
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
+    private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(private PDO $pdo) {}
@@ -92,6 +95,20 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         return $this->findImageAssignment($assignmentId, true);
     }
 
+    public function findImageRoleByIdForUpdate(int $roleId): ?CategoryImageRoleDTO
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT `id`, `role_key`, `status`, `created_at`, `updated_at`, `deleted_at` '
+            . 'FROM `' . self::IMAGE_ROLE_TABLE . '` '
+            . 'WHERE `id` = :id LIMIT 1 FOR UPDATE',
+        );
+        $statement->execute(['id' => $roleId]);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $this->hydrateImageRole($row) : null;
+    }
+
     public function findContentFieldById(int $fieldId): ?CategoryContentFieldDTO
     {
         return $this->findContentField($fieldId, false);
@@ -121,7 +138,7 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
     private function findImageAssignment(int $assignmentId, bool $forUpdate): ?CategoryImageAssignmentDTO
     {
         $statement = $this->pdo->prepare(
-            'SELECT `id`, `category_id`, `media_asset_id`, `language_code`, `platform`, '
+            'SELECT `id`, `category_id`, `media_asset_id`, `role_id`, `language_code`, `platform`, '
             . '`display_order`, `created_at`, `updated_at`, `deleted_at` '
             . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` '
             . 'WHERE `id` = :id LIMIT 1'
@@ -229,6 +246,27 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
             createdAt: $this->timestampValue($row, 'created_at'),
             updatedAt: $this->timestampValue($row, 'updated_at'),
             deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+            roleId: $this->nullableIntegerValue($row, 'role_id'),
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrateImageRole(array $row): CategoryImageRoleDTO
+    {
+        $status = $this->stringValue($row, 'status');
+        try {
+            $roleStatus = CategoryImageRoleStatusEnum::from($status);
+        } catch (\ValueError $exception) {
+            throw CategoryPersistenceException::invalidStorageValue('status', $exception);
+        }
+
+        return new CategoryImageRoleDTO(
+            id: $this->integerValue($row, 'id'),
+            roleKey: $this->stringValue($row, 'role_key'),
+            status: $roleStatus,
+            createdAt: $this->timestampValue($row, 'created_at'),
+            updatedAt: $this->timestampValue($row, 'updated_at'),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
         );
     }
 
@@ -288,6 +326,20 @@ final readonly class PdoCategoryQueryReader implements CategoryQueryReaderInterf
         }
 
         return $value;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function nullableIntegerValue(array $row, string $column): ?int
+    {
+        $value = $row[$column] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        if (!is_int($value) && !is_string($value)) {
+            throw CategoryPersistenceException::unexpectedColumnType($column);
+        }
+
+        return (int) $value;
     }
 
     /** @param array<string, mixed> $row */

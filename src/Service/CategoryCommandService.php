@@ -10,26 +10,32 @@ use Maatify\Category\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Contract\CategoryTransactionInterface;
 use Maatify\Category\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryImageAssignmentCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryImageRoleCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\Command\RestoreCategoryImageRoleCommand;
 use Maatify\Category\Command\SoftDeleteCategoryCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\Command\SoftDeleteCategoryImageRoleCommand;
 use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
 use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
@@ -40,7 +46,11 @@ use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Exception\CategoryImageRoleNotFoundException;
+use Maatify\Category\Exception\CategoryImageRoleUnavailableException;
+use Maatify\Category\Exception\CategoryPersistenceException;
 use Maatify\Category\Exception\CategoryContentFieldNotFoundException;
+use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
 /** Coordinates Category business rules and owns application mutation time. */
@@ -54,6 +64,7 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         private CategoryContentFieldCommandRepositoryInterface $contentFieldCommandRepository,
         private CategoryTransactionInterface $transaction,
         private ClockInterface $clock,
+        private ?CategoryImageRoleCommandRepositoryInterface $imageRoleCommandRepository = null,
     ) {}
 
     public function create(CreateCategoryCommand $command): int
@@ -86,8 +97,52 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
     {
         return $this->transaction->run(function () use ($command): int {
             $this->requireActiveCategoryForUpdate($command->categoryId);
+            $this->requireActiveImageRoleForUpdate($command->roleId);
 
             return $this->imageAssignmentCommandRepository->create($command, $this->clock->now());
+        });
+    }
+
+    public function createImageRole(CreateCategoryImageRoleCommand $command): int
+    {
+        return $this->transaction->run(function () use ($command): int {
+            return $this->requireImageRoleCommandRepository()->create($command, $this->clock->now());
+        });
+    }
+
+    public function updateImageRoleStatus(UpdateCategoryImageRoleStatusCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireActiveImageRoleForStatusUpdate($command->roleId);
+
+            if (!$this->requireImageRoleCommandRepository()->updateStatus($command, $this->clock->now())) {
+                throw CategoryImageRoleNotFoundException::withId($command->roleId);
+            }
+        });
+    }
+
+    public function softDeleteImageRole(SoftDeleteCategoryImageRoleCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $role = $this->requireImageRoleForUpdate($command->roleId);
+            if ($role->deletedAt !== null) {
+                throw CategoryImageRoleNotFoundException::withId($command->roleId);
+            }
+
+            if (!$this->requireImageRoleCommandRepository()->softDelete($command, $this->clock->now())) {
+                throw CategoryImageRoleNotFoundException::withId($command->roleId);
+            }
+        });
+    }
+
+    public function restoreImageRole(RestoreCategoryImageRoleCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $this->requireImageRoleForUpdate($command->roleId);
+
+            if (!$this->requireImageRoleCommandRepository()->restore($command, $this->clock->now())) {
+                throw CategoryImageRoleNotFoundException::withId($command->roleId);
+            }
         });
     }
 
@@ -340,6 +395,46 @@ final readonly class CategoryCommandService implements CategoryCommandServiceInt
         }
 
         return $assignment;
+    }
+
+    private function requireActiveImageRoleForUpdate(?int $roleId): void
+    {
+        if ($roleId === null) {
+            return;
+        }
+
+        $role = $this->requireImageRoleForUpdate($roleId);
+        if ($role->deletedAt !== null || $role->status !== CategoryImageRoleStatusEnum::ACTIVE) {
+            throw CategoryImageRoleUnavailableException::withId($roleId);
+        }
+    }
+
+    private function requireActiveImageRoleForStatusUpdate(int $roleId): void
+    {
+        $role = $this->requireImageRoleForUpdate($roleId);
+        if ($role->deletedAt !== null) {
+            throw CategoryImageRoleNotFoundException::withId($roleId);
+        }
+    }
+
+    private function requireImageRoleForUpdate(int $roleId): CategoryImageRoleDTO
+    {
+        $role = $this->queryReader->findImageRoleByIdForUpdate($roleId);
+
+        if ($role === null) {
+            throw CategoryImageRoleNotFoundException::withId($roleId);
+        }
+
+        return $role;
+    }
+
+    private function requireImageRoleCommandRepository(): CategoryImageRoleCommandRepositoryInterface
+    {
+        if ($this->imageRoleCommandRepository === null) {
+            throw CategoryPersistenceException::imageRoleRepositoryNotConfigured();
+        }
+
+        return $this->imageRoleCommandRepository;
     }
 
     private function requireActiveContentFieldForUpdate(int $fieldId): CategoryContentFieldDTO

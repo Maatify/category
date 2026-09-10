@@ -23,6 +23,7 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
         public DateTimeImmutable $createdAt,
         public DateTimeImmutable $updatedAt,
         public ?DateTimeImmutable $deletedAt,
+        public ?int $roleId = null,
     ) {
         if ($id < 1) {
             throw CategoryInvalidArgumentException::nonPositiveId('id');
@@ -36,6 +37,10 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
             throw CategoryInvalidArgumentException::nonPositiveId('mediaAssetId');
         }
 
+        if ($roleId !== null && $roleId < 1) {
+            throw CategoryInvalidArgumentException::nonPositiveId('roleId');
+        }
+
         if ($displayOrder < 1) {
             throw CategoryInvalidArgumentException::invalidDisplayOrder($displayOrder);
         }
@@ -45,13 +50,14 @@ final readonly class CategoryImageAssignmentDTO implements \JsonSerializable
         $this->platform = $scope->platform;
     }
 
-    /** @return array{id: int, categoryId: int, mediaAssetId: int, languageCode: ?string, platform: ?string, displayOrder: int, createdAt: string, updatedAt: string, deletedAt: ?string} */
+    /** @return array{id: int, categoryId: int, mediaAssetId: int, roleId: ?int, languageCode: ?string, platform: ?string, displayOrder: int, createdAt: string, updatedAt: string, deletedAt: ?string} */
     public function jsonSerialize(): mixed
     {
         return [
             'id' => $this->id,
             'categoryId' => $this->categoryId,
             'mediaAssetId' => $this->mediaAssetId,
+            'roleId' => $this->roleId,
             'languageCode' => $this->languageCode,
             'platform' => $this->platform,
             'displayOrder' => $this->displayOrder,

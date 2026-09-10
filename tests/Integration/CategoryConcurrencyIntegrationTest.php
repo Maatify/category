@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\MoveCategoryCommand;
 use Maatify\Category\Command\RestoreCategoryCommand;
@@ -25,6 +26,7 @@ use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
 use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Infrastructure\Transaction\PdoCategoryTransaction;
 use Maatify\Category\Service\CategoryCommandService;
@@ -625,6 +627,151 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
+    public function testConcurrentImageAssignmentCreationAllocatesDistinctPositionsWithinExactRoleScope(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-role-order-category'));
+        $roleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-gallery'));
+        $firstConnection = $this->newConnection();
+        $secondConnection = $this->newConnection();
+        $firstRepository = new PdoCategoryImageAssignmentCommandRepository(
+            $firstConnection,
+            new ScopedOrderingManager(),
+        );
+        $secondRepository = new PdoCategoryImageAssignmentCommandRepository(
+            $secondConnection,
+            new ScopedOrderingManager(),
+        );
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+
+        try {
+            $firstConnection->beginTransaction();
+            $firstId = $firstRepository->create(
+                new CreateCategoryImageAssignmentCommand($categoryId, 703, 'en-US', 'web', $roleId),
+                $occurredAt,
+            );
+
+            $secondConnection->beginTransaction();
+            $this->setLockWaitTimeout($secondConnection);
+
+            try {
+                $secondRepository->create(
+                    new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                    $occurredAt,
+                );
+                self::fail('A concurrent creation must wait for the exact Role ordering scope lock.');
+            } catch (PDOException $exception) {
+                $driverCode = $exception->errorInfo[1] ?? null;
+                if (!is_int($driverCode) && !is_string($driverCode)) {
+                    self::fail('The concurrent Role creation must expose the MySQL lock wait timeout code.');
+                }
+                self::assertSame(1205, (int) $driverCode, $exception->getMessage());
+                self::assertTrue($secondConnection->inTransaction());
+                $secondConnection->rollBack();
+            }
+
+            $firstConnection->commit();
+
+            $secondConnection->beginTransaction();
+            $secondId = $secondRepository->create(
+                new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                $occurredAt,
+            );
+            $secondConnection->commit();
+
+            $orders = $this->imageAssignmentOrdersForScope(
+                $this->connection(),
+                $categoryId,
+                'en-US',
+                'web',
+                $roleId,
+            );
+            self::assertSame([$firstId => 1, $secondId => 2], $orders);
+        } finally {
+            $this->closeConnection($firstConnection);
+            $this->closeConnection($secondConnection);
+        }
+    }
+
+    public function testConcurrentImageAssignmentCreationInDifferentRoleScopesPreservesEachSequence(): void
+    {
+        $service = $this->service($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-role-isolation-category'));
+        $firstRoleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-first'));
+        $secondRoleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-second'));
+        $firstConnection = $this->newConnection();
+        $secondConnection = $this->newConnection();
+        $firstRepository = new PdoCategoryImageAssignmentCommandRepository(
+            $firstConnection,
+            new ScopedOrderingManager(),
+        );
+        $secondRepository = new PdoCategoryImageAssignmentCommandRepository(
+            $secondConnection,
+            new ScopedOrderingManager(),
+        );
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+
+        try {
+            $this->setLockWaitTimeout($secondConnection);
+            $firstConnection->beginTransaction();
+            $secondConnection->beginTransaction();
+
+            $firstId = $firstRepository->create(
+                new CreateCategoryImageAssignmentCommand($categoryId, 705, 'en-US', 'web', $firstRoleId),
+                $occurredAt,
+            );
+
+            try {
+                $secondRepository->create(
+                    new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                    $occurredAt,
+                );
+                self::fail('A concurrent operation may wait, but must not corrupt a different Role scope.');
+            } catch (PDOException $exception) {
+                $driverCode = $exception->errorInfo[1] ?? null;
+                if (!is_int($driverCode) && !is_string($driverCode)) {
+                    self::fail('The different Role scope operation must expose the MySQL lock wait timeout code.');
+                }
+                self::assertSame(1205, (int) $driverCode, $exception->getMessage());
+                self::assertTrue($secondConnection->inTransaction());
+                $secondConnection->rollBack();
+            }
+
+            $firstConnection->commit();
+
+            $secondConnection->beginTransaction();
+            $secondId = $secondRepository->create(
+                new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                $occurredAt,
+            );
+            $secondConnection->commit();
+
+            self::assertSame(
+                [$firstId => 1],
+                $this->imageAssignmentOrdersForScope(
+                    $this->connection(),
+                    $categoryId,
+                    'en-US',
+                    'web',
+                    $firstRoleId,
+                ),
+            );
+            self::assertSame(
+                [$secondId => 1],
+                $this->imageAssignmentOrdersForScope(
+                    $this->connection(),
+                    $categoryId,
+                    'en-US',
+                    'web',
+                    $secondRoleId,
+                ),
+            );
+        } finally {
+            $this->closeConnection($firstConnection);
+            $this->closeConnection($secondConnection);
+        }
+    }
+
     public function testConcurrentContentFieldCreationAllocatesDistinctPositionsWithinExactScope(): void
     {
         $service = $this->service($this->connection());
@@ -819,6 +966,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryTransaction($connection),
             $clock ?? new FixedCategoryClock(),
+            new PdoCategoryImageRoleCommandRepository($connection),
         );
     }
 
@@ -947,17 +1095,20 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         int $categoryId,
         string $languageCode,
         string $platform,
+        ?int $roleId = null,
     ): array {
+        $rolePredicate = $roleId === null ? '`role_id` IS NULL' : '`role_id` = :role_id';
         $statement = $connection->prepare(
             'SELECT `id`, `display_order` FROM `maa_category_category_image_assignments` '
             . 'WHERE `category_id` = :category_id AND `language_code` = :language_code '
-            . 'AND `platform` = :platform AND `deleted_at` IS NULL '
+            . 'AND `platform` = :platform AND ' . $rolePredicate . ' AND `deleted_at` IS NULL '
             . 'ORDER BY `display_order`, `id`',
         );
         $statement->execute([
             'category_id' => $categoryId,
             'language_code' => $languageCode,
             'platform' => $platform,
+            ...($roleId === null ? [] : ['role_id' => $roleId]),
         ]);
 
         /** @var array<int|string, int|string> $orders */

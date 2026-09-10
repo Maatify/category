@@ -38,6 +38,16 @@ final class CategoryPersistenceException extends SystemMaatifyException
         return new self('Category Image Assignment AUTO_INCREMENT did not return a valid identity.');
     }
 
+    public static function invalidImageRoleAutoIncrementIdentity(): self
+    {
+        return new self('Category Image Role AUTO_INCREMENT did not return a valid identity.');
+    }
+
+    public static function imageRoleRepositoryNotConfigured(): self
+    {
+        return new self('Category Image Role command repository is not configured.');
+    }
+
     public static function invalidContentFieldAutoIncrementIdentity(): self
     {
         return new self('Category Content Field AUTO_INCREMENT did not return a valid identity.');

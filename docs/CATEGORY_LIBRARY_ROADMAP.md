@@ -20,7 +20,7 @@ maatify/category
 * Host-agnostic.
 * Framework-neutral.
 * متوافقة بالكامل مع Maatify Engineering Standards.
-* مكتملة وظيفيًا من ناحية Category وCategory Content وCategory Content Field وCategory Image Assignment lifecycle.
+* مكتملة وظيفيًا من ناحية Category وCategory Content وCategory Content Field وCategory Image Role وCategory Image Assignment lifecycle.
 * مكتملة من ناحية CRUD.
 * مكتملة من ناحية Persistence وConcurrency.
 * موثقة ومختبرة وقابلة للإصدار.
@@ -81,16 +81,27 @@ This correction supersedes the prior public inventory and schema wording in
 this roadmap. Its implementation evidence is the current Content unit tests,
 Real MySQL schema/PDO tests, query tests, and standalone consumer coverage.
 
-### 1.3 Current Draft capability — Category Image Assignments
+### 1.3 Current Draft capability — Category Image Roles
+
+The current Draft provides a package-owned Category Image Role registry and
+first-class Category Image Assignments. Each Role has an immutable, globally
+unique `role_key`, typed `active`/`inactive` status, and a soft-delete lifecycle
+that permanently reserves its key. Role semantics, cardinality, and media
+policy remain Host-owned. Role-scoped assignment creation requires an active,
+non-deleted Role; inactive or deleted Roles hide existing assignments from
+consumer reads while management reads retain them. The Role lifecycle and
+management registry are covered by Real MySQL and standalone consumer tests.
+
+### 1.4 Current Draft capability — Category Image Assignments
 
 The current Draft also provides first-class Category Image Assignments. Category
 owns the direct relationship to a host-provided `media_asset_id`, but does not
 own Media, Platform, or Language lifecycle and creates no foreign key to those
 host concepts. The immutable identity is
-`(category_id, media_asset_id, language_code, platform)`, including soft-deleted
-rows. `language_code` and `platform` are nullable exact scope dimensions; all
-four combinations are supported, empty strings are invalid, and no fallback or
-hardcoded platform enum exists.
+`(category_id, media_asset_id, role_id, language_code, platform)`, including
+soft-deleted rows. `role_id`, `language_code`, and `platform` are nullable exact
+scope dimensions; all combinations are supported, empty strings are invalid,
+and no fallback or hardcoded platform enum exists.
 
 The Runtime exposes typed create, exact-scope ordering, soft-delete, restore,
 management-read, and consumer-read contracts. Consumer reads exclude deleted
@@ -101,7 +112,7 @@ Category-plus-scope ordering key so creation and movement continue to use the
 shared `maatify/persistence` Ordering API. This capability is covered by unit,
 schema, PDO, visibility, lifecycle, concurrency, and standalone consumer tests.
 
-### 1.4 Current Draft capability — extensible Category Content Fields
+### 1.5 Current Draft capability — extensible Category Content Fields
 
 The child implementation adds first-class Host-defined Category Content Fields
 without changing the fixed `CategoryContent` name/description contract. A field
@@ -153,11 +164,12 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 **Locked v1 Decisions & Implementation Status:**
 * **PHP Requirement:** PHP 8.4+
 * **Database Requirement:** MySQL 8.0.16+, InnoDB, `utf8mb4_unicode_ci`.
-* **Schema Design:** `maa_category_categories`, `maa_category_category_contents`, `maa_category_category_content_fields`, and `maa_category_category_image_assignments`.
+* **Schema Design:** `maa_category_categories`, `maa_category_category_contents`, `maa_category_category_image_roles`, `maa_category_category_image_assignments`, and `maa_category_category_content_fields`.
 * **Self-Parent Protection:** enforced via `AFTER INSERT` and `BEFORE UPDATE` triggers (لا CHECK constraint).
 * **Content Identity:** (category_id, language_code) uniquely identifies Content; `language_code = NULL` is the single unlocalized identity per Category.
 * **Content Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Update/soft-delete/restore depend on Content lifecycle only. Parent inactive or soft-deleted does not block those operations.
 * **Image Assignment Parent-State Contract:** Create requires parent non-deleted (inactive allowed). Ordering/soft-delete/restore depend on the assignment lifecycle only; exact identity remains reserved after soft deletion.
+* **Image Role Contract:** `role_key` is immutable, globally unique, and permanently reserved after soft deletion. New role-scoped assignments require an active, non-deleted Role; inactive/deleted Roles hide existing assignments from consumer reads.
 * **Content Field Schema Contract:** `(category_id, field_key, language_code, platform)` is NULL-safe and reserved across soft deletion; `format` accepts exact lowercase `text`, `html`, or `json`, and JSON rows require valid JSON syntax.
 * **Display Order:** No implicit default (like 0) in schema. `CreateCategoryCommand` has no `display_order`. Persistence/shared ordering determines next position.
 **Completion Gates:**

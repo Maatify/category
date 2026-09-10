@@ -16,6 +16,7 @@ use Maatify\Category\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\DTO\CategoryDTO;
 use Maatify\Category\DTO\CategoryContentDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageRoleDTO;
 use Maatify\Category\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Command\CreateCategoryCommand;
 use Maatify\Category\Command\CreateCategoryContentCommand;
@@ -490,6 +491,11 @@ final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
     public function findImageAssignmentByIdForUpdate(int $assignmentId): ?CategoryImageAssignmentDTO
     {
         return $this->findImageAssignmentById($assignmentId);
+    }
+
+    public function findImageRoleByIdForUpdate(int $roleId): ?CategoryImageRoleDTO
+    {
+        return null;
     }
 
     public function findContentFieldById(int $fieldId): ?CategoryContentFieldDTO
