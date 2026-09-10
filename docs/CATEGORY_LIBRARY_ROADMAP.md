@@ -189,7 +189,7 @@ Category Domain معني بإدارة التسلسل الهرمي للفئات (
 * **Category Ordering:** Ordered by `display_order, id`.
 * **Content Ordering:** Ordered by `language_code, id`.
 * **Soft Delete:** Content records manage their own soft-delete lifecycle independent of the Category.
-* **Exception Boundaries:** Namespace is `Maatify\Category\Exception`. Package marker is `CategoryExceptionInterface`. No `CategoryException` base class.
+* **Exception Boundaries:** The package marker remains the canonical `Maatify\Category\Exception\CategoryExceptionInterface`; domain exceptions are owned under each Domain's `Exception` path. No `CategoryException` base class.
 * **Concurrency Verification:** Proven transaction locks and restore mechanisms.
 **Completion Gates:**
 * Management read models are robust.
