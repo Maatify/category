@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Common\Exception;
 
-use Maatify\Category\Common\Exception\CategoryExceptionInterface;
+use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Enum\ErrorCodeEnum;
 use Maatify\Exceptions\Exception\System\SystemMaatifyException;
 use Throwable;

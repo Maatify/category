@@ -7,7 +7,7 @@ namespace Maatify\Category\Query\Contract;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 
 /** Read port consumed by Category business orchestration. */

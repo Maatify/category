@@ -6,6 +6,7 @@ namespace Maatify\Category\ImageAssignment\Query\DTO;
 
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 
 /** Bounded management criteria; scope controls language/platform and roleFilter controls Role matching. */
 final readonly class CategoryImageAssignmentListCriteriaDTO implements \JsonSerializable

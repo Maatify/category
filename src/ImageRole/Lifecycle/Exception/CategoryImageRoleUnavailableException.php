@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\ImageRole\Lifecycle\Exception;
 
-use Maatify\Category\Common\Exception\CategoryExceptionInterface;
+use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\Conflict\GenericConflictMaatifyException;
 
 final class CategoryImageRoleUnavailableException extends GenericConflictMaatifyException

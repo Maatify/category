@@ -6,6 +6,7 @@ namespace Maatify\Category\ContentField\Query\DTO;
 
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 
 /** Bounded management criteria for Category Content Field reads. */
 final readonly class CategoryContentFieldListCriteriaDTO implements \JsonSerializable

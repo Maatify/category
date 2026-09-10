@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ContentField\Query\DTO;
+namespace Maatify\Category\ContentField;
 
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 

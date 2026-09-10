@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\ContentField\Mutation\Command;
 
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldScopeDTO;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 use Maatify\Category\Common\DTO\CategoryIdDTO;
 use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;

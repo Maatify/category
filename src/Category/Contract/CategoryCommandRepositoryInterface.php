@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Infrastructure;
+namespace Maatify\Category\Contract;
 
 use DateTimeImmutable;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ImageRole\Query\DTO;
+namespace Maatify\Category\ImageRole;
 
 use DateTimeImmutable;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;

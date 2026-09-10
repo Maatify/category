@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Content\Infrastructure;
+namespace Maatify\Category\Content\Contract;
 
 use DateTimeImmutable;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;

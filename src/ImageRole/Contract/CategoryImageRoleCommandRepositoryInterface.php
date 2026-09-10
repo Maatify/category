@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ImageRole\Infrastructure;
+namespace Maatify\Category\ImageRole\Contract;
 
 use DateTimeImmutable;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;

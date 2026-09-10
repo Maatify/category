@@ -16,7 +16,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
@@ -421,7 +421,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
     private function appendContentFieldScopeFilter(
         array &$where,
         array &$params,
-        ?\Maatify\Category\ContentField\Query\DTO\CategoryContentFieldScopeDTO $scope,
+        ?\Maatify\Category\ContentField\CategoryContentFieldScopeDTO $scope,
     ): void {
         if ($scope === null) {
             return;

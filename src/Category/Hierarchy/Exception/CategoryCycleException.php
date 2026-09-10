@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Hierarchy\Exception;
 
-use Maatify\Category\Common\Exception\CategoryExceptionInterface;
+use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\BusinessRule\BusinessRuleMaatifyException;
 
 final class CategoryCycleException extends BusinessRuleMaatifyException

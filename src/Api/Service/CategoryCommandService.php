@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Api\Service;
 
-use Maatify\Category\Infrastructure\CategoryCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Api\Contract\CategoryCommandServiceInterface;
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
-use Maatify\Category\Content\Infrastructure\CategoryContentCommandRepositoryInterface;
-use Maatify\Category\ImageAssignment\Infrastructure\CategoryImageAssignmentCommandRepositoryInterface;
-use Maatify\Category\ImageRole\Infrastructure\CategoryImageRoleCommandRepositoryInterface;
-use Maatify\Category\ContentField\Infrastructure\CategoryContentFieldCommandRepositoryInterface;
+use Maatify\Category\Content\Contract\CategoryContentCommandRepositoryInterface;
+use Maatify\Category\ImageAssignment\Contract\CategoryImageAssignmentCommandRepositoryInterface;
+use Maatify\Category\ImageRole\Contract\CategoryImageRoleCommandRepositoryInterface;
+use Maatify\Category\ContentField\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;

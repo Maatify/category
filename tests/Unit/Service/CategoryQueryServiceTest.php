@@ -13,7 +13,7 @@ use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;

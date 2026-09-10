@@ -10,7 +10,7 @@ use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCo
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
-use Maatify\Category\ContentField\Infrastructure\CategoryContentFieldCommandRepositoryInterface;
+use Maatify\Category\ContentField\Contract\CategoryContentFieldCommandRepositoryInterface;
 use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldAlreadyExistsException;
 use Maatify\Category\Common\Exception\CategoryPersistenceException;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingConfig;

@@ -9,7 +9,7 @@ use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;

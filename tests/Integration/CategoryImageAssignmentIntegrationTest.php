@@ -15,7 +15,7 @@ use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentD
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Content\Mutation\Exception;
 
-use Maatify\Category\Common\Exception\CategoryExceptionInterface;
+use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\Conflict\GenericConflictMaatifyException;
 use Throwable;
 

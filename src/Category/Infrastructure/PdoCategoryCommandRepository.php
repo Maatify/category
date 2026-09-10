@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure;
 
 use DateTimeImmutable;
-use Maatify\Category\Infrastructure\CategoryCommandRepositoryInterface;
+use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
 use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;

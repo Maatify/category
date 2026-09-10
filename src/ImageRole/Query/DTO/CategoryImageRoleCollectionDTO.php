@@ -7,6 +7,7 @@ namespace Maatify\Category\ImageRole\Query\DTO;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 
 /** @implements IteratorAggregate<int, CategoryImageRoleDTO> */
 final readonly class CategoryImageRoleCollectionDTO implements IteratorAggregate, Countable, \JsonSerializable

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Lifecycle\Exception;
 
-use Maatify\Category\Common\Exception\CategoryExceptionInterface;
+use Maatify\Category\Exception\CategoryExceptionInterface;
 use Maatify\Exceptions\Exception\NotFound\ResourceNotFoundMaatifyException;
 
 final class CategoryNotFoundException extends ResourceNotFoundMaatifyException

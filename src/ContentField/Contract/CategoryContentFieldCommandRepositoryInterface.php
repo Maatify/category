@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ContentField\Infrastructure;
+namespace Maatify\Category\ContentField\Contract;
 
 use DateTimeImmutable;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;

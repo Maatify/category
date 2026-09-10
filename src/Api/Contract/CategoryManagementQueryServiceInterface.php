@@ -14,7 +14,7 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;

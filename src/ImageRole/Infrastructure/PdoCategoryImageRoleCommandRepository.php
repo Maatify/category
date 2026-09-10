@@ -9,7 +9,7 @@ use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\RestoreCategoryImageRoleCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
-use Maatify\Category\ImageRole\Infrastructure\CategoryImageRoleCommandRepositoryInterface;
+use Maatify\Category\ImageRole\Contract\CategoryImageRoleCommandRepositoryInterface;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleAlreadyExistsException;
 use Maatify\Category\Common\Exception\CategoryPersistenceException;
 use PDO;

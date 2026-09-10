@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\Content\Infrastructure;
 
 use DateTimeImmutable;
-use Maatify\Category\Content\Infrastructure\CategoryContentCommandRepositoryInterface;
+use Maatify\Category\Content\Contract\CategoryContentCommandRepositoryInterface;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;

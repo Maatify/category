@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ImageAssignment\Query\DTO;
+namespace Maatify\Category\ImageAssignment;
 
 use Maatify\Category\Common\DTO\CategoryIdDTO;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;

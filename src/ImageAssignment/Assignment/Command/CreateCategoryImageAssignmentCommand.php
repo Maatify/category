@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Maatify\Category\ImageAssignment\Assignment\Command;
 
 use Maatify\Category\Common\DTO\CategoryIdDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 
 /** Validated command for assigning a host Media Asset to a Category scope. */
 final readonly class CreateCategoryImageAssignmentCommand implements \JsonSerializable

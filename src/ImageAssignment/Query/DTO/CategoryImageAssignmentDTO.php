@@ -6,6 +6,7 @@ namespace Maatify\Category\ImageAssignment\Query\DTO;
 
 use DateTimeImmutable;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 
 /** Immutable Category-owned reference to a host Media Asset. */
 final readonly class CategoryImageAssignmentDTO implements \JsonSerializable

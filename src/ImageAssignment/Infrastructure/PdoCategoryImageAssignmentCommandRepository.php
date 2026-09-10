@@ -11,7 +11,7 @@ use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssig
 use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\ImageAssignment\Infrastructure\CategoryImageAssignmentCommandRepositoryInterface;
+use Maatify\Category\ImageAssignment\Contract\CategoryImageAssignmentCommandRepositoryInterface;
 use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
 use Maatify\Category\Common\Exception\CategoryPersistenceException;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingConfig;

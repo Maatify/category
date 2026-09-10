@@ -12,7 +12,7 @@ use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleComm
 use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentRoleFilterDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\ImageAssignment\Infrastructure;
+namespace Maatify\Category\ImageAssignment\Contract;
 
 use DateTimeImmutable;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;

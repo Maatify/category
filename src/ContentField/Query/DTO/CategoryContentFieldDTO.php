@@ -7,6 +7,7 @@ namespace Maatify\Category\ContentField\Query\DTO;
 use DateTimeImmutable;
 use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 
 /** Host-defined extensible content stored for one exact Category scope. */
 final readonly class CategoryContentFieldDTO implements \JsonSerializable

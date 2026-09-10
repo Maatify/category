@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\ImageRole\Lifecycle\Command;
 
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 
 /** Validated command for creating a package-owned Category Image Role. */

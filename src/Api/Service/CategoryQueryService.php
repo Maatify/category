@@ -12,9 +12,9 @@ use Maatify\Category\Common\DTO\CategoryIdDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldScopeDTO;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
 
 /** Coordinates the public visible Category read contract. */

@@ -8,9 +8,9 @@ use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldScopeDTO;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
 /** Public application contract for visible Category reads and lists. */
