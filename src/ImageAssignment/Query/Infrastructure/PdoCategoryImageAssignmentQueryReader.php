@@ -11,10 +11,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO read adapter for Image Assignment mutation-support lookups. */
-final readonly class PdoCategoryImageAssignmentQueryReader implements CategoryImageAssignmentQueryReaderInterface
+final readonly class PdoCategoryImageAssignmentQueryReader extends PdoReadQuerySupport implements CategoryImageAssignmentQueryReaderInterface
 {
-    use PdoReadQuerySupport;
-
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
 
     public function __construct(

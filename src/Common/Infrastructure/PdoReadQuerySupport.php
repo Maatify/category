@@ -11,10 +11,10 @@ use PDO;
 use PDOStatement;
 
 /** Shared scalar, timestamp, and bounded-statement handling for PDO read adapters. */
-trait PdoReadQuerySupport
+abstract readonly class PdoReadQuerySupport
 {
     /** @param array<string, int|string> $params */
-    private function executeBounded(PDOStatement $statement, array $params, int $maxResults): void
+    protected function executeBounded(PDOStatement $statement, array $params, int $maxResults): void
     {
         foreach ($params as $name => $value) {
             $statement->bindValue(
@@ -28,7 +28,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function integerValue(array $row, string $column): int
+    protected function integerValue(array $row, string $column): int
     {
         $value = $row[$column] ?? null;
         if (!is_int($value) && !is_string($value)) {
@@ -39,7 +39,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function stringValue(array $row, string $column): string
+    protected function stringValue(array $row, string $column): string
     {
         $value = $row[$column] ?? null;
         if (!is_string($value)) {
@@ -50,7 +50,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function nullableStringValue(array $row, string $column): ?string
+    protected function nullableStringValue(array $row, string $column): ?string
     {
         $value = $row[$column] ?? null;
         if ($value !== null && !is_string($value)) {
@@ -61,7 +61,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function nullableIntegerValue(array $row, string $column): ?int
+    protected function nullableIntegerValue(array $row, string $column): ?int
     {
         $value = $row[$column] ?? null;
         if ($value === null) {
@@ -75,7 +75,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function booleanValue(array $row, string $column): bool
+    protected function booleanValue(array $row, string $column): bool
     {
         $value = $row[$column] ?? null;
         if ($value === 0 || $value === '0') {
@@ -89,7 +89,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function timestampValue(array $row, string $column, ClockInterface $clock): DateTimeImmutable
+    protected function timestampValue(array $row, string $column, ClockInterface $clock): DateTimeImmutable
     {
         $value = $this->stringValue($row, $column);
 
@@ -101,7 +101,7 @@ trait PdoReadQuerySupport
     }
 
     /** @param array<string, mixed> $row */
-    private function nullableTimestampValue(
+    protected function nullableTimestampValue(
         array $row,
         string $column,
         ClockInterface $clock,

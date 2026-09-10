@@ -13,10 +13,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO read adapter for Image Role mutation-support lookups. */
-final readonly class PdoCategoryImageRoleQueryReader implements CategoryImageRoleQueryReaderInterface
+final readonly class PdoCategoryImageRoleQueryReader extends PdoReadQuerySupport implements CategoryImageRoleQueryReaderInterface
 {
-    use PdoReadQuerySupport;
-
     private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
 
     public function __construct(

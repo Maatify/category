@@ -11,10 +11,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO read adapter for Category Content mutation-support lookups. */
-final readonly class PdoCategoryContentQueryReader implements CategoryContentQueryReaderInterface
+final readonly class PdoCategoryContentQueryReader extends PdoReadQuerySupport implements CategoryContentQueryReaderInterface
 {
-    use PdoReadQuerySupport;
-
     private const CONTENT_TABLE = 'maa_category_category_contents';
 
     public function __construct(

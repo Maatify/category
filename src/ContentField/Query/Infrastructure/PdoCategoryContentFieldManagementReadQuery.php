@@ -16,10 +16,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** Dedicated PDO adapter for Content Field management reads. */
-final readonly class PdoCategoryContentFieldManagementReadQuery implements CategoryContentFieldManagementReadQueryInterface
+final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQuerySupport implements CategoryContentFieldManagementReadQueryInterface
 {
-    use PdoReadQuerySupport;
-
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(

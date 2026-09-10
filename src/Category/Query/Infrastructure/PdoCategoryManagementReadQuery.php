@@ -16,10 +16,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO adapter for bounded management reads without consumer visibility rules. */
-final readonly class PdoCategoryManagementReadQuery implements CategoryManagementReadQueryInterface
+final readonly class PdoCategoryManagementReadQuery extends PdoReadQuerySupport implements CategoryManagementReadQueryInterface
 {
-    use PdoReadQuerySupport;
-
     private const CATEGORY_TABLE = 'maa_category_categories';
 
     public function __construct(

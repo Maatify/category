@@ -13,10 +13,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO read adapter for Content Field mutation-support lookups. */
-final readonly class PdoCategoryContentFieldQueryReader implements CategoryContentFieldQueryReaderInterface
+final readonly class PdoCategoryContentFieldQueryReader extends PdoReadQuerySupport implements CategoryContentFieldQueryReaderInterface
 {
-    use PdoReadQuerySupport;
-
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(

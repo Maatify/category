@@ -15,10 +15,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** Dedicated PDO adapter for visible Category query behavior. */
-final readonly class PdoCategoryReadQuery implements CategoryReadQueryInterface
+final readonly class PdoCategoryReadQuery extends PdoReadQuerySupport implements CategoryReadQueryInterface
 {
-    use PdoReadQuerySupport;
-
     private const CATEGORY_TABLE = 'maa_category_categories';
 
     public function __construct(

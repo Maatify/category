@@ -16,10 +16,8 @@ use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** Dedicated PDO adapter for Image Role management reads. */
-final readonly class PdoCategoryImageRoleManagementReadQuery implements CategoryImageRoleManagementReadQueryInterface
+final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuerySupport implements CategoryImageRoleManagementReadQueryInterface
 {
-    use PdoReadQuerySupport;
-
     private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
 
     public function __construct(
