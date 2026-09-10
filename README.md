@@ -168,8 +168,8 @@ Host timezone `Africa/Cairo`.
 
 ```php
 use DateTimeImmutable;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Query\DTO\CategoryDTO;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 
 $category = new CategoryDTO(
     id: 1,
@@ -191,7 +191,6 @@ envelopes, and presentation formatting.
 ## Documentation
 
 - [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md)
-- [Category architecture](docs/architecture/CATEGORY_ARCHITECTURE.md)
 - [Category schema](schema/category.sql)
 - [Schema notes](schema/README.md)
 - [Changelog](CHANGELOG.md)

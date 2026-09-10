@@ -57,12 +57,10 @@ validation وfallback/locale policy وPresentation، وأي علاقات مع ج
 لا تُضاف داخل هذه الحزمة Catalog أو Product أو Pricing أو
 Inventory أو Media أو Framework bindings.
 
-التفاصيل المستقرة الخاصة بالعقد موجودة في
-[`CATEGORY_PACKAGE_REFERENCE.md`](CATEGORY_PACKAGE_REFERENCE.md)، والتفاصيل
-المعمارية في
-[`docs/architecture/CATEGORY_ARCHITECTURE.md`](docs/architecture/CATEGORY_ARCHITECTURE.md)،
-والـschema في [`schema/README.md`](schema/README.md). لا تنشئ Package Reference
-منافسًا داخل `docs/`.
+التفاصيل المستقرة الخاصة بالعقود والمعمارية موجودة في
+[`CATEGORY_PACKAGE_REFERENCE.md`](CATEGORY_PACKAGE_REFERENCE.md)، والـschema في
+[`schema/README.md`](schema/README.md). لا تنشئ Package Reference منافسًا داخل
+`docs/`.
 
 ## 5. القراءة والتنفيذ
 

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Unit\DTO;
 
 use DateTimeImmutable;
-use Maatify\Category\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\DTO\CategoryContentDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryContentCollectionDTOTest extends TestCase

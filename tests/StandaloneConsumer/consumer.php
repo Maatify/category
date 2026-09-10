@@ -2,36 +2,36 @@
 
 declare(strict_types=1);
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentCommand;
-use Maatify\Category\Command\CreateCategoryContentFieldCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\CreateCategoryImageRoleCommand;
-use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
-use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
-use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
-use Maatify\Category\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Service\CategoryCommandService;
-use Maatify\Category\Service\CategoryManagementQueryService;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
+use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
+use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
+use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
+use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\ImageRole\Infrastructure\PdoCategoryImageRoleCommandRepository;
+use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
+use Maatify\Category\Api\Service\CategoryCommandService;
+use Maatify\Category\Api\Service\CategoryManagementQueryService;
+use Maatify\Category\Api\Service\CategoryQueryService;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
 use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
@@ -572,7 +572,7 @@ try {
         'Standalone management Content Field list did not return the exact scope.',
     );
     $commandService->updateStatus(
-        new \Maatify\Category\Command\UpdateCategoryStatusCommand(
+        new \Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand(
             $categoryId,
             CategoryStatusEnum::INACTIVE,
         ),

@@ -115,14 +115,14 @@ The production namespace is `Maatify\Category\`.
 
 ### Status
 
-`Maatify\Category\Enum\CategoryStatusEnum` is a string-backed enum with:
+`Maatify\Category\Lifecycle\Enum\CategoryStatusEnum` is a string-backed enum with:
 
 - `active`
 - `inactive`
 
 Status is independent from soft deletion.
 
-`Maatify\Category\Enum\CategoryDeletedStateEnum` explicitly selects
+`Maatify\Category\Common\Enum\CategoryDeletedStateEnum` explicitly selects
 `non_deleted`, `include_deleted`, or `deleted_only` for management reads.
 
 ### DTOs
@@ -592,6 +592,14 @@ non-deleted Category lifecycle state; they do not mean
 These semantics are proven against the real MySQL schema by
 `CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 They are the v1 contract; no parent-state redesign is implied.
+
+### Image Assignment parent-state contract
+
+`createImageAssignment()` requires a Category that exists and is not
+soft-deleted; `CategoryStatusEnum::INACTIVE` is allowed. After an Image
+Assignment is created, ordering, soft-delete, and restore operations depend on
+the assignment's own lifecycle. An Image Assignment is not a Category child
+and therefore does not prevent Category soft-delete.
 
 Content Field creation requires a non-deleted parent Category. Field value,
 ordering, soft-delete, and restore mutations depend on the field's own

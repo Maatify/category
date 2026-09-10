@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Unit\DTO;
 
 use DateTimeImmutable;
-use Maatify\Category\DTO\CategoryContentDTO;
-use Maatify\Category\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
+use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryContentDTOTest extends TestCase

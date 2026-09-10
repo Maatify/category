@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentCommand;
-use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Service\CategoryCommandService;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
+use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
+use Maatify\Category\Api\Service\CategoryCommandService;
+use Maatify\Category\Api\Service\CategoryQueryService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
@@ -216,7 +216,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     }
 
     /** @return list<int> */
-    private function categoryIds(\Maatify\Category\DTO\CategoryCollectionDTO $categories): array
+    private function categoryIds(\Maatify\Category\Query\DTO\CategoryCollectionDTO $categories): array
     {
         $ids = [];
         foreach ($categories as $category) {
@@ -227,7 +227,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     }
 
     /** @return list<?string> */
-    private function contentLanguages(\Maatify\Category\DTO\CategoryContentCollectionDTO $contents): array
+    private function contentLanguages(\Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO $contents): array
     {
         $languages = [];
         foreach ($contents as $content) {
