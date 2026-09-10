@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Unit\Service;
 
 use DateTimeImmutable;
-use Maatify\Category\Contract\CategoryReadQueryInterface;
-use Maatify\Category\DTO\CategoryCollectionDTO;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\DTO\CategoryContentDTO;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
+use Maatify\Category\Query\DTO\CategoryCollectionDTO;
+use Maatify\Category\Query\DTO\CategoryDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
+use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Api\Service\CategoryQueryService;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryQueryServiceTest extends TestCase

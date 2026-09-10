@@ -4,30 +4,30 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentFieldCommand;
-use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
-use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
-use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
-use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
-use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
-use Maatify\Category\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Exception\CategoryContentFieldAlreadyExistsException;
-use Maatify\Category\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Service\CategoryCommandService;
-use Maatify\Category\Service\CategoryManagementQueryService;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldScopeDTO;
+use Maatify\Category\ContentField\Mutation\Enum\CategoryContentFieldFormatEnum;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldAlreadyExistsException;
+use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
+use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
+use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
+use Maatify\Category\Api\Service\CategoryCommandService;
+use Maatify\Category\Api\Service\CategoryManagementQueryService;
+use Maatify\Category\Api\Service\CategoryQueryService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
@@ -217,7 +217,7 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     }
 
     /** @return list<int> */
-    private function ids(\Maatify\Category\DTO\CategoryContentFieldCollectionDTO $fields): array
+    private function ids(\Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO $fields): array
     {
         $ids = [];
         foreach ($fields as $field) {
@@ -228,7 +228,7 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     }
 
     /** @return list<CategoryContentFieldFormatEnum> */
-    private function formats(\Maatify\Category\DTO\CategoryContentFieldCollectionDTO $fields): array
+    private function formats(\Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO $fields): array
     {
         $formats = [];
         foreach ($fields as $field) {

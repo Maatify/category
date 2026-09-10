@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Unit\Service;
 
 use DateTimeImmutable;
-use Maatify\Category\Contract\CategoryManagementReadQueryInterface;
-use Maatify\Category\DTO\CategoryCollectionDTO;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\DTO\CategoryContentDTO;
-use Maatify\Category\DTO\CategoryContentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryContentNotFoundException;
-use Maatify\Category\Service\CategoryManagementQueryService;
+use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
+use Maatify\Category\Query\DTO\CategoryCollectionDTO;
+use Maatify\Category\Query\DTO\CategoryDTO;
+use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
+use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Content\Mutation\Exception\CategoryContentNotFoundException;
+use Maatify\Category\Api\Service\CategoryManagementQueryService;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryManagementQueryServiceTest extends TestCase

@@ -115,14 +115,14 @@ The production namespace is `Maatify\Category\`.
 
 ### Status
 
-`Maatify\Category\Enum\CategoryStatusEnum` is a string-backed enum with:
+`Maatify\Category\Lifecycle\Enum\CategoryStatusEnum` is a string-backed enum with:
 
 - `active`
 - `inactive`
 
 Status is independent from soft deletion.
 
-`Maatify\Category\Enum\CategoryDeletedStateEnum` explicitly selects
+`Maatify\Category\Common\Enum\CategoryDeletedStateEnum` explicitly selects
 `non_deleted`, `include_deleted`, or `deleted_only` for management reads.
 
 ### DTOs

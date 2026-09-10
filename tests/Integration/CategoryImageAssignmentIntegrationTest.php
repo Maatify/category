@@ -4,35 +4,35 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryImageRoleCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
-use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
-use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
-use Maatify\Category\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
-use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
-use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Service\CategoryCommandService;
-use Maatify\Category\Service\CategoryManagementQueryService;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
+use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Lifecycle\Exception\CategoryNotFoundException;
+use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
+use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\ImageRole\Infrastructure\PdoCategoryImageRoleCommandRepository;
+use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
+use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
+use Maatify\Category\Api\Service\CategoryCommandService;
+use Maatify\Category\Api\Service\CategoryManagementQueryService;
+use Maatify\Category\Api\Service\CategoryQueryService;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
@@ -326,7 +326,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     }
 
     /** @return list<int> */
-    private function ids(\Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO $assignments): array
+    private function ids(\Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO $assignments): array
     {
         $ids = [];
         foreach ($assignments as $assignment) {

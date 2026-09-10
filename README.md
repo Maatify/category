@@ -168,8 +168,8 @@ Host timezone `Africa/Cairo`.
 
 ```php
 use DateTimeImmutable;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Query\DTO\CategoryDTO;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 
 $category = new CategoryDTO(
     id: 1,

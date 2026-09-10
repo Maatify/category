@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Maatify\Category\Tests\Unit\Infrastructure\Repository;
 
 use DateTimeImmutable;
-use Maatify\Category\Command\CreateCategoryContentCommand;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
 use PDO;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
