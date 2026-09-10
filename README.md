@@ -191,7 +191,6 @@ envelopes, and presentation formatting.
 ## Documentation
 
 - [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md)
-- [Category architecture](docs/architecture/CATEGORY_ARCHITECTURE.md)
 - [Category schema](schema/category.sql)
 - [Schema notes](schema/README.md)
 - [Changelog](CHANGELOG.md)

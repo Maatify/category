@@ -593,6 +593,14 @@ These semantics are proven against the real MySQL schema by
 `CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 They are the v1 contract; no parent-state redesign is implied.
 
+### Image Assignment parent-state contract
+
+`createImageAssignment()` requires a Category that exists and is not
+soft-deleted; `CategoryStatusEnum::INACTIVE` is allowed. After an Image
+Assignment is created, ordering, soft-delete, and restore operations depend on
+the assignment's own lifecycle. An Image Assignment is not a Category child
+and therefore does not prevent Category soft-delete.
+
 Content Field creation requires a non-deleted parent Category. Field value,
 ordering, soft-delete, and restore mutations depend on the field's own
 lifecycle and are not blocked by an inactive or soft-deleted parent Category.
