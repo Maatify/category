@@ -168,7 +168,7 @@ Factory wires the complete framework-neutral application once; each facade
 accessor exposes one domain API.
 
 ```php
-use Maatify\Category\Api\CategoryFactory;
+use Maatify\Category\Factory\CategoryFactory;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 

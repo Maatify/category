@@ -61,8 +61,8 @@ explicit through Set/Clear commands, independent of display_order; soft
 deletion clears it and restoration leaves the assignment non-default.
 
 Category Content creation, content updates, soft deletion, and restoration
-are exposed through the package command service; consumers do not need direct
-SQL for that lifecycle. The `(category_id, language_code)` identity remains
+are exposed through the public Content Domain API (`CategoryFacade::contents()`);
+consumers do not need direct SQL for that lifecycle. The `(category_id, language_code)` identity remains
 unique and immutable. `language_code = NULL` represents unlocalized Content; a
 non-NULL value represents localized Content. A stored generated identity column
 makes NULL a single database uniqueness value, so MySQL enforces at most one

@@ -18,10 +18,11 @@ use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDis
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldManagementReadQueryInterface;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldQueryReaderInterface;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldReadQueryInterface;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
-use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
@@ -32,8 +33,9 @@ final readonly class ContentFieldService implements ContentFieldServiceInterface
     public function __construct(
         private CategoryContentFieldCommandRepositoryInterface $commandRepository,
         private CategoryQueryReaderInterface $categoryQueryReader,
-        private CategoryReadQueryInterface $visibleReader,
-        private CategoryManagementReadQueryInterface $managementReader,
+        private CategoryContentFieldQueryReaderInterface $queryReader,
+        private CategoryContentFieldReadQueryInterface $visibleReader,
+        private CategoryContentFieldManagementReadQueryInterface $managementReader,
         private TransactionRunnerInterface $transaction,
         private ClockInterface $clock,
     ) {}
@@ -140,7 +142,7 @@ final readonly class ContentFieldService implements ContentFieldServiceInterface
 
     private function requireFieldForUpdate(int $fieldId): CategoryContentFieldDTO
     {
-        $field = $this->categoryQueryReader->findContentFieldByIdForUpdate($fieldId);
+        $field = $this->queryReader->findContentFieldByIdForUpdate($fieldId);
 
         if ($field === null) {
             throw CategoryContentFieldNotFoundException::withId($fieldId);

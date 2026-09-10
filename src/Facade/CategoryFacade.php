@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Api;
+namespace Maatify\Category\Facade;
 
-use Maatify\Category\Api\Contract\CategoryFacadeInterface;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
 use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
+use Maatify\Category\Facade\Contract\CategoryFacadeInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 

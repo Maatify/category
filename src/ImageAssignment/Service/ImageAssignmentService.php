@@ -20,13 +20,15 @@ use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignm
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentManagementReadQueryInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentQueryReaderInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentReadQueryInterface;
 use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleUnavailableException;
-use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
+use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleQueryReaderInterface;
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
-use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
@@ -36,9 +38,11 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
 {
     public function __construct(
         private CategoryImageAssignmentCommandRepositoryInterface $commandRepository,
-        private CategoryQueryReaderInterface $queryReader,
-        private CategoryReadQueryInterface $visibleReader,
-        private CategoryManagementReadQueryInterface $managementReader,
+        private CategoryQueryReaderInterface $categoryQueryReader,
+        private CategoryImageRoleQueryReaderInterface $roleQueryReader,
+        private CategoryImageAssignmentQueryReaderInterface $queryReader,
+        private CategoryImageAssignmentReadQueryInterface $visibleReader,
+        private CategoryImageAssignmentManagementReadQueryInterface $managementReader,
         private TransactionRunnerInterface $transaction,
         private ClockInterface $clock,
     ) {}
@@ -136,7 +140,7 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
 
     private function requireActiveCategoryForUpdate(int $categoryId): void
     {
-        if ($this->queryReader->findActiveByIdForUpdate($categoryId) === null) {
+        if ($this->categoryQueryReader->findActiveByIdForUpdate($categoryId) === null) {
             throw CategoryNotFoundException::withId($categoryId);
         }
     }
@@ -155,7 +159,7 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
 
     private function requireImageRoleForUpdate(int $roleId): CategoryImageRoleDTO
     {
-        $role = $this->queryReader->findImageRoleByIdForUpdate($roleId);
+        $role = $this->roleQueryReader->findImageRoleByIdForUpdate($roleId);
 
         if ($role === null) {
             throw CategoryImageRoleNotFoundException::withId($roleId);

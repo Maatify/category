@@ -9,10 +9,19 @@ use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentQueryReaderInterface;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldQueryReaderInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentQueryReaderInterface;
+use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleQueryReaderInterface;
 use Maatify\Category\Query\DTO\CategoryDTO;
 
 /** @internal Test-only in-memory query port. */
-final class InMemoryCategoryQueryReader implements CategoryQueryReaderInterface
+final class InMemoryCategoryQueryReader implements
+    CategoryQueryReaderInterface,
+    CategoryContentQueryReaderInterface,
+    CategoryContentFieldQueryReaderInterface,
+    CategoryImageAssignmentQueryReaderInterface,
+    CategoryImageRoleQueryReaderInterface
 {
     /** @var list<int> */
     public array $lockedIds = [];

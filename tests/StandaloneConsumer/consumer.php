@@ -39,7 +39,7 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
-use Maatify\Category\Api\CategoryFactory;
+use Maatify\Category\Factory\CategoryFactory;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
 
 /** @return never */

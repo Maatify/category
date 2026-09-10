@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Api\Domain;
+namespace Maatify\Category\Api;
 
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;

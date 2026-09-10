@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Maatify\Category\Api\Contract;
+namespace Maatify\Category\Facade\Contract;
 
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
 use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;

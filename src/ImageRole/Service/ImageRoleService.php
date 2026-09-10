@@ -16,8 +16,8 @@ use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleComm
 use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
-use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
-use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
+use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleManagementReadQueryInterface;
+use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleQueryReaderInterface;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
@@ -26,8 +26,8 @@ final readonly class ImageRoleService implements ImageRoleServiceInterface
 {
     public function __construct(
         private CategoryImageRoleCommandRepositoryInterface $commandRepository,
-        private CategoryQueryReaderInterface $queryReader,
-        private CategoryManagementReadQueryInterface $managementReader,
+        private CategoryImageRoleQueryReaderInterface $queryReader,
+        private CategoryImageRoleManagementReadQueryInterface $managementReader,
         private TransactionRunnerInterface $transaction,
         private ClockInterface $clock,
     ) {}

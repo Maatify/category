@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
@@ -26,7 +26,7 @@ use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
 use Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\ImageAssignment\Query\Infrastructure\PdoCategoryImageAssignmentQueryReader;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use PDO;
@@ -343,9 +343,9 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         return CategoryFactory::create($connection, new FixedCategoryClock())->imageRoles();
     }
 
-    private function queryReader(PDO $connection, FixedCategoryClock $clock): PdoCategoryQueryReader
+    private function queryReader(PDO $connection, FixedCategoryClock $clock): PdoCategoryImageAssignmentQueryReader
     {
-        return new PdoCategoryQueryReader($connection, $clock);
+        return new PdoCategoryImageAssignmentQueryReader($connection, $clock);
     }
 
     private function defaultCount(PDO $connection): int

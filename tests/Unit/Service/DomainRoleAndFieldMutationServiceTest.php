@@ -13,6 +13,8 @@ use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCom
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Service\ContentFieldService;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldManagementReadQueryInterface;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldReadQueryInterface;
 use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\RestoreCategoryImageRoleCommand;
@@ -20,10 +22,9 @@ use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleComm
 use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\ImageRole\Service\ImageRoleService;
+use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleManagementReadQueryInterface;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Query\DTO\CategoryDTO;
-use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
-use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
 use Maatify\Category\Tests\Unit\Service\Support\FixedClock;
 use Maatify\Category\Tests\Unit\Service\Support\InMemoryCategoryContentFieldCommandRepository;
 use Maatify\Category\Tests\Unit\Service\Support\InMemoryCategoryImageRoleCommandRepository;
@@ -52,9 +53,10 @@ final class DomainRoleAndFieldMutationServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = new ContentFieldService(
             $repository,
-            new InMemoryCategoryQueryReader([$this->category(5)], fields: [$field]),
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $reader = new InMemoryCategoryQueryReader([$this->category(5)], fields: [$field]),
+            $reader,
+            $this->createStub(CategoryContentFieldReadQueryInterface::class),
+            $this->createStub(CategoryContentFieldManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );
@@ -103,8 +105,8 @@ final class DomainRoleAndFieldMutationServiceTest extends TestCase
         $transaction = new InMemoryCategoryTransaction();
         $service = new ImageRoleService(
             $repository,
-            new InMemoryCategoryQueryReader([], roles: [$role]),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $reader = new InMemoryCategoryQueryReader([], roles: [$role]),
+            $this->createStub(CategoryImageRoleManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );

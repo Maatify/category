@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
@@ -25,6 +25,9 @@ use Maatify\Category\Content\Mutation\Exception\CategoryContentAlreadyExistsExce
 use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
 use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
 use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
+use Maatify\Category\Content\Query\Infrastructure\PdoCategoryContentManagementReadQuery;
+use Maatify\Category\Content\Query\Infrastructure\PdoCategoryContentQueryReader;
+use Maatify\Category\Content\Query\Infrastructure\PdoCategoryContentReadQuery;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
@@ -67,6 +70,9 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $internalReader = new PdoCategoryQueryReader($connection, $updateClock);
         $visibleReader = new PdoCategoryReadQuery($connection, $updateClock);
         $managementReader = new PdoCategoryManagementReadQuery($connection, $updateClock);
+        $internalContentReader = new PdoCategoryContentQueryReader($connection, $updateClock);
+        $visibleContentReader = new PdoCategoryContentReadQuery($connection, $updateClock);
+        $managementContentReader = new PdoCategoryContentManagementReadQuery($connection, $updateClock);
 
         $internalCategory = $internalReader->findById($categoryId);
         $visibleCategory = $visibleReader->findVisibleById($categoryId);
@@ -82,9 +88,9 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
             self::assertSame('2026-03-01 14:30:45', $category->createdAt->format('Y-m-d H:i:s'));
         }
 
-        $internalContent = $internalReader->findContentById($contentId);
-        $visibleContents = $visibleReader->listVisibleContents($categoryId);
-        $managementContent = $managementReader->findContentById(
+        $internalContent = $internalContentReader->findContentById($contentId);
+        $visibleContents = $visibleContentReader->listVisibleContents($categoryId);
+        $managementContent = $managementContentReader->findContentById(
             $contentId,
             CategoryDeletedStateEnum::NON_DELETED,
         );
@@ -174,7 +180,7 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $connection = $this->connection();
         $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 Africa/Cairo'));
         $contentService = $this->contentService($connection, new FixedCategoryClock('2026-01-03 00:00:00 Africa/Cairo'));
-        $queryReader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
+        $queryReader = new PdoCategoryContentQueryReader($connection, new FixedCategoryClock());
         $categoryId = $service->create(new CreateCategoryCommand('content-lifecycle-category'));
 
         $contentId = $contentService->create(
@@ -219,7 +225,7 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         $connection = $this->connection();
         $service = $this->service($connection, new FixedCategoryClock('2026-01-03 00:00:00 Africa/Cairo'));
         $contentService = $this->contentService($connection, new FixedCategoryClock('2026-01-03 00:00:00 Africa/Cairo'));
-        $queryReader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
+        $queryReader = new PdoCategoryContentQueryReader($connection, new FixedCategoryClock());
 
         $inactiveCategoryId = $service->create(new CreateCategoryCommand('inactive-content-parent'));
         $service->updateStatus(

@@ -6,6 +6,8 @@ namespace Maatify\Category\Tests\Unit\Service;
 
 use DateTimeImmutable;
 use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentReadQueryInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
@@ -65,20 +67,22 @@ final class DomainVisibleReadServiceTest extends DomainReadServiceTestCase
         $imageAssignments = new CategoryImageAssignmentCollectionDTO([$this->imageAssignment(3)]);
         $scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
         $criteria = new CategoryVisibleListCriteriaDTO(2);
-        $reader = $this->createMock(CategoryReadQueryInterface::class);
-        $reader->expects(self::once())->method('listVisibleRootCategories')->with($criteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listVisibleChildren')->with(1, $criteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listVisibleContents')->with(1, $criteria)->willReturn($contents);
-        $reader->expects(self::once())
+        $categoryReader = $this->createMock(CategoryReadQueryInterface::class);
+        $categoryReader->expects(self::once())->method('listVisibleRootCategories')->with($criteria)->willReturn($categories);
+        $categoryReader->expects(self::once())->method('listVisibleChildren')->with(1, $criteria)->willReturn($categories);
+        $contentReader = $this->createMock(CategoryContentReadQueryInterface::class);
+        $contentReader->expects(self::once())->method('listVisibleContents')->with(1, $criteria)->willReturn($contents);
+        $assignmentReader = $this->createMock(CategoryImageAssignmentReadQueryInterface::class);
+        $assignmentReader->expects(self::once())
             ->method('listVisibleImageAssignments')
             ->with(1, $scope, $criteria)
             ->willReturn($imageAssignments);
-        $service = $this->categoryService(visible: $reader);
+        $service = $this->categoryService(visible: $categoryReader);
 
         self::assertSame($categories, $service->listRootCategories($criteria));
         self::assertSame($categories, $service->listChildren(1, $criteria));
-        self::assertSame($contents, $this->contentService(visible: $reader)->listVisibleForCategory(1, $criteria));
-        self::assertSame($imageAssignments, $this->imageAssignmentService(visible: $reader)->listVisibleForCategory(1, $scope, $criteria));
+        self::assertSame($contents, $this->contentService(visible: $contentReader)->listVisibleForCategory(1, $criteria));
+        self::assertSame($imageAssignments, $this->imageAssignmentService(visible: $assignmentReader)->listVisibleForCategory(1, $scope, $criteria));
     }
 
     private function category(int $id): CategoryDTO

@@ -3,7 +3,8 @@
 ## 1. نطاق المشروع
 
 هذا المستودع مكتبة PHP مستقلة قابلة لإعادة الاستخدام عبر Composer، ويمثل
-`Category` و`Category Content` كـ **Base Module** قابل للاستخراج.
+`Category` و`Category Content` و`Content Fields` و`Image Roles` و`Image Assignments`
+كـ **Base Module** قابل للاستخراج.
 
 القواعد العامة لا تُعاد كتابتها هنا. مصدر اعتماد المعايير المحلي وسجل تركيبها
 هو [`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](docs/php-engineering-standards/STANDARDS_MANIFEST.md)،
@@ -46,7 +47,8 @@
 
 المكتبة تملك فقط:
 
-- Category وCategory Content والعقود والـDTOs والاستثناءات الخاصة بهما.
+- Category وCategory Content وContent Fields وImage Roles وImage Assignments
+  والعقود والـDTOs والاستثناءات الخاصة بها.
 - orchestration الخاص بالمجال وطبقات PDO والجداول المملوكة للحزمة.
 - schema MySQL المملوك للحزمة واختبارات التكامل مع الخدمة الحقيقية.
 

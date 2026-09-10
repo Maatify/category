@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
@@ -323,7 +323,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         return $this->application($connection)->imageRoles();
     }
 
-    private function application(PDO $connection): \Maatify\Category\Api\Contract\CategoryFacadeInterface
+    private function application(PDO $connection): \Maatify\Category\Facade\Contract\CategoryFacadeInterface
     {
         return CategoryFactory::create($connection, new FixedCategoryClock());
     }

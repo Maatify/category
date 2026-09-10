@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Unit\Api;
 
-use Maatify\Category\Api\CategoryFacade;
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Contract\CategoryFacadeInterface;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
-use Maatify\Category\Api\Domain\CategoryApi;
+use Maatify\Category\Facade\CategoryFacade;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Facade\Contract\CategoryFacadeInterface;
+use Maatify\Category\Api\CategoryApiInterface;
+use Maatify\Category\Api\CategoryApi;
 use Maatify\Category\Content\Api\ContentApi;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
 use Maatify\Category\Content\Contract\ContentServiceInterface;

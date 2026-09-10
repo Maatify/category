@@ -16,10 +16,11 @@ use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Category\Content\Query\Contract\CategoryContentManagementReadQueryInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentQueryReaderInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentReadQueryInterface;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
-use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
@@ -30,8 +31,9 @@ final readonly class ContentService implements ContentServiceInterface
     public function __construct(
         private CategoryContentCommandRepositoryInterface $commandRepository,
         private CategoryQueryReaderInterface $categoryQueryReader,
-        private CategoryReadQueryInterface $visibleReader,
-        private CategoryManagementReadQueryInterface $managementReader,
+        private CategoryContentQueryReaderInterface $queryReader,
+        private CategoryContentReadQueryInterface $visibleReader,
+        private CategoryContentManagementReadQueryInterface $managementReader,
         private TransactionRunnerInterface $transaction,
         private ClockInterface $clock,
     ) {}
@@ -126,7 +128,7 @@ final readonly class ContentService implements ContentServiceInterface
 
     private function requireContentForUpdate(int $contentId): CategoryContentDTO
     {
-        $content = $this->categoryQueryReader->findContentByIdForUpdate($contentId);
+        $content = $this->queryReader->findContentByIdForUpdate($contentId);
 
         if ($content === null) {
             throw CategoryContentNotFoundException::withId($contentId);

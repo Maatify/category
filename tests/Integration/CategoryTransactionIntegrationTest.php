@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
@@ -20,6 +20,7 @@ use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\ImageAssignment\Query\Infrastructure\PdoCategoryImageAssignmentQueryReader;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use PDO;
@@ -85,7 +86,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $service = $this->service($connection);
-        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
+        $reader = new PdoCategoryImageAssignmentQueryReader($connection, new FixedCategoryClock());
         $categoryId = $service->create(new CreateCategoryCommand('host-default-transaction-category'));
         $imageService = $this->imageService($connection);
         $firstId = $imageService->create(

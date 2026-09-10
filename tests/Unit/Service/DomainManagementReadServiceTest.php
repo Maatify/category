@@ -6,6 +6,8 @@ namespace Maatify\Category\Tests\Unit\Service;
 
 use DateTimeImmutable;
 use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentManagementReadQueryInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentManagementReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
@@ -40,10 +42,11 @@ final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
 
     public function testMissingCategoryAndContentUseTheirSpecificNotFoundExceptions(): void
     {
-        $reader = $this->createStub(CategoryManagementReadQueryInterface::class);
-        $reader->method('findById')->willReturn(null);
-        $reader->method('findContentById')->willReturn(null);
-        $service = $this->categoryService(management: $reader);
+        $categoryReader = $this->createStub(CategoryManagementReadQueryInterface::class);
+        $categoryReader->method('findById')->willReturn(null);
+        $contentReader = $this->createStub(CategoryContentManagementReadQueryInterface::class);
+        $contentReader->method('findContentById')->willReturn(null);
+        $service = $this->categoryService(management: $categoryReader);
 
         try {
             $service->getByIdForManagement(7);
@@ -53,7 +56,7 @@ final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
         }
 
         $this->expectException(CategoryContentNotFoundException::class);
-        $this->contentService(management: $reader)->getByIdForManagement(9);
+        $this->contentService(management: $contentReader)->getByIdForManagement(9);
     }
 
     public function testListCriteriaArePassedToTheDedicatedReader(): void
@@ -75,22 +78,24 @@ final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
             categoryId: 1,
             maxResults: 3,
         );
-        $reader = $this->createMock(CategoryManagementReadQueryInterface::class);
-        $reader->expects(self::once())->method('listCategories')->with($categoryCriteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listRootCategories')->with($categoryCriteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listChildren')->with(1, $categoryCriteria)->willReturn($categories);
-        $reader->expects(self::once())->method('listContents')->with($contentCriteria)->willReturn($contents);
-        $reader->expects(self::once())
+        $categoryReader = $this->createMock(CategoryManagementReadQueryInterface::class);
+        $categoryReader->expects(self::once())->method('listCategories')->with($categoryCriteria)->willReturn($categories);
+        $categoryReader->expects(self::once())->method('listRootCategories')->with($categoryCriteria)->willReturn($categories);
+        $categoryReader->expects(self::once())->method('listChildren')->with(1, $categoryCriteria)->willReturn($categories);
+        $contentReader = $this->createMock(CategoryContentManagementReadQueryInterface::class);
+        $contentReader->expects(self::once())->method('listContents')->with($contentCriteria)->willReturn($contents);
+        $assignmentReader = $this->createMock(CategoryImageAssignmentManagementReadQueryInterface::class);
+        $assignmentReader->expects(self::once())
             ->method('listImageAssignments')
             ->with($imageCriteria)
             ->willReturn($imageAssignments);
-        $service = $this->categoryService(management: $reader);
+        $service = $this->categoryService(management: $categoryReader);
 
         self::assertSame($categories, $service->listForManagement($categoryCriteria));
         self::assertSame($categories, $service->listRootCategoriesForManagement($categoryCriteria));
         self::assertSame($categories, $service->listChildrenForManagement(1, $categoryCriteria));
-        self::assertSame($contents, $this->contentService(management: $reader)->listForManagement($contentCriteria));
-        self::assertSame($imageAssignments, $this->imageAssignmentService(management: $reader)->listForManagement($imageCriteria));
+        self::assertSame($contents, $this->contentService(management: $contentReader)->listForManagement($contentCriteria));
+        self::assertSame($imageAssignments, $this->imageAssignmentService(management: $assignmentReader)->listForManagement($imageCriteria));
     }
 
     public function testCriteriaRejectNonPositiveCategoryIds(): void

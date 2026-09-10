@@ -113,10 +113,10 @@ explicit reorder commands.
 
 The production namespace is `Maatify\Category\`.
 
-The public application entry point is `Maatify\Category\Api\CategoryFactory`.
+The public application entry point is `Maatify\Category\Factory\CategoryFactory`.
 The Host supplies its existing `PDO` connection and
 `Maatify\SharedCommon\Contracts\ClockInterface`; the Factory returns one
-`CategoryFacadeInterface`. The facade exposes domain APIs through
+`Maatify\Category\Facade\Contract\CategoryFacadeInterface`. The facade exposes domain APIs through
 `categories()`, `contents()`, `contentFields()`, `imageRoles()`, and
 `images()` (Image Assignments). Domain APIs preserve the existing consumer,
 management, transaction, ordering, and timestamp behavior.
@@ -207,7 +207,7 @@ immutable identity.
   return the five domain APIs: `categories()`, `contents()`,
   `contentFields()`, `imageRoles()`, and `images()`. The `images()` accessor is
   intentionally the Image Assignment API; it does not own Media.
-- `CategoryFactory::create(PDO $pdo, ClockInterface $clock):
+- `Maatify\Category\Factory\CategoryFactory::create(PDO $pdo, ClockInterface $clock):
   CategoryFacadeInterface` is the framework-neutral host-wiring entry point.
   It builds all PDO adapters, one shared transaction runner, and one shared
   ordering manager around the supplied primitives.
@@ -234,20 +234,21 @@ immutable identity.
   lifecycle and exact-scope ordering write port.
 - `CategoryImageRoleCommandRepositoryInterface` is the Image Role lifecycle
   write port.
-- `CategoryQueryReaderInterface` is the mutation-support read port. Its
-  `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock Category, Content, Image Role, Image
-  Assignment, and Content Field rows inside the
-  application transaction.
-- `CategoryReadQueryInterface` is the dedicated visible query/read port and is
-  separate from mutation-support reads.
+- `CategoryQueryReaderInterface` is the Category mutation-support read port.
+  Its `findById()` includes soft-deleted rows; `findActiveById()` excludes
+  them; explicit `ForUpdate` methods lock Category rows inside the application
+  transaction. Content, Content Field, Image Role, and Image Assignment each
+  expose their own mutation-support read port in their domain boundary.
+- `CategoryReadQueryInterface` is the dedicated visible Category read port.
+  Content, Content Field, and Image Assignment each expose a separate visible
+  read port in their own domain boundary.
 - Consumer visibility list methods accept only the typed
   `CategoryVisibleListCriteriaDTO`, which bounds each call to 1–100 rows. It
   exposes no status or deleted-state override, preserving consumer visibility
   semantics and the complete ancestor rule.
-- `CategoryManagementReadQueryInterface` is the dedicated management read port
-  and is separate from both mutation-support reads and consumer visibility
-  reads.
+- `CategoryManagementReadQueryInterface` is the dedicated management Category
+  read port. Content, Content Field, Image Role, and Image Assignment each
+  expose a separate management read port in their own domain boundary.
 - `Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface` defines
   the shared transaction boundary used by the domain services. The Factory
   wires `PdoTransactionRunner` with the same PDO instance used by Category
@@ -392,14 +393,14 @@ CategoryImageAssignmentRoleFilterModeEnum: OMITTED = 'omitted',
 #### Public contracts and method signatures
 
 ```text
-CategoryFacadeInterface
+CategoryFacadeInterface [Maatify\Category\Facade\Contract; src/Facade/Contract]
   categories(): CategoryApiInterface
   contents(): ContentApiInterface
   contentFields(): ContentFieldApiInterface
   imageRoles(): ImageRoleApiInterface
   images(): ImageAssignmentApiInterface
 
-CategoryApiInterface [Maatify\Category\Api\Domain; src/Category/Api]
+CategoryApiInterface [Maatify\Category\Api; src/Category/Api]
   create(CreateCategoryCommand): int
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
@@ -488,26 +489,40 @@ CategoryContentFieldCommandRepositoryInterface
   softDelete(SoftDeleteCategoryContentFieldCommand, DateTimeImmutable): bool
   restore(RestoreCategoryContentFieldCommand, DateTimeImmutable): bool
 
-CategoryReadQueryInterface
+CategoryReadQueryInterface [Category domain]
   findVisibleById(int): ?CategoryDTO
   listVisibleRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listVisibleChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+
+CategoryContentReadQueryInterface
   listVisibleContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
-  listVisibleImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+
+CategoryContentFieldReadQueryInterface
   listVisibleContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
 
-CategoryManagementReadQueryInterface
+CategoryImageAssignmentReadQueryInterface
+  listVisibleImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+
+CategoryManagementReadQueryInterface [Category domain]
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
   listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+
+CategoryContentManagementReadQueryInterface
   findContentById(int, CategoryDeletedStateEnum): ?CategoryContentDTO
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+
+CategoryImageRoleManagementReadQueryInterface
   findImageRoleById(int, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   findImageRoleByKey(string, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+
+CategoryImageAssignmentManagementReadQueryInterface
   findImageAssignmentById(int, CategoryDeletedStateEnum): ?CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+
+CategoryContentFieldManagementReadQueryInterface
   findContentFieldById(int, CategoryDeletedStateEnum): ?CategoryContentFieldDTO
   listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
 
@@ -518,11 +533,19 @@ CategoryQueryReaderInterface [internal mutation-support port]
   findActiveByIdForUpdate(int): ?CategoryDTO
   findByIdForUpdate(int): ?CategoryDTO
   hasNonDeletedChildrenForUpdate(int): bool
+
+CategoryContentQueryReaderInterface
   findContentById(int): ?CategoryContentDTO
   findContentByIdForUpdate(int): ?CategoryContentDTO
+
+CategoryImageRoleQueryReaderInterface
   findImageRoleByIdForUpdate(int): ?CategoryImageRoleDTO
+
+CategoryImageAssignmentQueryReaderInterface
   findImageAssignmentById(int): ?CategoryImageAssignmentDTO
   findImageAssignmentByIdForUpdate(int): ?CategoryImageAssignmentDTO
+
+CategoryContentFieldQueryReaderInterface
   findContentFieldById(int): ?CategoryContentFieldDTO
   findContentFieldByIdForUpdate(int): ?CategoryContentFieldDTO
 
@@ -546,25 +569,29 @@ CategoryService(CategoryCommandRepositoryInterface,
                 ClockInterface)
 ContentService(CategoryContentCommandRepositoryInterface,
                CategoryQueryReaderInterface,
-               CategoryReadQueryInterface,
-               CategoryManagementReadQueryInterface,
+               CategoryContentQueryReaderInterface,
+               CategoryContentReadQueryInterface,
+               CategoryContentManagementReadQueryInterface,
                TransactionRunnerInterface,
                ClockInterface)
 ContentFieldService(CategoryContentFieldCommandRepositoryInterface,
                     CategoryQueryReaderInterface,
-                    CategoryReadQueryInterface,
-                    CategoryManagementReadQueryInterface,
+                    CategoryContentFieldQueryReaderInterface,
+                    CategoryContentFieldReadQueryInterface,
+                    CategoryContentFieldManagementReadQueryInterface,
                     TransactionRunnerInterface,
                     ClockInterface)
 ImageRoleService(CategoryImageRoleCommandRepositoryInterface,
-                 CategoryQueryReaderInterface,
-                 CategoryManagementReadQueryInterface,
+                 CategoryImageRoleQueryReaderInterface,
+                 CategoryImageRoleManagementReadQueryInterface,
                  TransactionRunnerInterface,
                  ClockInterface)
 ImageAssignmentService(CategoryImageAssignmentCommandRepositoryInterface,
                        CategoryQueryReaderInterface,
-                       CategoryReadQueryInterface,
-                       CategoryManagementReadQueryInterface,
+                       CategoryImageRoleQueryReaderInterface,
+                       CategoryImageAssignmentQueryReaderInterface,
+                       CategoryImageAssignmentReadQueryInterface,
+                       CategoryImageAssignmentManagementReadQueryInterface,
                        TransactionRunnerInterface,
                        ClockInterface)
 
@@ -576,6 +603,17 @@ PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryQueryReader(PDO, ClockInterface)
 PdoCategoryReadQuery(PDO, ClockInterface)
 PdoCategoryManagementReadQuery(PDO, ClockInterface)
+PdoCategoryContentQueryReader(PDO, ClockInterface)
+PdoCategoryContentReadQuery(PDO, ClockInterface)
+PdoCategoryContentManagementReadQuery(PDO, ClockInterface)
+PdoCategoryContentFieldQueryReader(PDO, ClockInterface)
+PdoCategoryContentFieldReadQuery(PDO, ClockInterface)
+PdoCategoryContentFieldManagementReadQuery(PDO, ClockInterface)
+PdoCategoryImageRoleQueryReader(PDO, ClockInterface)
+PdoCategoryImageRoleManagementReadQuery(PDO, ClockInterface)
+PdoCategoryImageAssignmentQueryReader(PDO, ClockInterface)
+PdoCategoryImageAssignmentReadQuery(PDO, ClockInterface)
+PdoCategoryImageAssignmentManagementReadQuery(PDO, ClockInterface)
 PdoTransactionRunner(PDO) [Host wiring from maatify/persistence]
 ```
 

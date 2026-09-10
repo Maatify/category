@@ -34,8 +34,14 @@ use Maatify\Category\Lifecycle\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Service\CategoryService;
 use Maatify\Category\Content\Service\ContentService;
+use Maatify\Category\Content\Query\Contract\CategoryContentManagementReadQueryInterface;
+use Maatify\Category\Content\Query\Contract\CategoryContentReadQueryInterface;
 use Maatify\Category\ContentField\Service\ContentFieldService;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldManagementReadQueryInterface;
+use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldReadQueryInterface;
 use Maatify\Category\ImageAssignment\Service\ImageAssignmentService;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentManagementReadQueryInterface;
+use Maatify\Category\ImageAssignment\Query\Contract\CategoryImageAssignmentReadQueryInterface;
 use Maatify\Category\Query\Contract\CategoryReadQueryInterface;
 use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\Tests\Unit\Service\Support\InMemoryCategoryQueryReader;
@@ -240,16 +246,19 @@ final class DomainMutationServiceTest extends TestCase
         $imageService = new ImageAssignmentService(
             $imageRepository,
             $queryReader,
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $queryReader,
+            $queryReader,
+            $this->createStub(CategoryImageAssignmentReadQueryInterface::class),
+            $this->createStub(CategoryImageAssignmentManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );
         $fieldService = new ContentFieldService(
             $fieldRepository,
             $queryReader,
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $queryReader,
+            $this->createStub(CategoryContentFieldReadQueryInterface::class),
+            $this->createStub(CategoryContentFieldManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );
@@ -290,8 +299,9 @@ final class DomainMutationServiceTest extends TestCase
         $service = new ContentService(
             $contentRepository,
             $queryReader,
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $queryReader,
+            $this->createStub(CategoryContentReadQueryInterface::class),
+            $this->createStub(CategoryContentManagementReadQueryInterface::class),
             new InMemoryCategoryTransaction(),
             new FixedClock(),
         );
@@ -326,8 +336,9 @@ final class DomainMutationServiceTest extends TestCase
         $service = new ContentService(
             $contentRepository,
             $queryReader,
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $queryReader,
+            $this->createStub(CategoryContentReadQueryInterface::class),
+            $this->createStub(CategoryContentManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );
@@ -372,8 +383,10 @@ final class DomainMutationServiceTest extends TestCase
         $service = new ImageAssignmentService(
             $imageRepository,
             $queryReader,
-            $this->createStub(CategoryReadQueryInterface::class),
-            $this->createStub(CategoryManagementReadQueryInterface::class),
+            $queryReader,
+            $queryReader,
+            $this->createStub(CategoryImageAssignmentReadQueryInterface::class),
+            $this->createStub(CategoryImageAssignmentManagementReadQueryInterface::class),
             $transaction,
             new FixedClock(),
         );

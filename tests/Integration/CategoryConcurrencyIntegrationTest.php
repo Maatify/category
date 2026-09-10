@@ -6,8 +6,8 @@ namespace Maatify\Category\Tests\Integration;
 
 use Closure;
 use DateTimeImmutable;
-use Maatify\Category\Api\CategoryFactory;
-use Maatify\Category\Api\Domain\CategoryApiInterface;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\Content\Api\Contract\ContentApiInterface;
 use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
