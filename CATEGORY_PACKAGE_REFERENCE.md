@@ -133,6 +133,7 @@ The immutable record DTOs are:
 - `CategoryImageRoleCollectionDTO`
 - `CategoryImageRoleListCriteriaDTO`
 - `CategoryImageAssignmentScopeDTO`
+- `CategoryImageAssignmentRoleFilterDTO`
 - `CategoryImageAssignmentDTO`
 - `CategoryImageAssignmentCollectionDTO`
 - `CategoryContentFieldScopeDTO`
@@ -300,6 +301,9 @@ CategoryImageRoleListCriteriaDTO(?CategoryImageRoleStatusEnum $status = null,
 CategoryImageAssignmentScopeDTO(?string $languageCode = null,
                                 ?string $platform = null,
                                 string|int|null $roleId = null)
+CategoryImageAssignmentRoleFilterDTO::omitted()
+CategoryImageAssignmentRoleFilterDTO::exactNull()
+CategoryImageAssignmentRoleFilterDTO::forRole(string|int $roleId)
 CategoryImageAssignmentDTO(int $id, int $categoryId, int $mediaAssetId,
                            ?string $languageCode, ?string $platform,
                            int $displayOrder, DateTimeImmutable $createdAt,
@@ -327,7 +331,8 @@ CategoryVisibleListCriteriaDTO(int $maxResults = 100)
 CategoryImageAssignmentListCriteriaDTO(?int $categoryId = null,
                                        ?CategoryImageAssignmentScopeDTO $scope = null,
                                        CategoryDeletedStateEnum $deletedState = NON_DELETED,
-                                       int $maxResults = 100)
+                                       int $maxResults = 100,
+                                       ?CategoryImageAssignmentRoleFilterDTO $roleFilter = null)
 CategoryContentFieldListCriteriaDTO(?int $categoryId = null,
                                     ?string $fieldKey = null,
                                     ?CategoryContentFieldScopeDTO $scope = null,
@@ -348,6 +353,9 @@ CategoryDeletedStateEnum: NON_DELETED = 'non_deleted',
                           DELETED_ONLY = 'deleted_only'
 CategoryContentFieldFormatEnum: TEXT = 'text', HTML = 'html', JSON = 'json'
 CategoryImageRoleStatusEnum: ACTIVE = 'active', INACTIVE = 'inactive'
+CategoryImageAssignmentRoleFilterModeEnum: OMITTED = 'omitted',
+                                           EXACT_NULL = 'exact_null',
+                                           CONCRETE = 'concrete'
 ```
 
 #### Public contracts and method signatures
@@ -520,9 +528,12 @@ collections may contain the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
-apply exact nullable language/platform/Role scope predicates only when a scope
-object is supplied,
-and are ordered by Category, exact scope, `display_order, id`. Visible Image
+apply exact nullable language/platform scope predicates only when a scope object
+is supplied, and are ordered by Category, exact scope, `display_order, id`.
+The management criteria also support three independent Role-filter states
+through `CategoryImageAssignmentRoleFilterDTO`: omitted (all Roles), exact
+NULL Role, or one concrete Role. When the explicit Role filter is absent, the
+legacy `scope->roleId` value remains an exact Role predicate. Visible Image
 Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
 deleted rows, and apply complete ancestor visibility plus active/non-deleted
 Role visibility with no fallback. Role-scoped assignment creation requires the
@@ -623,7 +634,6 @@ Visible query methods:
 - List direct children by `parent_id`.
 - Read Category Contents.
 - Read Image Assignments for an exact language/platform/Role scope.
-- Read Image Roles by ID/key and bounded lists.
 - Read Content Fields for an exact language/platform scope.
 
 They exclude soft-deleted and inactive Categories. A descendant is hidden when
@@ -632,10 +642,16 @@ methods return typed DTOs and do not select a language or apply fallback. Their
 criteria cannot opt out of inactive/deleted filtering.
 Image Assignment and Content Field reads exclude soft-deleted rows and never
 fall back between exact scopes. Role-scoped Image Assignment reads also require
-an active, non-deleted Role. Management `scope = null` means no scope filter;
-an explicit `CategoryImageAssignmentScopeDTO` filters all three nullable
-dimensions exactly, so `new CategoryImageAssignmentScopeDTO()` means exact
-NULL Role/NULL language/NULL platform rather than an omitted filter.
+an active, non-deleted Role. Management `scope = null` means no
+language/platform scope filter. An explicit `CategoryImageAssignmentScopeDTO`
+filters its language/platform dimensions exactly; without an explicit
+`roleFilter`, its `roleId` remains an exact Role predicate, so
+`new CategoryImageAssignmentScopeDTO()` means exact NULL Role/NULL
+language/NULL platform. To keep language/platform exact while omitting the
+Role predicate, pass `CategoryImageAssignmentRoleFilterDTO::omitted()`. Use
+`CategoryImageAssignmentRoleFilterDTO::exactNull()` for an explicit NULL Role
+filter or `::forRole($roleId)` for one concrete Role. Image Role reads are
+management-only and are not part of `CategoryQueryService`.
 
 ## Persistence contract
 
@@ -653,12 +669,15 @@ stable unique keys, status/language/platform/Role `CHECK` enforcement, and
 package-owned self-parent triggers. A stored generated language identity maps
 NULL to one uniqueness value, so MySQL enforces both the single unlocalized
 row and the per-language uniqueness. Content Fields use generated
-NULL-normalized Role/language/platform identities for the immutable five-part
-Image Assignment identity, and generated exact-scope ordering keys for locking
-and ordering. Image Assignment `role_id` has an internal restrictive foreign
-key to the Image Role registry; there are no Host-table foreign keys.
-Their declared format is checked with a case-sensitive `utf8mb4_bin` column
-collation, and `JSON_VALID(value)` is enforced for exact lowercase `json` rows.
+NULL-normalized language/platform identities for their own immutable
+four-part identity and generated exact-scope ordering keys for locking and
+ordering. Image Assignments use generated NULL-normalized Role/language/platform
+identities for their immutable five-part identity and generated exact-scope
+ordering keys. Image Assignment `role_id` has an internal restrictive foreign
+key to the Image Role registry; there are no Host-table foreign keys. Image
+Role `status` and Content Field `format` use case-sensitive `utf8mb4_bin`
+column collations, and `JSON_VALID(value)` is enforced for exact lowercase
+`json` rows.
 MySQL 8.0.16 or later is required because
 earlier MySQL 8 releases accepted but did not enforce `CHECK` constraints.
 

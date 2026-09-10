@@ -60,7 +60,7 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 The package exposes twenty-three typed mutation Commands, immutable Category,
 Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
-criteria DTOs, four enums, typed service and
+criteria DTOs, five enums, typed service and
 repository contracts, and framework-neutral PDO adapters. The complete
 constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
@@ -78,6 +78,9 @@ bounded to at most 100 rows. Category lists use `display_order, id`; Content
 lists use `language_code, id`; Image Role lists use `role_key, id`; Image
 Assignment and Content Field lists use exact scopes and deterministic
 `display_order, id` ordering within each scope.
+Management Image Assignment criteria can independently omit the Role filter,
+match the exact NULL Role, or match one concrete Role while retaining exact
+language/platform filtering.
 
 ## Category Content model
 

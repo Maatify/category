@@ -17,6 +17,8 @@ use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
 use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentRoleFilterDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryImageRoleCollectionDTO;
 use Maatify\Category\DTO\CategoryImageRoleDTO;
@@ -135,6 +137,10 @@ final class CategoryContractJsonSerializationTest extends TestCase
             new UpdateCategoryContentFieldDisplayOrderCommand(17, 3),
             new UpdateCategoryImageAssignmentDisplayOrderCommand(13, 2),
             new CategoryImageAssignmentScopeDTO(null, 'web', 19),
+            new CategoryImageAssignmentListCriteriaDTO(
+                scope: new CategoryImageAssignmentScopeDTO('ar', 'web'),
+                roleFilter: CategoryImageAssignmentRoleFilterDTO::omitted(),
+            ),
             $imageAssignment,
             $imageRole,
             new CategoryContentFieldScopeDTO('ar', 'web'),

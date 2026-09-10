@@ -32,7 +32,8 @@ delete and update operations. Category creation obtains the next positive
 `maatify/persistence` Ordering API inside the application transaction.
 
 Category Image Roles are package-owned registry records with immutable,
-globally unique `role_key` values and typed `active`/`inactive` status. A
+globally unique `role_key` values and typed exact-lowercase `active`/`inactive`
+status stored with `utf8mb4_bin` and enforced by a binary `CHECK`. A
 soft-deleted key remains reserved and restoration preserves the same identity.
 Role semantics and media policy remain Host-owned.
 

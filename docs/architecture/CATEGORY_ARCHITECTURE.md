@@ -178,8 +178,11 @@ Visible Image Assignment reads exclude soft-deleted rows, require the
 requested Category's complete ancestor chain to be active and non-deleted, and
 match Role/language/platform with NULL-safe exact predicates. Role-scoped rows
 also require an active, non-deleted Role. They never search a different scope
-as fallback. Management criteria distinguish an omitted scope filter (`scope =
-null`) from an exact all-NULL scope object.
+as fallback. Management Image Assignment criteria distinguish the exact
+language/platform scope from the Role filter and support omitted Role, exact
+NULL Role, or one concrete Role. `scope = null` omits all language/platform
+predicates; an explicit scope with no `roleFilter` preserves the legacy exact
+`scope->roleId` behavior.
 Visible Content Field reads exclude soft-deleted fields, require an exact
 `CategoryContentFieldScopeDTO`, apply complete ancestor visibility, and never
 fallback. Management Content Field criteria use `scope = null` for no scope

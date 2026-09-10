@@ -113,12 +113,40 @@ final class CategorySchemaIntegrationTest extends TestCase
         self::assertSame(2, $this->rowCount(self::IMAGE_ASSIGNMENT_TABLE));
     }
 
-    public function testImageRoleIdentityAndStatusConstraintsAreDatabaseEnforced(): void
+    public function testImageRoleIdentityConstraintIsDatabaseEnforced(): void
     {
         $this->insertRole(1, 'gallery', 'active');
 
         $this->expectException(PDOException::class);
         $this->insertRole(2, 'gallery', 'inactive');
+    }
+
+    public function testImageRoleStatusRequiresExactLowercaseValues(): void
+    {
+        $collationStatement = $this->connection()->prepare(
+            'SELECT COLLATION_NAME FROM information_schema.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column',
+        );
+        $collationStatement->execute([
+            'table' => self::IMAGE_ROLE_TABLE,
+            'column' => 'status',
+        ]);
+        self::assertSame('utf8mb4_bin', $collationStatement->fetchColumn());
+
+        /** @var list<array{string, string}> $variants */
+        $variants = [
+            ['uppercase-active', 'ACTIVE'],
+            ['uppercase-inactive', 'INACTIVE'],
+            ['trailing-space-active', 'active '],
+            ['trailing-space-inactive', 'inactive '],
+        ];
+        foreach ($variants as [$roleKey, $status]) {
+            $this->assertImageRoleInsertRejected(
+                $roleKey,
+                $status,
+                sprintf('The database must reject non-exact Image Role status %s.', $status),
+            );
+        }
     }
 
     public function testImageAssignmentIdentityIncludesNullableRoleAndRoleScopes(): void
@@ -550,6 +578,17 @@ final class CategorySchemaIntegrationTest extends TestCase
     ): void {
         try {
             $this->insertContentField($fieldKey, $format, $value);
+        } catch (PDOException) {
+            return;
+        }
+
+        self::fail($message);
+    }
+
+    private function assertImageRoleInsertRejected(string $roleKey, string $status, string $message): void
+    {
+        try {
+            $this->insertRole(1, $roleKey, $status);
         } catch (PDOException) {
             return;
         }

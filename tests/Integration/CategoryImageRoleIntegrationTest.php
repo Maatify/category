@@ -11,6 +11,7 @@ use Maatify\Category\Command\RestoreCategoryImageRoleCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageRoleCommand;
 use Maatify\Category\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\DTO\CategoryImageAssignmentRoleFilterDTO;
 use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
@@ -170,6 +171,36 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO('ar', 'ios', null),
+                ),
+            )),
+        );
+        self::assertSame(
+            [$genericId, $galleryFirstId, $gallerySecondId, $heroIdAssignment],
+            $this->assignmentIds($management->listImageAssignments(
+                new CategoryImageAssignmentListCriteriaDTO(
+                    categoryId: $categoryId,
+                    scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
+                    roleFilter: CategoryImageAssignmentRoleFilterDTO::omitted(),
+                ),
+            )),
+        );
+        self::assertSame(
+            [$genericId],
+            $this->assignmentIds($management->listImageAssignments(
+                new CategoryImageAssignmentListCriteriaDTO(
+                    categoryId: $categoryId,
+                    scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
+                    roleFilter: CategoryImageAssignmentRoleFilterDTO::exactNull(),
+                ),
+            )),
+        );
+        self::assertSame(
+            [$galleryFirstId, $gallerySecondId],
+            $this->assignmentIds($management->listImageAssignments(
+                new CategoryImageAssignmentListCriteriaDTO(
+                    categoryId: $categoryId,
+                    scope: new CategoryImageAssignmentScopeDTO('ar', 'ios'),
+                    roleFilter: CategoryImageAssignmentRoleFilterDTO::forRole($galleryId),
                 ),
             )),
         );

@@ -26,6 +26,8 @@ use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
 use Maatify\Category\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Enum\CategoryStatusEnum;
 use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
+use Maatify\Category\Enum\CategoryImageAssignmentRoleFilterModeEnum;
+use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryPersistenceException;
 use PDO;
 
@@ -163,12 +165,22 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
                 $where[] = '`assignment`.`platform` = :image_platform';
                 $params['image_platform'] = $criteria->scope->platform;
             }
-            if ($criteria->scope->roleId === null) {
+        }
+
+        switch ($criteria->roleFilter->mode) {
+            case CategoryImageAssignmentRoleFilterModeEnum::OMITTED:
+                break;
+            case CategoryImageAssignmentRoleFilterModeEnum::EXACT_NULL:
                 $where[] = '`assignment`.`role_id` IS NULL';
-            } else {
+                break;
+            case CategoryImageAssignmentRoleFilterModeEnum::CONCRETE:
+                $roleId = $criteria->roleFilter->roleId;
+                if ($roleId === null) {
+                    throw CategoryInvalidArgumentException::invalidId('roleId');
+                }
                 $where[] = '`assignment`.`role_id` = :image_role_id';
-                $params['image_role_id'] = $criteria->scope->roleId;
-            }
+                $params['image_role_id'] = $roleId;
+                break;
         }
 
         $statement = $this->pdo->prepare(
