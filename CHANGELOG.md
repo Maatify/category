@@ -20,6 +20,10 @@ tag, release date, or owner-approved release metadata is claimed.
 
 ### Changed
 
+- Removed Category-owned UTC timestamp normalization. Hosts provide
+  `Maatify\SharedCommon\Contracts\ClockInterface` and its timezone; Category
+  persists timestamp values as supplied and hydrates them using that Host Clock
+  timezone.
 - Reconciled the roadmap and package documentation with the selective pinned
   standards adoption and the current v1 runtime contract.
 - Documented separate management and consumer visibility reads, bounded

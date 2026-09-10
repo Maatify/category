@@ -81,7 +81,12 @@ Restore uses the original identity.
 
 Every mutation receives its timestamp from the injected
 `maatify/shared-common` `ClockInterface`. Repositories persist supplied times;
-they do not generate application time.
+they do not generate application time. Category owns timestamps as values, but
+does not own timezone policy: the Host provides the Clock and its timezone.
+Write repositories serialize the supplied `DateTimeImmutable` value directly
+for MySQL `DATETIME` storage without UTC conversion. Read adapters receive the
+same Clock and use `$clock->getTimezone()` when hydrating stored values. The
+package does not change PHP's default timezone.
 
 ## Persistence and ordering
 

@@ -35,7 +35,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
 
         $categoryId = $service->create(new CreateCategoryCommand('standalone-transaction-category'));
 
-        self::assertNotNull((new PdoCategoryQueryReader($connection))->findById($categoryId));
+        self::assertNotNull((new PdoCategoryQueryReader($connection, new FixedCategoryClock()))->findById($categoryId));
         self::assertFalse($connection->inTransaction());
     }
 
@@ -43,7 +43,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $service = $this->service($connection);
-        $reader = new PdoCategoryQueryReader($connection);
+        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
 
         $connection->beginTransaction();
         try {
@@ -65,7 +65,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $service = $this->service($connection);
-        $reader = new PdoCategoryQueryReader($connection);
+        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
 
         $connection->beginTransaction();
         try {
@@ -107,7 +107,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
             }
         }
 
-        $updated = (new PdoCategoryQueryReader($connection))->findById($categoryId);
+        $updated = (new PdoCategoryQueryReader($connection, new FixedCategoryClock()))->findById($categoryId);
         self::assertNotNull($updated);
         self::assertSame(CategoryStatusEnum::INACTIVE, $updated->status);
     }
@@ -116,7 +116,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $service = $this->service($connection);
-        $reader = new PdoCategoryQueryReader($connection);
+        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
 
         $firstCategoryId = $service->create(new CreateCategoryCommand('outer-ordering-first'));
         $secondCategoryId = $service->create(new CreateCategoryCommand('outer-ordering-second'));
@@ -245,14 +245,16 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
 
     private function service(PDO $connection): CategoryCommandService
     {
+        $clock = new FixedCategoryClock('2026-01-05 00:00:00 Africa/Cairo');
+
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, $clock),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-05 00:00:00 UTC'),
+            $clock,
         );
     }
 }

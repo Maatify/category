@@ -19,8 +19,8 @@ final class CategoryContentDTOTest extends TestCase
             languageCode: 'ar-EG',
             name: 'قمصان',
             description: 'وصف الفئة',
-            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
-            updatedAt: new DateTimeImmutable('2026-01-02 00:00:00 UTC'),
+            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
+            updatedAt: new DateTimeImmutable('2026-01-02 00:00:00 Africa/Cairo'),
             deletedAt: null,
         );
 
@@ -42,8 +42,8 @@ final class CategoryContentDTOTest extends TestCase
             languageCode: 'en',
             name: 'Shirts',
             description: null,
-            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
-            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
+            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
+            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
             deletedAt: null,
         );
     }
@@ -56,8 +56,8 @@ final class CategoryContentDTOTest extends TestCase
             languageCode: null,
             name: 'Shirts',
             description: null,
-            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
-            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
+            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
+            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
             deletedAt: null,
         );
 
@@ -74,8 +74,8 @@ final class CategoryContentDTOTest extends TestCase
             languageCode: '',
             name: 'Shirts',
             description: null,
-            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
-            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
+            createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
+            updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
             deletedAt: null,
         );
     }

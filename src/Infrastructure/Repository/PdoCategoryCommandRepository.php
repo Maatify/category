@@ -206,6 +206,6 @@ final readonly class PdoCategoryCommandRepository implements CategoryCommandRepo
 
     private function formatTimestamp(DateTimeImmutable $occurredAt): string
     {
-        return $occurredAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        return $occurredAt->format('Y-m-d H:i:s');
     }
 }

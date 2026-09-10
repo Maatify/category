@@ -326,18 +326,19 @@ try {
         'The standalone schema did not create exactly its two package-owned triggers.',
     );
 
+    $clock = new SystemClock(new \DateTimeZone('Africa/Cairo'));
     $commandService = new CategoryCommandService(
         new PdoCategoryCommandRepository($pdo, new ScopedOrderingManager()),
-        new PdoCategoryQueryReader($pdo),
+        new PdoCategoryQueryReader($pdo, $clock),
         new PdoCategoryContentCommandRepository($pdo),
         new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
         new PdoTransactionRunner($pdo),
-        new SystemClock(new \DateTimeZone('UTC')),
+        $clock,
         new PdoCategoryImageRoleCommandRepository($pdo),
     );
-    $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo));
-    $managementReader = new PdoCategoryManagementReadQuery($pdo);
+    $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo, $clock));
+    $managementReader = new PdoCategoryManagementReadQuery($pdo, $clock);
     $managementService = new CategoryManagementQueryService($managementReader);
 
     $categoryId = $commandService->create(new CreateCategoryCommand('standalone-consumer-category'));
@@ -384,6 +385,20 @@ try {
     $category = $queryService->getById($categoryId);
     standalone_consumer_require($category->id === $categoryId, 'Standalone query returned the wrong Category.');
     standalone_consumer_require($category->code === 'standalone-consumer-category', 'Standalone Category code mismatch.');
+    standalone_consumer_require(
+        $category->createdAt->getTimezone()->getName() === 'Africa/Cairo',
+        'Standalone hydration did not use the Host Clock timezone.',
+    );
+    $createdAtStatement = $pdo->prepare(
+        'SELECT `created_at` FROM `maa_category_categories` WHERE `id` = :id',
+    );
+    $createdAtStatement->execute(['id' => $categoryId]);
+    $storedCreatedAt = $createdAtStatement->fetchColumn();
+    standalone_consumer_require(
+        is_string($storedCreatedAt)
+        && $storedCreatedAt === $category->createdAt->format('Y-m-d H:i:s'),
+        'Standalone persistence did not preserve the Host timestamp value.',
+    );
     standalone_consumer_require(
         $queryService->listRootCategories(new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
         'Standalone visible root query did not return the stored Category.',
@@ -520,6 +535,24 @@ try {
             ),
         )->count() === 1,
         'Standalone management Content Field list did not return the exact scope.',
+    );
+    $commandService->updateStatus(
+        new \Maatify\Category\Command\UpdateCategoryStatusCommand(
+            $categoryId,
+            CategoryStatusEnum::INACTIVE,
+        ),
+    );
+    $updatedCategory = $managementService->getById($categoryId, CategoryDeletedStateEnum::NON_DELETED);
+    $updatedAtStatement = $pdo->prepare(
+        'SELECT `updated_at` FROM `maa_category_categories` WHERE `id` = :id',
+    );
+    $updatedAtStatement->execute(['id' => $categoryId]);
+    $storedUpdatedAt = $updatedAtStatement->fetchColumn();
+    standalone_consumer_require(
+        $updatedCategory->updatedAt->getTimezone()->getName() === 'Africa/Cairo'
+        && is_string($storedUpdatedAt)
+        && $storedUpdatedAt === $updatedCategory->updatedAt->format('Y-m-d H:i:s'),
+        'Standalone update did not preserve Host timezone semantics.',
     );
 } finally {
     standalone_consumer_drop_schema($pdo);

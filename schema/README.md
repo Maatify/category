@@ -25,8 +25,10 @@ package-owned self-parent triggers:
 - `trg_maa_category_categories_parent_not_self_bu`
 
 The schema contains no Host, Catalog, Product, Pricing, Inventory, or Media
-tables. Timestamps are supplied by the Category application in UTC, and soft
-deletion uses nullable `deleted_at`. Internal foreign keys use `RESTRICT` for
+tables. Timestamps are supplied by the Host through
+`Maatify\SharedCommon\Contracts\ClockInterface` and stored as the values that
+Clock provides; Category does not choose or normalize a timezone. Soft deletion
+uses nullable `deleted_at`. Internal foreign keys use `RESTRICT` for
 delete and update operations. Category creation obtains the next positive
 `display_order` for the nullable `parent_id` scope through the shared
 `maatify/persistence` Ordering API inside the application transaction.

@@ -53,7 +53,7 @@ use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 
-/** Coordinates Category business rules and owns application mutation time. */
+/** Coordinates Category business rules and consumes Host-provided mutation time. */
 final readonly class CategoryCommandService implements CategoryCommandServiceInterface
 {
     public function __construct(
