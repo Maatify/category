@@ -155,6 +155,11 @@ development and do not rely on a Packagist version claim.
 
 ## Quick Usage
 
+The Host provides `Maatify\SharedCommon\Contracts\ClockInterface` and its
+timezone to Category. Category owns timestamps as values, but does not own
+timezone policy or normalize timestamps to UTC. The example below uses the
+Host timezone `Africa/Cairo`.
+
 ```php
 use DateTimeImmutable;
 use Maatify\Category\DTO\CategoryDTO;
@@ -166,8 +171,8 @@ $category = new CategoryDTO(
     code: 'clothing',
     status: CategoryStatusEnum::ACTIVE,
     displayOrder: 1,
-    createdAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
-    updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 UTC'),
+    createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
+    updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
     deletedAt: null,
 );
 ```

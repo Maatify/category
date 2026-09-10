@@ -45,7 +45,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $this->setDisplayOrder($connection, $inactiveId, 3);
         $this->setDisplayOrder($connection, $deletedId, 3);
 
-        $reader = new PdoCategoryReadQuery($connection);
+        $reader = new PdoCategoryReadQuery($connection, new FixedCategoryClock());
         $queryService = new CategoryQueryService($reader);
 
         self::assertSame($secondId, $queryService->getById($secondId)->id);
@@ -97,7 +97,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $this->setDisplayOrder($connection, $secondChildId, 1);
         $this->setDisplayOrder($connection, $thirdChildId, 2);
 
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
         $bounded = new CategoryVisibleListCriteriaDTO(2);
         $defaultBound = new CategoryVisibleListCriteriaDTO();
 
@@ -154,7 +154,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
         $this->setDisplayOrder($connection, $inactiveChildId, 3);
         $this->setDisplayOrder($connection, $deletedChildId, 3);
 
-        $reader = new PdoCategoryReadQuery($connection);
+        $reader = new PdoCategoryReadQuery($connection, new FixedCategoryClock());
         $queryService = new CategoryQueryService($reader);
 
         self::assertSame(
@@ -203,7 +203,7 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
             new SoftDeleteCategoryContentCommand($deletedCategoryContentId),
         );
 
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
         $visibleContents = $queryService->listContents($visibleId);
         $languages = [];
         foreach ($visibleContents as $content) {
@@ -241,12 +241,12 @@ final class CategoryQueryIntegrationTest extends CategoryMySqlIntegrationTestCas
     {
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
         );
     }
 

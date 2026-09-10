@@ -65,7 +65,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->rollBack();
             $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
 
-            $reader = new PdoCategoryQueryReader($blockedConnection);
+            $reader = new PdoCategoryQueryReader($blockedConnection, new FixedCategoryClock());
             self::assertSame($targetParentId, $reader->findById($categoryId)?->parentId);
             $this->assertHierarchyIsValid($blockedConnection);
         } finally {
@@ -88,12 +88,16 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             'SELECT `id` FROM `maa_category_categories` WHERE `id` = :id FOR UPDATE',
         );
         $lockStatement->execute(['id' => $targetParentId]);
+        $lockerTimestamp = (new FixedCategoryClock('2026-02-09 00:00:00 Africa/Cairo'))
+            ->now()
+            ->format('Y-m-d H:i:s');
         $updateStatement = $locker->prepare(
-            'UPDATE `maa_category_categories` SET `parent_id` = :parent_id, `updated_at` = UTC_TIMESTAMP() '
+            'UPDATE `maa_category_categories` SET `parent_id` = :parent_id, `updated_at` = :updated_at '
             . 'WHERE `id` = :id',
         );
         $updateStatement->execute([
             'parent_id' => $newAncestorId,
+            'updated_at' => $lockerTimestamp,
             'id' => $targetParentId,
         ]);
 
@@ -113,7 +117,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->commit();
             $blockedService->move(new MoveCategoryCommand($categoryId, $targetParentId));
 
-            $reader = new PdoCategoryQueryReader($blockedConnection);
+            $reader = new PdoCategoryQueryReader($blockedConnection, new FixedCategoryClock());
             self::assertSame($targetParentId, $reader->findById($categoryId)?->parentId);
             self::assertSame($newAncestorId, $reader->findById($targetParentId)?->parentId);
             $this->assertHierarchyIsValid($blockedConnection);
@@ -211,11 +215,18 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             'SELECT `id` FROM `maa_category_categories` WHERE `id` = :id FOR UPDATE',
         );
         $lockStatement->execute(['id' => $parentId]);
+        $lockerTimestamp = (new FixedCategoryClock('2026-02-09 00:00:00 Africa/Cairo'))
+            ->now()
+            ->format('Y-m-d H:i:s');
         $deleteStatement = $locker->prepare(
-            'UPDATE `maa_category_categories` SET `deleted_at` = UTC_TIMESTAMP(), `updated_at` = UTC_TIMESTAMP() '
+            'UPDATE `maa_category_categories` SET `deleted_at` = :deleted_at, `updated_at` = :updated_at '
             . 'WHERE `id` = :id',
         );
-        $deleteStatement->execute(['id' => $parentId]);
+        $deleteStatement->execute([
+            'deleted_at' => $lockerTimestamp,
+            'updated_at' => $lockerTimestamp,
+            'id' => $parentId,
+        ]);
 
         $blockedConnection = $this->newConnection();
         $this->setLockWaitTimeout($blockedConnection);
@@ -239,7 +250,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
                 self::assertFalse($blockedConnection->inTransaction());
             }
 
-            $reader = new PdoCategoryQueryReader($blockedConnection);
+            $reader = new PdoCategoryQueryReader($blockedConnection, new FixedCategoryClock());
             self::assertNotNull($reader->findById($parentId)?->deletedAt);
             $statement = $blockedConnection->prepare(
                 'SELECT COUNT(*) FROM `maa_category_categories` WHERE `parent_id` = :parent_id',
@@ -283,7 +294,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
                 self::assertFalse($blockedConnection->inTransaction());
             }
 
-            $reader = new PdoCategoryQueryReader($blockedConnection);
+            $reader = new PdoCategoryQueryReader($blockedConnection, new FixedCategoryClock());
             self::assertNull($reader->findById($parentId)?->deletedAt);
             self::assertNull($reader->findById($childId)?->deletedAt);
             $this->assertHierarchyIsValid($blockedConnection);
@@ -307,7 +318,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $this->setLockWaitTimeout($blockedConnection);
         $blockedService = $this->service(
             $blockedConnection,
-            new FixedCategoryClock('2026-02-10 00:00:00 UTC'),
+            new FixedCategoryClock('2026-02-10 00:00:00 Africa/Cairo'),
         );
 
         try {
@@ -351,7 +362,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $this->setLockWaitTimeout($blockedConnection);
         $blockedService = $this->service(
             $blockedConnection,
-            new FixedCategoryClock('2026-02-11 00:00:00 UTC'),
+            new FixedCategoryClock('2026-02-11 00:00:00 Africa/Cairo'),
         );
 
         try {
@@ -388,12 +399,12 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
         $leftConnection = $this->newConnection();
         $rightConnection = $this->newConnection();
-        $leftReader = new PdoCategoryQueryReader($leftConnection);
-        $rightReader = new PdoCategoryQueryReader($rightConnection);
+        $leftReader = new PdoCategoryQueryReader($leftConnection, new FixedCategoryClock());
+        $rightReader = new PdoCategoryQueryReader($rightConnection, new FixedCategoryClock());
         $leftRepository = new PdoCategoryCommandRepository($leftConnection, new ScopedOrderingManager());
         $rightRepository = new PdoCategoryCommandRepository($rightConnection, new ScopedOrderingManager());
         $code = 'concurrent-absent-code';
-        $occurredAt = new DateTimeImmutable('2026-02-12 00:00:00 UTC');
+        $occurredAt = new DateTimeImmutable('2026-02-12 00:00:00 Africa/Cairo');
 
         try {
             // Both independent flows observe the same code as absent before either insert.
@@ -422,7 +433,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             }
 
             self::assertFalse($rightConnection->inTransaction());
-            $reader = new PdoCategoryQueryReader($this->connection());
+            $reader = new PdoCategoryQueryReader($this->connection(), new FixedCategoryClock());
             self::assertSame(
                 $winnerId,
                 $reader->findByCode($code)?->id,
@@ -445,15 +456,20 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
         $locker = $this->newConnection();
         $locker->beginTransaction();
+        $lockerTimestamp = (new FixedCategoryClock('2026-02-09 00:00:00 Africa/Cairo'))
+            ->now()
+            ->format('Y-m-d H:i:s');
         $insert = $locker->prepare(
             'INSERT INTO `maa_category_category_contents` '
             . '(`category_id`, `language_code`, `name`, `created_at`, `updated_at`) '
-            . 'VALUES (:category_id, :language_code, :name, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            . 'VALUES (:category_id, :language_code, :name, :created_at, :updated_at)',
         );
         $insert->execute([
             'category_id' => $categoryId,
             'language_code' => 'en-US',
             'name' => 'Reserved',
+            'created_at' => $lockerTimestamp,
+            'updated_at' => $lockerTimestamp,
         ]);
 
         $blockedConnection = $this->newConnection();
@@ -504,14 +520,19 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
         $locker = $this->newConnection();
         $locker->beginTransaction();
+        $lockerTimestamp = (new FixedCategoryClock('2026-02-09 00:00:00 Africa/Cairo'))
+            ->now()
+            ->format('Y-m-d H:i:s');
         $insert = $locker->prepare(
             'INSERT INTO `maa_category_category_image_assignments` '
             . '(`category_id`, `media_asset_id`, `language_code`, `platform`, `display_order`, `created_at`, `updated_at`) '
-            . 'VALUES (:category_id, :media_asset_id, NULL, NULL, 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+            . 'VALUES (:category_id, :media_asset_id, NULL, NULL, 1, :created_at, :updated_at)',
         );
         $insert->execute([
             'category_id' => $categoryId,
             'media_asset_id' => 700,
+            'created_at' => $lockerTimestamp,
+            'updated_at' => $lockerTimestamp,
         ]);
 
         $blockedConnection = $this->newConnection();
@@ -570,7 +591,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection,
             new ScopedOrderingManager(),
         );
-        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 Africa/Cairo');
 
         try {
             // Keep the first real creation transaction open while the second
@@ -642,7 +663,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection,
             new ScopedOrderingManager(),
         );
-        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 Africa/Cairo');
 
         try {
             $firstConnection->beginTransaction();
@@ -709,7 +730,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection,
             new ScopedOrderingManager(),
         );
-        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 Africa/Cairo');
 
         try {
             $this->setLockWaitTimeout($secondConnection);
@@ -786,7 +807,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection,
             new ScopedOrderingManager(),
         );
-        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 UTC');
+        $occurredAt = new DateTimeImmutable('2026-02-13 00:00:00 Africa/Cairo');
 
         try {
             $firstConnection->beginTransaction();
@@ -905,7 +926,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->rollBack();
             $blockedService->restore(new RestoreCategoryCommand($categoryId));
 
-            $restored = (new PdoCategoryQueryReader($blockedConnection))->findById($categoryId);
+            $restored = (new PdoCategoryQueryReader($blockedConnection, new FixedCategoryClock()))->findById($categoryId);
             self::assertNotNull($restored);
             self::assertSame($categoryId, $restored->id);
             self::assertNull($restored->deletedAt);
@@ -919,25 +940,37 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $transaction = new PdoTransactionRunner($connection);
+        $timestamp = (new FixedCategoryClock('2026-02-09 00:00:00 Africa/Cairo'))
+            ->now()
+            ->format('Y-m-d H:i:s');
 
         try {
-            $transaction->run(function () use ($connection): void {
+            $transaction->run(function () use ($connection, $timestamp): void {
                 $partialInsert = $connection->prepare(
                     'INSERT INTO `maa_category_categories` '
                     . '(`code`, `status`, `display_order`, `created_at`, `updated_at`) '
-                    . 'VALUES (:code, :status, :display_order, UTC_TIMESTAMP(), UTC_TIMESTAMP())',
+                    . 'VALUES (:code, :status, :display_order, :created_at, :updated_at)',
                 );
                 $partialInsert->execute([
                     'code' => 'rolled-back-partial-write',
                     'status' => 'active',
                     'display_order' => 1,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
                 ]);
 
-                $connection->exec(
+                $failedInsert = $connection->prepare(
                     'INSERT INTO `maa_category_categories` '
                     . '(`code`, `status`, `display_order`, `created_at`, `updated_at`) '
-                    . "VALUES ('failed-write', 'invalid', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                    . 'VALUES (:code, :status, :display_order, :created_at, :updated_at)',
                 );
+                $failedInsert->execute([
+                    'code' => 'failed-write',
+                    'status' => 'invalid',
+                    'display_order' => 1,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ]);
             });
             self::fail('The invalid write must fail inside the transaction.');
         } catch (PDOException) {
@@ -952,20 +985,22 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
         $service = $this->service($connection);
         $createdId = $service->create(new CreateCategoryCommand('after-write-failure'));
-        self::assertSame($createdId, (new PdoCategoryQueryReader($connection))->findByCode('after-write-failure')?->id);
+        self::assertSame($createdId, (new PdoCategoryQueryReader($connection, new FixedCategoryClock()))->findByCode('after-write-failure')?->id);
         self::assertFalse($connection->inTransaction());
     }
 
     private function service(PDO $connection, ?FixedCategoryClock $clock = null): CategoryCommandService
     {
+        $clock ??= new FixedCategoryClock();
+
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, $clock),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            $clock ?? new FixedCategoryClock(),
+            $clock,
             new PdoCategoryImageRoleCommandRepository($connection),
         );
     }

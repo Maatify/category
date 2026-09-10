@@ -509,9 +509,9 @@ PdoCategoryContentCommandRepository(PDO)
 PdoCategoryImageRoleCommandRepository(PDO)
 PdoCategoryImageAssignmentCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
-PdoCategoryQueryReader(PDO)
-PdoCategoryReadQuery(PDO)
-PdoCategoryManagementReadQuery(PDO)
+PdoCategoryQueryReader(PDO, ClockInterface)
+PdoCategoryReadQuery(PDO, ClockInterface)
+PdoCategoryManagementReadQuery(PDO, ClockInterface)
 PdoTransactionRunner(PDO) [Host wiring from maatify/persistence]
 ```
 
@@ -614,7 +614,9 @@ ancestor path to be active and non-deleted.
   explicit reorder commands, and is stable across soft delete/restore.
 - Restore reuses the same Category, Content, Image Role, Image Assignment, or
   Content Field identity.
-- Every mutation updates `updated_at` using the application `ClockInterface`.
+- Every mutation updates `updated_at` using the Host-provided `ClockInterface`.
+  Category owns timestamps as values, but does not own timezone policy; the Host
+  provides the Clock and its timezone.
 - Hierarchy/lifecycle checks and writes execute inside a real transaction with
   the required row locks.
 
@@ -683,8 +685,13 @@ column collations, and `JSON_VALID(value)` is enforced for exact lowercase
 MySQL 8.0.16 or later is required because
 earlier MySQL 8 releases accepted but did not enforce `CHECK` constraints.
 
-Timestamps are application-managed UTC values. PDO repositories persist the
-supplied values and do not own time generation.
+Timestamps are application-managed values supplied by the Host's
+`Maatify\SharedCommon\Contracts\ClockInterface`. PDO repositories persist the
+supplied `DateTimeImmutable` wall-clock value without converting it to UTC or
+generating `now()` themselves. Read adapters receive the same Clock and hydrate
+stored `DATETIME` values with `$clock->getTimezone()`. Category owns timestamps
+as values, but does not own timezone policy; the Host provides the Clock and its
+timezone.
 
 Display-order creation and mutations consume the stable `maatify/persistence`
 Ordering API, including nullable root scopes and atomic `updated_at` mutation.

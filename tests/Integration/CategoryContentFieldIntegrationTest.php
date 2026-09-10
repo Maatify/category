@@ -39,8 +39,9 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     public function testAllFourScopesFormatsAndIndependentOrderingAreSupported(): void
     {
         $service = $this->commandService($this->connection());
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($this->connection()));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection()));
+        $clock = new FixedCategoryClock();
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($this->connection(), $clock));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection(), $clock));
         $categoryId = $service->create(new CreateCategoryCommand('field-scopes-category'));
 
         $neutralFirst = $service->createContentField(
@@ -132,7 +133,7 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
 
         $service->restoreContentField(new RestoreCategoryContentFieldCommand($fieldId));
         $restored = (new CategoryManagementQueryService(
-            new PdoCategoryManagementReadQuery($this->connection()),
+            new PdoCategoryManagementReadQuery($this->connection(), new FixedCategoryClock()),
         ))->getContentFieldById($fieldId);
         self::assertSame($fieldId, $restored->id);
         self::assertSame($categoryId, $restored->categoryId);
@@ -145,7 +146,7 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     public function testSameKeyIsAllowedInAnotherScopeAndManagementScopeFilterIsExact(): void
     {
         $service = $this->commandService($this->connection());
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection()));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection(), new FixedCategoryClock()));
         $categoryId = $service->create(new CreateCategoryCommand('field-management-category'));
         $neutral = $service->createContentField(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::TEXT, 'neutral'),
@@ -171,8 +172,9 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $clock = new FixedCategoryClock();
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
         $rootId = $service->create(new CreateCategoryCommand('field-visibility-root'));
         $childId = $service->create(new CreateCategoryCommand('field-visibility-child', $rootId));
         $fieldId = $service->createContentField(
@@ -240,12 +242,12 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     {
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
         );
     }
 }

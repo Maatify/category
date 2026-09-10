@@ -47,7 +47,7 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         $this->setDisplayOrder($connection, $childId, 2);
         $this->setDisplayOrder($connection, $deletedId, 3);
 
-        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
 
         self::assertSame(
             [$activeId, $inactiveParentId, $childId],
@@ -98,7 +98,7 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         $this->setDisplayOrder($connection, $secondId, 1);
         $this->setDisplayOrder($connection, $thirdId, 2);
 
-        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
         $criteria = new CategoryListCriteriaDTO(maxResults: 2);
 
         self::assertSame([$parentId], $this->categoryIds($service->listRootCategories($criteria)));
@@ -128,7 +128,7 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         );
         $commandService->softDeleteContent(new SoftDeleteCategoryContentCommand($deletedId));
 
-        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $service = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
         $categoryCriteria = new CategoryContentListCriteriaDTO(categoryId: $categoryId);
         $activeIds = $this->contentIds($service->listContents($categoryCriteria));
 
@@ -182,12 +182,12 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
     {
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
         );
     }
 

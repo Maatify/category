@@ -55,7 +55,7 @@ final class CategoryContractJsonSerializationTest extends TestCase
 {
     public function testEveryPublicDtoAndCommandIsJsonSerializableWithStableScalarShape(): void
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
         $category = new CategoryDTO(
             id: 7,
             parentId: 3,
@@ -169,8 +169,8 @@ final class CategoryContractJsonSerializationTest extends TestCase
             'code' => 'shirts',
             'status' => 'inactive',
             'displayOrder' => 4,
-            'createdAt' => '2026-01-01T00:00:00+00:00',
-            'updatedAt' => '2026-01-01T00:00:00+00:00',
+            'createdAt' => '2026-01-01T00:00:00+02:00',
+            'updatedAt' => '2026-01-01T00:00:00+02:00',
             'deletedAt' => null,
         ], $category->jsonSerialize());
         self::assertSame([
@@ -180,8 +180,8 @@ final class CategoryContractJsonSerializationTest extends TestCase
                 'code' => 'shirts',
                 'status' => 'inactive',
                 'displayOrder' => 4,
-                'createdAt' => '2026-01-01T00:00:00+00:00',
-                'updatedAt' => '2026-01-01T00:00:00+00:00',
+                'createdAt' => '2026-01-01T00:00:00+02:00',
+                'updatedAt' => '2026-01-01T00:00:00+02:00',
                 'deletedAt' => null,
             ],
         ], json_decode(
@@ -197,8 +197,8 @@ final class CategoryContractJsonSerializationTest extends TestCase
                 'languageCode' => null,
                 'name' => 'قمصان',
                 'description' => 'وصف',
-                'createdAt' => '2026-01-01T00:00:00+00:00',
-                'updatedAt' => '2026-01-01T00:00:00+00:00',
+                'createdAt' => '2026-01-01T00:00:00+02:00',
+                'updatedAt' => '2026-01-01T00:00:00+02:00',
                 'deletedAt' => null,
             ],
         ], json_decode(

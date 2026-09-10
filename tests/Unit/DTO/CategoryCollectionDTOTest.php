@@ -34,7 +34,7 @@ final class CategoryCollectionDTOTest extends TestCase
 
     private function category(int $id, string $code): CategoryDTO
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
 
         return new CategoryDTO(
             id: $id,

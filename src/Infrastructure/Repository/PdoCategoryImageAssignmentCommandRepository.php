@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
-use DateTimeZone;
 use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
 use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
@@ -206,6 +205,6 @@ final readonly class PdoCategoryImageAssignmentCommandRepository implements Cate
 
     private function formatTimestamp(DateTimeImmutable $occurredAt): string
     {
-        return $occurredAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        return $occurredAt->format('Y-m-d H:i:s');
     }
 }

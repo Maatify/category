@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
-use DateTimeZone;
 use Maatify\Category\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\DTO\CategoryCollectionDTO;
 use Maatify\Category\DTO\CategoryDTO;
@@ -29,6 +28,7 @@ use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Enum\CategoryImageAssignmentRoleFilterModeEnum;
 use Maatify\Category\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryPersistenceException;
+use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO adapter for bounded management reads without consumer visibility rules. */
@@ -40,7 +40,10 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
     private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
-    public function __construct(private PDO $pdo) {}
+    public function __construct(
+        private PDO $pdo,
+        private ClockInterface $clock,
+    ) {}
 
     public function findById(int $categoryId, CategoryDeletedStateEnum $deletedState): ?CategoryDTO
     {
@@ -611,7 +614,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         $value = $this->stringValue($row, $column);
 
         try {
-            return new DateTimeImmutable($value, new DateTimeZone('UTC'));
+            return new DateTimeImmutable($value, $this->clock->getTimezone());
         } catch (\Exception $exception) {
             throw CategoryPersistenceException::invalidStorageValue($column, $exception);
         }
@@ -629,7 +632,7 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         }
 
         try {
-            return new DateTimeImmutable($value, new DateTimeZone('UTC'));
+            return new DateTimeImmutable($value, $this->clock->getTimezone());
         } catch (\Exception $exception) {
             throw CategoryPersistenceException::invalidStorageValue($column, $exception);
         }

@@ -15,9 +15,9 @@ use Maatify\Category\Command\UpdateCategoryStatusCommand;
 /**
  * Write port for Category persistence.
  *
- * The Category application owns mutation timestamps. Persistence adapters only
- * persist the timestamp supplied by the application and delegate display-order
- * mechanics to the approved persistence capability.
+ * The Category application receives mutation timestamps from the Host-provided
+ * ClockInterface. Persistence adapters only persist the supplied timestamp and
+ * delegate display-order mechanics to the approved persistence capability.
  */
 interface CategoryCommandRepositoryInterface
 {

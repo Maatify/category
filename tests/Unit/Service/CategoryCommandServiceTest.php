@@ -426,12 +426,12 @@ final class CategoryCommandServiceTest extends TestCase
 
     private function createdAt(): DateTimeImmutable
     {
-        return new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        return new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
     }
 
     private function deletedAt(): DateTimeImmutable
     {
-        return new DateTimeImmutable('2026-01-02 00:00:00 UTC');
+        return new DateTimeImmutable('2026-01-02 00:00:00 Africa/Cairo');
     }
 }
 
@@ -821,7 +821,7 @@ final class FixedClock implements ClockInterface
 
     public function __construct()
     {
-        $this->now = new DateTimeImmutable('2026-01-03 00:00:00 UTC');
+        $this->now = new DateTimeImmutable('2026-01-03 00:00:00 Africa/Cairo');
     }
 
     public function now(): DateTimeImmutable

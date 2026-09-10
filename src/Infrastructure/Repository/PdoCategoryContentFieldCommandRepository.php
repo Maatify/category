@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Maatify\Category\Infrastructure\Repository;
 
 use DateTimeImmutable;
-use DateTimeZone;
 use Maatify\Category\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
@@ -214,6 +213,6 @@ final readonly class PdoCategoryContentFieldCommandRepository implements Categor
 
     private function formatTimestamp(DateTimeImmutable $occurredAt): string
     {
-        return $occurredAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        return $occurredAt->format('Y-m-d H:i:s');
     }
 }

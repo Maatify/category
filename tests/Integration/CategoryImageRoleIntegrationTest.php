@@ -43,7 +43,7 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
 
         $galleryId = $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
         $heroId = $service->createImageRole(
@@ -119,8 +119,9 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $consumer = new CategoryQueryService(new PdoCategoryReadQuery($connection));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $clock = new FixedCategoryClock();
+        $consumer = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
+        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
         $categoryId = $service->create(new CreateCategoryCommand('role-assignment-category'));
         $galleryId = $service->createImageRole(new CreateCategoryImageRoleCommand('gallery'));
         $heroId = $service->createImageRole(new CreateCategoryImageRoleCommand('hero'));
@@ -317,12 +318,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
     {
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
             new PdoCategoryImageRoleCommandRepository($connection),
         );
     }

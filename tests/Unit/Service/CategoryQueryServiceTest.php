@@ -85,7 +85,7 @@ final class CategoryQueryServiceTest extends TestCase
 
     private function category(int $id): CategoryDTO
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
 
         return new CategoryDTO(
             id: $id,
@@ -101,7 +101,7 @@ final class CategoryQueryServiceTest extends TestCase
 
     private function content(int $id): CategoryContentDTO
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
 
         return new CategoryContentDTO(
             id: $id,
@@ -117,7 +117,7 @@ final class CategoryQueryServiceTest extends TestCase
 
     private function imageAssignment(int $id): CategoryImageAssignmentDTO
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
 
         return new CategoryImageAssignmentDTO(
             id: $id,

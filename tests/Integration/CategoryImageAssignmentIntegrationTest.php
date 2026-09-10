@@ -40,7 +40,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
         $categoryId = $service->create(new CreateCategoryCommand('image-scopes-category'));
 
         $neutralFirst = $service->createImageAssignment(
@@ -89,8 +89,9 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $clock = new FixedCategoryClock();
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
+        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
         $categoryId = $service->create(new CreateCategoryCommand('image-lifecycle-category'));
         $assignmentId = $service->createImageAssignment(
             new CreateCategoryImageAssignmentCommand($categoryId, 300, 'en-US', 'web'),
@@ -117,7 +118,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
         $categoryId = $service->create(new CreateCategoryCommand('image-parent-state-category'));
         $assignmentId = $service->createImageAssignment(
             new CreateCategoryImageAssignmentCommand($categoryId, 301),
@@ -140,7 +141,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         self::assertSame(
             [$assignmentId, $inactiveParentAssignment],
             $this->ids(
-                (new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection)))
+                (new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock())))
                     ->listImageAssignments(new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId)),
             ),
         );
@@ -159,7 +160,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection));
+        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
         $rootId = $service->create(new CreateCategoryCommand('image-visibility-root'));
         $childId = $service->create(new CreateCategoryCommand('image-visibility-child', $rootId));
         $assignmentId = $service->createImageAssignment(
@@ -187,7 +188,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection));
+        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
         $categoryId = $service->create(new CreateCategoryCommand('image-management-category'));
         $neutral = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 500));
         $neutralSecond = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 501));
@@ -226,12 +227,12 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         return new CategoryCommandService(
             new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection),
+            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
             new PdoCategoryContentCommandRepository($connection),
             new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
             new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
             new PdoTransactionRunner($connection),
-            new FixedCategoryClock('2026-01-01 00:00:00 UTC'),
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
         );
     }
 }

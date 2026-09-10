@@ -24,7 +24,7 @@ final class CategoryContentCollectionDTOTest extends TestCase
 
     private function content(int $id, ?string $languageCode): CategoryContentDTO
     {
-        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
 
         return new CategoryContentDTO(
             id: $id,
