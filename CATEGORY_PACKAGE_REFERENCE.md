@@ -920,6 +920,6 @@ including CI's isolated MySQL configuration.
 - HTTP/API routes, controllers, middleware, permissions, Twig, and JavaScript.
 - Presentation serialization and response envelopes.
 - Host language fallback.
-- Consumer Readiness Stage 3: persistence-backed pagination, search, and public
-  management `getByCode()`.
+- Consumer Readiness Stage 3: Persistence-backed pagination, Category-owned
+  search, and public management `getByCode()`.
 - A separate Catalog entity or Catalog identity.
