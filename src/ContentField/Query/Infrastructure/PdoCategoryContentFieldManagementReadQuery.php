@@ -115,13 +115,14 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
             $pageRequest,
             new PaginationConfig(
                 sortWhitelist: new SortWhitelist([
-                    'category_id' => 'management_order',
+                    'business_order' => 'management_order',
+                    'category_id' => 'field.category_id',
                     'field_key' => 'field.field_key',
                     'display_order' => 'field.display_order',
                     'id' => 'field.id',
                     'created_at' => 'field.created_at',
                 ]),
-                defaultSortBy: 'category_id',
+                defaultSortBy: 'business_order',
                 defaultSortDirection: SortDirectionEnum::ASC,
                 tieBreakerSortBy: 'id',
                 tieBreakerDirection: SortDirectionEnum::ASC,

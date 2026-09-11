@@ -308,7 +308,20 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
             $ids[] = $assignment->id;
         }
 
+        self::assertSame('business_order', $page->sortBy);
         self::assertSame([$localizedId, $neutralId, $neutralSecondId], $ids);
+
+        $categorySortedPage = $imageService->paginateForManagement(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 3, sortBy: 'category_id'),
+        );
+        $categorySortedIds = [];
+        foreach ($categorySortedPage->data as $assignment) {
+            $categorySortedIds[] = $assignment->id;
+        }
+
+        self::assertSame('category_id', $categorySortedPage->sortBy);
+        self::assertSame([$neutralId, $localizedId, $neutralSecondId], $categorySortedIds);
     }
 
     public function testManagementReadsDistinguishNoScopeFilterFromExactNullScope(): void

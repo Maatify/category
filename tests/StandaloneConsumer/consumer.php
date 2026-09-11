@@ -559,6 +559,32 @@ try {
         $category->categories()->listChildrenForManagement($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
         'Standalone management child list returned an unexpected Category.',
     );
+    $managementRootPage = $category->categories()->paginateRootCategoriesForManagement(
+        new CategoryListCriteriaDTO(
+            status: CategoryStatusEnum::ACTIVE,
+            deletedState: CategoryDeletedStateEnum::NON_DELETED,
+        ),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementRootPage->total === 1
+        && $managementRootPage->filtered === 1
+        && count($managementRootPage->data) === 1
+        && $managementRootPage->data[0]->id === $categoryId,
+        'Standalone management root pagination returned the wrong result.',
+    );
+    $managementDeletedChildPage = $category->categories()->paginateChildrenForManagement(
+        $categoryId,
+        new CategoryListCriteriaDTO(deletedState: CategoryDeletedStateEnum::DELETED_ONLY),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementDeletedChildPage->total === 1
+        && $managementDeletedChildPage->filtered === 1
+        && count($managementDeletedChildPage->data) === 1
+        && $managementDeletedChildPage->data[0]->id === $temporaryCategoryId,
+        'Standalone management child pagination returned the wrong result.',
+    );
     $managementContent = $category->contents()->getByIdForManagement(
         $contentId,
         CategoryDeletedStateEnum::NON_DELETED,
@@ -622,6 +648,21 @@ try {
         && $managementImagePage->data[2]->id === $secondImageAssignmentId
         && $managementImagePage->data[3]->id === $imageAssignmentId,
         'Standalone management Image Assignment pagination returned the wrong result.',
+    );
+    $managementImageCategoryPage = $category->images()->paginateForManagement(
+        new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+        new PageRequest(page: 1, perPage: 4, sortBy: 'category_id'),
+    );
+    standalone_consumer_require(
+        $managementImageCategoryPage->sortBy === 'category_id'
+        && $managementImageCategoryPage->total === 4
+        && $managementImageCategoryPage->filtered === 4
+        && count($managementImageCategoryPage->data) === 4
+        && $managementImageCategoryPage->data[0]->id === $imageAssignmentId
+        && $managementImageCategoryPage->data[1]->id === $secondImageAssignmentId
+        && $managementImageCategoryPage->data[2]->id === $localizedImageAssignmentId
+        && $managementImageCategoryPage->data[3]->id === $roleImageAssignmentId,
+        'Standalone category_id Image Assignment pagination returned the wrong result.',
     );
     standalone_consumer_require(
         $category->imageRoles()->getByIdForManagement($imageRoleId)->roleKey === 'gallery',

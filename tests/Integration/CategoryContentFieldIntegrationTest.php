@@ -238,7 +238,20 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
             $ids[] = $field->id;
         }
 
+        self::assertSame('business_order', $page->sortBy);
         self::assertSame([$localizedId, $neutralId], $ids);
+
+        $categorySortedPage = $fieldService->paginateForManagement(
+            new CategoryContentFieldListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 2, sortBy: 'category_id'),
+        );
+        $categorySortedIds = [];
+        foreach ($categorySortedPage->data as $field) {
+            $categorySortedIds[] = $field->id;
+        }
+
+        self::assertSame('category_id', $categorySortedPage->sortBy);
+        self::assertSame([$neutralId, $localizedId], $categorySortedIds);
     }
 
     /** @return list<int> */

@@ -141,13 +141,14 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
             $pageRequest,
             new PaginationConfig(
                 sortWhitelist: new SortWhitelist([
-                    'category_id' => 'management_order',
+                    'business_order' => 'management_order',
+                    'category_id' => 'assignment.category_id',
                     'display_order' => 'assignment.display_order',
                     'media_asset_id' => 'assignment.media_asset_id',
                     'id' => 'assignment.id',
                     'created_at' => 'assignment.created_at',
                 ]),
-                defaultSortBy: 'category_id',
+                defaultSortBy: 'business_order',
                 defaultSortDirection: SortDirectionEnum::ASC,
                 tieBreakerSortBy: 'id',
                 tieBreakerDirection: SortDirectionEnum::ASC,

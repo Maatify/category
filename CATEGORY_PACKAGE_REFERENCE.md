@@ -657,6 +657,10 @@ collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
 apply exact nullable language/platform scope predicates only when a scope object
 is supplied, and are ordered by Category, exact scope, `display_order, id`.
+For paginated Content Field and Image Assignment management lists, the default
+`sortBy` is the explicit `business_order` key, which represents that complete
+legacy business ordering; `sortBy=category_id` remains a direct Category ID sort
+with the shared `id` tie-breaker.
 The management criteria also support three independent Role-filter states
 through `CategoryImageAssignmentRoleFilterDTO`: omitted (all Roles), exact
 NULL Role, or one concrete Role. When the explicit Role filter is absent, the

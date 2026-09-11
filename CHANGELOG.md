@@ -36,6 +36,9 @@ tag, release date, or owner-approved release metadata is claimed.
 - Documented separate management and consumer visibility reads, bounded
   unpaginated lists, deterministic ordering, and the completed Stage 3
   management query expansion while keeping Search Category-owned and SQL-based.
+- Corrected the Stage 3 pagination sort-key contract: Image Assignment and
+  Content Field default to the explicit `business_order` key while
+  `category_id` retains direct Category ID semantics.
 - Marked Consumer Readiness Stage 1, Stage 2, and the current Stage 3 query
   expansion as implemented in the v1 line; later stages remain separate scope.
 - Prepared release-facing documentation for owner approval without creating a

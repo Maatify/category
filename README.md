@@ -86,6 +86,9 @@ Assignment and Content Field lists use exact scopes and deterministic
 expose canonical `maatify/persistence` pagination results. The package owns
 Category search in its SQL/query layer and does not implement a local search or
 pagination engine.
+For paginated Image Assignment and Content Field management lists, the default
+sort key is the explicit `business_order` key; `category_id` retains its direct
+Category ID sorting semantics.
 Management Image Assignment criteria can independently omit the Role filter,
 match the exact NULL Role, or match one concrete Role while retaining exact
 language/platform filtering.
