@@ -162,7 +162,7 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
 
     private function contentFieldPaginationSelect(): string
     {
-        // The paginator's single default key is backed by the legacy four-column business ordering.
+        // The paginator's single default key is backed by the complete four-column business ordering.
         return 'SELECT `field`.`id`, `field`.`category_id`, `field`.`field_key`, '
             . '`field`.`language_code`, `field`.`platform`, `field`.`format`, `field`.`value`, '
             . '`field`.`display_order`, `field`.`ordering_scope`, `field`.`created_at`, '

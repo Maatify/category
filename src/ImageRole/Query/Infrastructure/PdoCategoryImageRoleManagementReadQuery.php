@@ -152,7 +152,7 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
 
     private function imageRolePaginationSelect(): string
     {
-        // The paginator must retain the legacy binary collation for the public role_key sort.
+        // The paginator retains binary collation for the public role_key sort.
         return 'SELECT `role`.`id`, `role`.`role_key`, `role`.`status`, '
             . '`role`.`created_at`, `role`.`updated_at`, `role`.`deleted_at`, '
             . 'BINARY `role`.`role_key` AS `binary_role_key` '

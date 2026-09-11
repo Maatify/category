@@ -670,12 +670,12 @@ apply exact nullable language/platform scope predicates only when a scope object
 is supplied, and are ordered by Category, exact scope, `display_order, id`.
 For paginated Content Field and Image Assignment management lists, the default
 `sortBy` is the explicit `business_order` key, which represents that complete
-legacy business ordering; `sortBy=category_id` remains a direct Category ID sort
+business ordering; `sortBy=category_id` remains a direct Category ID sort
 with the shared `id` tie-breaker.
 The management criteria also support three independent Role-filter states
 through `CategoryImageAssignmentRoleFilterDTO`: omitted (all Roles), exact
 NULL Role, or one concrete Role. When the explicit Role filter is absent, the
-legacy `scope->roleId` value remains an exact Role predicate. Visible Image
+`scope->roleId` value remains an exact Role predicate. Visible Image
 Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
 deleted rows, and apply complete ancestor visibility plus active/non-deleted
 Role visibility with no fallback. Role-scoped assignment creation requires the
@@ -980,6 +980,9 @@ The package must pass, where applicable:
 - Full PHPUnit suite
 - Real MySQL Integration tests with cleanup and repeatability coverage
 - Workflow syntax validation
+- Standalone external Composer consumer verification through `CategoryFactory`,
+  the `CategoryFacade`, and all five Domain APIs
+- Public `src/` inventory reconciliation and stale API/alias sweep
 
 The integration suite is configured with `CATEGORY_TEST_DSN`,
 `CATEGORY_TEST_DB_USER`, and `CATEGORY_TEST_DB_PASSWORD`. For local runs,
