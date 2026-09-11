@@ -31,6 +31,8 @@ use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleQueryReaderInterf
 use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 
 /** Owns Category Image Assignment lifecycle, defaults, and exact-scope ordering only. */
@@ -136,6 +138,13 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO {
         return $this->managementReader->listImageAssignments($criteria);
+    }
+
+    public function paginateForManagement(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->managementReader->paginateImageAssignments($criteria, $pageRequest);
     }
 
     private function requireActiveCategoryForUpdate(int $categoryId): void

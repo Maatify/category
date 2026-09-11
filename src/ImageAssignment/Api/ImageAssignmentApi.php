@@ -18,6 +18,8 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Public Category Image Assignment API; images() on the facade means assignments only. */
 final readonly class ImageAssignmentApi implements ImageAssignmentApiInterface
@@ -73,5 +75,12 @@ final readonly class ImageAssignmentApi implements ImageAssignmentApiInterface
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO {
         return $this->service->listForManagement($criteria);
+    }
+
+    public function paginateForManagement(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->service->paginateForManagement($criteria, $pageRequest);
     }
 }

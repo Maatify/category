@@ -17,6 +17,10 @@ tag, release date, or owner-approved release metadata is claimed.
 - MySQL schema, PDO repositories, shared Persistence transaction runner, and real-engine
   Integration tests for hierarchy, lifecycle, ordering, and visibility.
 - Root Package Reference and standards-aligned Composer/CI configuration.
+- Consumer Readiness Stage 3 management query expansion: shared Persistence
+  pagination for all management list APIs, Category-owned SQL search by code,
+  public management `getByCode()`, and unit, MySQL Integration, and standalone
+  consumer coverage through the public Facade APIs.
 
 ### Changed
 
@@ -30,10 +34,10 @@ tag, release date, or owner-approved release metadata is claimed.
   five Domain APIs, split domain services, domain-owned read contracts and PDO
   adapters, and a framework-neutral package-level `CategoryFactory`.
 - Documented separate management and consumer visibility reads, bounded
-  unpaginated lists, deterministic ordering, and the Stage 3 Consumer
-  Readiness scope for pagination, search, and public management get-by-code.
-- Marked Consumer Readiness Stage 1 and Stage 2 as complete; Stage 3 is the next
-  stage for management query expansion.
+  unpaginated lists, deterministic ordering, and the completed Stage 3
+  management query expansion while keeping Search Category-owned and SQL-based.
+- Marked Consumer Readiness Stage 1, Stage 2, and the current Stage 3 query
+  expansion as implemented in the v1 line; later stages remain separate scope.
 - Prepared release-facing documentation for owner approval without creating a
   tag, release, or Packagist publication.
 - Corrected the previous content model to unified Category Content,

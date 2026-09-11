@@ -16,6 +16,8 @@ use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Public Category domain API; all orchestration remains in CategoryService. */
 final readonly class CategoryApi implements CategoryApiInterface
@@ -77,6 +79,13 @@ final readonly class CategoryApi implements CategoryApiInterface
         return $this->service->getByIdForManagement($categoryId, $deletedState);
     }
 
+    public function getByCode(
+        string $code,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryDTO {
+        return $this->service->getByCode($code, $deletedState);
+    }
+
     public function listForManagement(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
         return $this->service->listForManagement($criteria);
@@ -90,5 +99,25 @@ final readonly class CategoryApi implements CategoryApiInterface
     public function listChildrenForManagement(int $parentId, CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
         return $this->service->listChildrenForManagement($parentId, $criteria);
+    }
+
+    public function paginateForManagement(CategoryListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult
+    {
+        return $this->service->paginateForManagement($criteria, $pageRequest);
+    }
+
+    public function paginateRootCategoriesForManagement(
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->service->paginateRootCategoriesForManagement($criteria, $pageRequest);
+    }
+
+    public function paginateChildrenForManagement(
+        int $parentId,
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->service->paginateChildrenForManagement($parentId, $criteria, $pageRequest);
     }
 }

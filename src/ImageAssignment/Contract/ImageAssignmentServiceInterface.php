@@ -16,6 +16,8 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Public application contract for ImageAssignment business mutations and visible/management reads and lists. */
 interface ImageAssignmentServiceInterface
@@ -47,4 +49,10 @@ interface ImageAssignmentServiceInterface
     public function listForManagement(
         CategoryImageAssignmentListCriteriaDTO $criteria,
     ): CategoryImageAssignmentCollectionDTO;
+
+    /** @return PageResult<CategoryImageAssignmentDTO> */
+    public function paginateForManagement(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult;
 }

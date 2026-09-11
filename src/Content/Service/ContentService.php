@@ -24,6 +24,8 @@ use Maatify\Category\Query\Contract\CategoryQueryReaderInterface;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Owns Category Content lifecycle orchestration only. */
 final readonly class ContentService implements ContentServiceInterface
@@ -106,6 +108,13 @@ final readonly class ContentService implements ContentServiceInterface
     public function listForManagement(CategoryContentListCriteriaDTO $criteria): CategoryContentCollectionDTO
     {
         return $this->managementReader->listContents($criteria);
+    }
+
+    public function paginateForManagement(
+        CategoryContentListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->managementReader->paginateContents($criteria, $pageRequest);
     }
 
     private function requireActiveCategoryForUpdate(int $categoryId): void

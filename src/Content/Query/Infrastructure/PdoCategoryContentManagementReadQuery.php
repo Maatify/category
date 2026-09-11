@@ -10,6 +10,13 @@ use Maatify\Category\Content\Query\Contract\CategoryContentManagementReadQueryIn
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\PaginationConfig;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginationQueryDescriptor;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginator;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
+use Maatify\Persistence\Pdo\Pagination\SortWhitelist;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
@@ -18,10 +25,14 @@ final readonly class PdoCategoryContentManagementReadQuery extends PdoReadQueryS
 {
     private const CONTENT_TABLE = 'maa_category_category_contents';
 
+    private PdoPaginator $paginator;
+
     public function __construct(
         private PDO $pdo,
         private ClockInterface $clock,
-    ) {}
+    ) {
+        $this->paginator = new PdoPaginator();
+    }
 
     /** Finds a Content using the requested explicit soft-deletion state. */
     public function findContentById(
@@ -70,6 +81,67 @@ final readonly class PdoCategoryContentManagementReadQuery extends PdoReadQueryS
 
         /** @var list<CategoryContentDTO> $items */
         return new CategoryContentCollectionDTO($items);
+    }
+
+    /** @return PageResult<CategoryContentDTO> */
+    public function paginateContents(CategoryContentListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult
+    {
+        $where = [];
+        /** @var array<string, int|string> $params */
+        $params = [];
+        $this->appendCriteria($where, $params, $criteria);
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+        $descriptor = new PdoPaginationQueryDescriptor(
+            totalSql: 'SELECT COUNT(*) ' . $this->contentFrom() . $whereSql,
+            totalParams: $params,
+            filteredCountSql: 'SELECT COUNT(*) ' . $this->contentFrom() . $whereSql,
+            filteredCountParams: $params,
+            dataSql: $this->contentSelect() . $whereSql,
+            dataParams: $params,
+        );
+
+        return $this->paginator->paginate(
+            $this->pdo,
+            $descriptor,
+            $pageRequest,
+            new PaginationConfig(
+                sortWhitelist: new SortWhitelist([
+                    'language_code' => 'content.language_code',
+                    'category_id' => 'content.category_id',
+                    'id' => 'content.id',
+                    'created_at' => 'content.created_at',
+                ]),
+                defaultSortBy: 'language_code',
+                defaultSortDirection: SortDirectionEnum::ASC,
+                tieBreakerSortBy: 'id',
+                tieBreakerDirection: SortDirectionEnum::ASC,
+                defaultPerPage: 20,
+                minPerPage: 1,
+                maxPerPage: 100,
+            ),
+            fn (array $row): CategoryContentDTO => $this->hydrateContent($row),
+        );
+    }
+
+    /**
+     * @param list<string> $where
+     * @param array<string, int|string> $params
+     */
+    private function appendCriteria(
+        array &$where,
+        array &$params,
+        CategoryContentListCriteriaDTO $criteria,
+    ): void {
+        if ($criteria->categoryId !== null) {
+            $where[] = '`content`.`category_id` = :content_category_id';
+            $params['content_category_id'] = $criteria->categoryId;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'content');
+    }
+
+    private function contentFrom(): string
+    {
+        return 'FROM `' . self::CONTENT_TABLE . '` AS `content`';
     }
 
     /**

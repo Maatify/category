@@ -12,6 +12,13 @@ use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\ImageRole\Query\Contract\CategoryImageRoleManagementReadQueryInterface;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\PaginationConfig;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginationQueryDescriptor;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginator;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
+use Maatify\Persistence\Pdo\Pagination\SortWhitelist;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
@@ -20,10 +27,14 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
 {
     private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
 
+    private PdoPaginator $paginator;
+
     public function __construct(
         private PDO $pdo,
         private ClockInterface $clock,
-    ) {}
+    ) {
+        $this->paginator = new PdoPaginator();
+    }
 
     public function findImageRoleById(
         int $roleId,
@@ -88,6 +99,55 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
 
         /** @var list<CategoryImageRoleDTO> $items */
         return new CategoryImageRoleCollectionDTO($items);
+    }
+
+    /** @return PageResult<CategoryImageRoleDTO> */
+    public function paginateImageRoles(CategoryImageRoleListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult
+    {
+        $where = [];
+        /** @var array<string, int|string> $params */
+        $params = [];
+        if ($criteria->status !== null) {
+            $where[] = '`role`.`status` = :role_status';
+            $params['role_status'] = $criteria->status->value;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'role');
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+        $descriptor = new PdoPaginationQueryDescriptor(
+            totalSql: 'SELECT COUNT(*) ' . $this->imageRoleFrom() . $whereSql,
+            totalParams: $params,
+            filteredCountSql: 'SELECT COUNT(*) ' . $this->imageRoleFrom() . $whereSql,
+            filteredCountParams: $params,
+            dataSql: $this->imageRoleSelect() . $whereSql,
+            dataParams: $params,
+        );
+
+        return $this->paginator->paginate(
+            $this->pdo,
+            $descriptor,
+            $pageRequest,
+            new PaginationConfig(
+                sortWhitelist: new SortWhitelist([
+                    'role_key' => 'role.role_key',
+                    'status' => 'role.status',
+                    'id' => 'role.id',
+                    'created_at' => 'role.created_at',
+                ]),
+                defaultSortBy: 'role_key',
+                defaultSortDirection: SortDirectionEnum::ASC,
+                tieBreakerSortBy: 'id',
+                tieBreakerDirection: SortDirectionEnum::ASC,
+                defaultPerPage: 20,
+                minPerPage: 1,
+                maxPerPage: 100,
+            ),
+            fn (array $row): CategoryImageRoleDTO => $this->hydrateRole($row),
+        );
+    }
+
+    private function imageRoleFrom(): string
+    {
+        return 'FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role`';
     }
 
     /**

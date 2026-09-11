@@ -68,10 +68,11 @@ typed service and repository contracts, and framework-neutral PDO adapters.
 The complete constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
 
-The internal `findByCode()` mutation-support lookup is deliberately not exposed
-through the facade's management APIs. Pagination, search, and public management
-get-by-code are the next Consumer Readiness scope in Stage 3; they are not
-post-v1 exclusions.
+The internal `findByCode()` mutation-support lookup remains separate from the
+management query port. The Stage 3 management surface now provides exact public
+`getByCode()`, shared Persistence pagination for management lists, and
+Category-owned SQL search by Category code. Search does not delegate to a
+Persistence search engine; the Host still owns language fallback and policy.
 
 ## Query and list behavior
 
@@ -81,7 +82,10 @@ cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
 bounded to at most 100 rows. Category lists use `display_order, id`; Content
 lists use `language_code, id`; Image Role lists use `role_key, id`; Image
 Assignment and Content Field lists use exact scopes and deterministic
-`display_order, id` ordering within each scope.
+`display_order, id` ordering within each scope. Management list APIs also
+expose canonical `maatify/persistence` pagination results. The package owns
+Category search in its SQL/query layer and does not implement a local search or
+pagination engine.
 Management Image Assignment criteria can independently omit the Role filter,
 match the exact NULL Role, or match one concrete Role while retaining exact
 language/platform filtering.

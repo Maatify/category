@@ -12,6 +12,13 @@ use Maatify\Category\ContentField\Query\Contract\CategoryContentFieldManagementR
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\PaginationConfig;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginationQueryDescriptor;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginator;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
+use Maatify\Persistence\Pdo\Pagination\SortWhitelist;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
@@ -20,10 +27,14 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
 {
     private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
+    private PdoPaginator $paginator;
+
     public function __construct(
         private PDO $pdo,
         private ClockInterface $clock,
-    ) {}
+    ) {
+        $this->paginator = new PdoPaginator();
+    }
 
     public function findContentFieldById(
         int $fieldId,
@@ -77,6 +88,75 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
 
         /** @var list<CategoryContentFieldDTO> $items */
         return new CategoryContentFieldCollectionDTO($items);
+    }
+
+    /** @return PageResult<CategoryContentFieldDTO> */
+    public function paginateContentFields(
+        CategoryContentFieldListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        $where = [];
+        /** @var array<string, int|string> $params */
+        $params = [];
+        $this->appendCriteria($where, $params, $criteria);
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+        $descriptor = new PdoPaginationQueryDescriptor(
+            totalSql: 'SELECT COUNT(*) ' . $this->contentFieldFrom() . $whereSql,
+            totalParams: $params,
+            filteredCountSql: 'SELECT COUNT(*) ' . $this->contentFieldFrom() . $whereSql,
+            filteredCountParams: $params,
+            dataSql: $this->contentFieldSelect() . $whereSql,
+            dataParams: $params,
+        );
+
+        return $this->paginator->paginate(
+            $this->pdo,
+            $descriptor,
+            $pageRequest,
+            new PaginationConfig(
+                sortWhitelist: new SortWhitelist([
+                    'category_id' => 'field.category_id',
+                    'field_key' => 'field.field_key',
+                    'display_order' => 'field.display_order',
+                    'id' => 'field.id',
+                    'created_at' => 'field.created_at',
+                ]),
+                defaultSortBy: 'category_id',
+                defaultSortDirection: SortDirectionEnum::ASC,
+                tieBreakerSortBy: 'id',
+                tieBreakerDirection: SortDirectionEnum::ASC,
+                defaultPerPage: 20,
+                minPerPage: 1,
+                maxPerPage: 100,
+            ),
+            fn (array $row): CategoryContentFieldDTO => $this->hydrateField($row),
+        );
+    }
+
+    /**
+     * @param list<string> $where
+     * @param array<string, int|string> $params
+     */
+    private function appendCriteria(
+        array &$where,
+        array &$params,
+        CategoryContentFieldListCriteriaDTO $criteria,
+    ): void {
+        if ($criteria->categoryId !== null) {
+            $where[] = '`field`.`category_id` = :field_category_id';
+            $params['field_category_id'] = $criteria->categoryId;
+        }
+        if ($criteria->fieldKey !== null) {
+            $where[] = '`field`.`field_key` = :field_key';
+            $params['field_key'] = $criteria->fieldKey;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'field');
+        $this->appendScopeFilter($where, $params, $criteria->scope);
+    }
+
+    private function contentFieldFrom(): string
+    {
+        return 'FROM `' . self::CONTENT_FIELD_TABLE . '` AS `field`';
     }
 
     /**

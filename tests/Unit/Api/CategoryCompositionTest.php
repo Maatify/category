@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Unit\Api;
 
+use DateTimeImmutable;
 use Maatify\Category\Facade\CategoryFacade;
 use Maatify\Category\Factory\CategoryFactory;
 use Maatify\Category\Facade\Contract\CategoryFacadeInterface;
@@ -23,12 +24,17 @@ use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 use Maatify\Category\ImageRole\Api\ImageRoleApi;
 use Maatify\Category\ImageRole\Contract\ImageRoleServiceInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PHPUnit\Framework\TestCase;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionMethod;
@@ -90,6 +96,49 @@ final class CategoryCompositionTest extends TestCase
             15,
             (new ImageAssignmentApi($imageService))->create(new CreateCategoryImageAssignmentCommand(11, 99)),
         );
+    }
+
+    public function testCategoryApiRoutesManagementCodeAndPaginationReadsToItsService(): void
+    {
+        $service = $this->createMock(CategoryServiceInterface::class);
+        $criteria = new \Maatify\Category\Query\DTO\CategoryListCriteriaDTO(search: 'category');
+        $pageRequest = new PageRequest(page: 1, perPage: 10, sortBy: 'code', sortDirection: 'ASC');
+        $page = new PageResult(
+            data: [],
+            page: 1,
+            perPage: 10,
+            total: 0,
+            filtered: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+            sortBy: 'code',
+            sortDirection: SortDirectionEnum::ASC,
+        );
+        $timestamp = new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo');
+        $category = new CategoryDTO(
+            id: 1,
+            parentId: null,
+            code: 'category',
+            status: CategoryStatusEnum::ACTIVE,
+            displayOrder: 1,
+            createdAt: $timestamp,
+            updatedAt: $timestamp,
+            deletedAt: null,
+        );
+        $service->expects(self::once())
+            ->method('getByCode')
+            ->with('category')
+            ->willReturn($category);
+        $service->expects(self::once())
+            ->method('paginateForManagement')
+            ->with($criteria, $pageRequest)
+            ->willReturn($page);
+
+        $api = new CategoryApi($service);
+
+        self::assertSame($category, $api->getByCode('category'));
+        self::assertSame($page, $api->paginateForManagement($criteria, $pageRequest));
     }
 
     public function testEachDomainApiContractExposesExactlyItsDomainServiceOperations(): void
