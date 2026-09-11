@@ -157,7 +157,7 @@ CREATE TABLE `maa_category_category_image_assignments`
     `media_asset_id`         BIGINT UNSIGNED NOT NULL COMMENT 'Host-provided external Media Asset identity; deliberately has no foreign key',
     `role_id`                BIGINT UNSIGNED NULL COMMENT 'Nullable internal Category Image Role identity; NULL is the generic/unclassified scope',
     `language_code`          VARCHAR(16) NULL COMMENT 'Nullable exact language scope; NULL is a distinct unlocalized scope; Host owns semantic language support',
-    `platform`               VARCHAR(255) NULL COMMENT 'Nullable exact platform scope; NULL is a distinct all-platform scope; no hardcoded platform enum',
+    `platform`               VARCHAR(255) NULL COMMENT 'Nullable exact platform scope; NULL is a distinct exact NULL scope; no fallback or automatic all-platform resolution; no hardcoded platform enum',
     `role_id_identity`       BIGINT UNSIGNED GENERATED ALWAYS AS (COALESCE(`role_id`, 0)) STORED COMMENT 'Generated uniqueness key mapping NULL Role to one database value',
     `language_code_identity` VARCHAR(16) GENERATED ALWAYS AS (COALESCE(`language_code`, '')) STORED COMMENT 'Generated uniqueness key mapping NULL language to one database value',
     `platform_identity`      VARCHAR(255) GENERATED ALWAYS AS (COALESCE(`platform`, '')) STORED COMMENT 'Generated uniqueness key mapping NULL platform to one database value',
