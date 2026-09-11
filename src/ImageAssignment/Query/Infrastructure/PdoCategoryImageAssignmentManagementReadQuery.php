@@ -237,7 +237,7 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
 
     private function imageAssignmentPaginationSelect(): string
     {
-        // The paginator's single default key is backed by the legacy four-column business ordering.
+        // The paginator's single default key is backed by the complete four-column business ordering.
         return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
             . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
             . '`assignment`.`language_code`, `assignment`.`platform`, '
