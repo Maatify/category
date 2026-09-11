@@ -23,6 +23,9 @@ use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAs
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\Contract\CategoryServiceInterface;
 use Maatify\Category\Common\DTO\CategoryIdDTO;
@@ -62,6 +65,9 @@ final class CategoryCommandTest extends TestCase
             'UpdateCategoryDisplayOrder.categoryId' => static fn (int|string $id): object => new UpdateCategoryDisplayOrderCommand($id, 1),
             'UpdateCategoryStatus.categoryId' => static fn (int|string $id): object => new UpdateCategoryStatusCommand($id, CategoryStatusEnum::ACTIVE),
             'UpdateCategoryContent.contentId' => static fn (int|string $id): object => new UpdateCategoryContentCommand($id, 'Name', null),
+            'UpdateCategoryContentName.contentId' => static fn (int|string $id): object => new UpdateCategoryContentNameCommand($id, 'Name'),
+            'UpdateCategoryContentDescription.contentId' => static fn (int|string $id): object => new UpdateCategoryContentDescriptionCommand($id, null),
+            'UpdateCategoryContentFieldValue.fieldId' => static fn (int|string $id): object => new UpdateCategoryContentFieldValueCommand($id, 'value'),
             'UpdateCategoryImageAssignment.assignmentId' => static fn (int|string $id): object => new UpdateCategoryImageAssignmentDisplayOrderCommand($id, 1),
         ];
 
@@ -107,6 +113,9 @@ final class CategoryCommandTest extends TestCase
         self::assertSame(42, (new UpdateCategoryDisplayOrderCommand('42', 1))->categoryId);
         self::assertSame(42, (new UpdateCategoryStatusCommand('42', CategoryStatusEnum::ACTIVE))->categoryId);
         self::assertSame(42, (new UpdateCategoryContentCommand('42', 'Name', null))->contentId);
+        self::assertSame(42, (new UpdateCategoryContentNameCommand('42', 'Name'))->contentId);
+        self::assertSame(42, (new UpdateCategoryContentDescriptionCommand('42', null))->contentId);
+        self::assertSame(42, (new UpdateCategoryContentFieldValueCommand('42', 'value'))->fieldId);
         self::assertSame(42, (new UpdateCategoryImageAssignmentDisplayOrderCommand('42', 1))->assignmentId);
     }
 
@@ -148,6 +157,10 @@ final class CategoryCommandTest extends TestCase
                 static fn (): object => new UpdateCategoryContentCommand(1, $value, null),
                 sprintf('UpdateCategoryContent.name must reject %s input.', $label),
             );
+            $this->assertInvalidArgument(
+                static fn (): object => new UpdateCategoryContentNameCommand(1, $value),
+                sprintf('UpdateCategoryContentName.name must reject %s input.', $label),
+            );
         }
     }
 
@@ -182,6 +195,14 @@ final class CategoryCommandTest extends TestCase
         $this->assertInvalidArgument(
             static fn (): object => new UpdateCategoryContentCommand(1, str_repeat('x', 256), null),
             'Updated content name must reject more than 255 characters.',
+        );
+        self::assertSame(
+            255,
+            mb_strlen((new UpdateCategoryContentNameCommand(1, str_repeat('x', 255)))->name),
+        );
+        $this->assertInvalidArgument(
+            static fn (): object => new UpdateCategoryContentNameCommand(1, str_repeat('x', 256)),
+            'Inline updated content name must reject more than 255 characters.',
         );
     }
 
@@ -330,6 +351,43 @@ final class CategoryCommandTest extends TestCase
         );
         self::assertNotContains('categoryId', $propertyNames);
         self::assertNotContains('languageCode', $propertyNames);
+    }
+
+    public function testInlineMutationCommandsHaveTypedNarrowPayloads(): void
+    {
+        self::assertSame(
+            ['contentId', 'name'],
+            array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                (new ReflectionMethod(UpdateCategoryContentNameCommand::class, '__construct'))->getParameters(),
+            ),
+        );
+        self::assertSame(
+            ['contentId', 'description'],
+            array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                (new ReflectionMethod(UpdateCategoryContentDescriptionCommand::class, '__construct'))->getParameters(),
+            ),
+        );
+        self::assertSame(
+            ['fieldId', 'value'],
+            array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                (new ReflectionMethod(UpdateCategoryContentFieldValueCommand::class, '__construct'))->getParameters(),
+            ),
+        );
+        self::assertSame(
+            ['contentId' => 7, 'name' => 'Updated'],
+            (new UpdateCategoryContentNameCommand(7, 'Updated'))->jsonSerialize(),
+        );
+        self::assertSame(
+            ['contentId' => 7, 'description' => null],
+            (new UpdateCategoryContentDescriptionCommand(7, null))->jsonSerialize(),
+        );
+        self::assertSame(
+            ['fieldId' => 17, 'value' => '{"enabled":true}'],
+            (new UpdateCategoryContentFieldValueCommand(17, '{"enabled":true}'))->jsonSerialize(),
+        );
     }
 
     public function testAllMutationIntentsRemainTypedCommands(): void

@@ -17,6 +17,8 @@ final class InMemoryCategoryContentFieldCommandRepository implements CategoryCon
 {
     public ?CreateCategoryContentFieldCommand $created = null;
     public ?UpdateCategoryContentFieldCommand $updated = null;
+    /** @var list<UpdateCategoryContentFieldCommand> */
+    public array $updates = [];
     public ?UpdateCategoryContentFieldDisplayOrderCommand $displayOrderUpdated = null;
     public ?SoftDeleteCategoryContentFieldCommand $softDeleted = null;
     public ?RestoreCategoryContentFieldCommand $restored = null;
@@ -31,6 +33,7 @@ final class InMemoryCategoryContentFieldCommandRepository implements CategoryCon
     public function update(UpdateCategoryContentFieldCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->updated = $command;
+        $this->updates[] = $command;
 
         return true;
     }

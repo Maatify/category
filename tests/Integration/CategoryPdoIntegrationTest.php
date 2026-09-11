@@ -16,12 +16,15 @@ use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Hierarchy\Exception\CategoryCycleException;
 use Maatify\Category\Lifecycle\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Content\Mutation\Exception\CategoryContentAlreadyExistsException;
+use Maatify\Category\Content\Exception\CategoryContentNotFoundException;
 use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
 use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
 use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
@@ -218,6 +221,34 @@ final class CategoryPdoIntegrationTest extends CategoryMySqlIntegrationTestCase
         self::assertNull($restored->languageCode);
         self::assertNull($restored->deletedAt);
         self::assertSame('قمصان', $restored->name);
+    }
+
+    public function testContentInlineMutationsPreserveIdentityAndRejectDeletedContent(): void
+    {
+        $connection = $this->connection();
+        $clock = new FixedCategoryClock('2026-01-03 00:00:00 Africa/Cairo');
+        $categoryService = $this->service($connection, $clock);
+        $contentService = $this->contentService($connection, $clock);
+        $categoryId = $categoryService->create(new CreateCategoryCommand('content-inline-category'));
+        $contentId = $contentService->create(
+            new CreateCategoryContentCommand($categoryId, 'en-US', 'Original name', 'Original description'),
+        );
+
+        $contentService->updateName(new UpdateCategoryContentNameCommand($contentId, 'Inline name'));
+        $updated = $contentService->getByIdForManagement($contentId);
+        self::assertSame('Inline name', $updated->name);
+        self::assertSame('Original description', $updated->description);
+        self::assertSame($categoryId, $updated->categoryId);
+        self::assertSame('en-US', $updated->languageCode);
+
+        $contentService->updateDescription(new UpdateCategoryContentDescriptionCommand($contentId, null));
+        $updated = $contentService->getByIdForManagement($contentId);
+        self::assertSame('Inline name', $updated->name);
+        self::assertNull($updated->description);
+
+        $contentService->softDelete(new SoftDeleteCategoryContentCommand($contentId));
+        $this->expectException(CategoryContentNotFoundException::class);
+        $contentService->updateName(new UpdateCategoryContentNameCommand($contentId, 'Must fail'));
     }
 
     public function testContentMutationsFollowParentLifecycleStateContractOnMySql(): void

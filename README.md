@@ -41,15 +41,17 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
   and an explicit default marker.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
-- Category and Content create, update, soft-delete, and restore lifecycle
-  mutations, plus Category status and display-order mutations.
+- Category and Content create, full-form update, typed inline field updates,
+  soft-delete, and restore lifecycle mutations, plus Category status and
+  display-order mutations.
 - Image Assignment create, exact-scope ordering, explicit default assignment,
   soft-delete, and restore mutations; stable identity remains reserved after
   soft deletion.
 - Image Role create, status update, soft-delete, restore, and bounded management
   reads; role keys remain permanently reserved after soft deletion.
-- Content Field create, value/format update, exact-scope ordering, soft-delete,
-  restore, management reads, and exact consumer reads; field keys remain Host-defined.
+- Content Field create, atomic value/format full-form update, typed inline value
+  update, exact-scope ordering, soft-delete, restore, management reads, and
+  exact consumer reads; field keys remain Host-defined.
 - Shared Persistence transaction and row-locking contracts for
   hierarchy/lifecycle invariants; the Host owns outer transaction boundaries.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
@@ -61,7 +63,7 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes twenty-five typed mutation Commands, immutable Category,
+The package exposes twenty-eight typed mutation Commands, immutable Category,
 Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
 criteria DTOs, five enums, a unified `CategoryFacade` with five domain APIs,
 typed service and repository contracts, and framework-neutral PDO adapters.
@@ -73,6 +75,9 @@ management query port. The Stage 3 management surface now provides exact public
 `getByCode()`, shared Persistence pagination for management lists, and
 Category-owned SQL search by Category code. Search does not delegate to a
 Persistence search engine; the Host still owns language fallback and policy.
+The Stage 4 mutation surface retains full-form updates and adds typed Content
+`name`/`description` and Content Field `value` operations for inline editing;
+Content Field `format` and `value` remain one atomic invariant.
 
 ## Query and list behavior
 

@@ -41,7 +41,10 @@ use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleComm
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
@@ -134,7 +137,10 @@ final class CategoryContractJsonSerializationTest extends TestCase
             new UpdateCategoryDisplayOrderCommand(7, 4),
             new UpdateCategoryStatusCommand(7, CategoryStatusEnum::INACTIVE),
             new UpdateCategoryContentCommand(11, 'قمصان', 'وصف'),
+            new UpdateCategoryContentNameCommand(11, 'قمصان مختصرة'),
+            new UpdateCategoryContentDescriptionCommand(11, 'وصف مختصر'),
             new UpdateCategoryContentFieldCommand(17, CategoryContentFieldFormatEnum::TEXT, 'new badge'),
+            new UpdateCategoryContentFieldValueCommand(17, 'new badge value'),
             new UpdateCategoryContentFieldDisplayOrderCommand(17, 3),
             new UpdateCategoryImageAssignmentDisplayOrderCommand(13, 2),
             new CategoryImageAssignmentScopeDTO(null, 'web', 19),

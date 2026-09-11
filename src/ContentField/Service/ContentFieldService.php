@@ -14,6 +14,7 @@ use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCom
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
@@ -57,6 +58,21 @@ final readonly class ContentFieldService implements ContentFieldServiceInterface
             $this->requireActiveFieldForUpdate($command->fieldId);
 
             if (!$this->commandRepository->update($command, $this->clock->now())) {
+                throw CategoryContentFieldNotFoundException::withId($command->fieldId);
+            }
+        });
+    }
+
+    public function updateValue(UpdateCategoryContentFieldValueCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $field = $this->requireActiveFieldForUpdate($command->fieldId);
+            $updated = $this->commandRepository->update(
+                new UpdateCategoryContentFieldCommand($field->id, $field->format, $command->value),
+                $this->clock->now(),
+            );
+
+            if (!$updated) {
                 throw CategoryContentFieldNotFoundException::withId($command->fieldId);
             }
         });

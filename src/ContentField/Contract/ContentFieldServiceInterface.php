@@ -10,6 +10,7 @@ use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCom
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
@@ -24,6 +25,8 @@ interface ContentFieldServiceInterface
     public function create(CreateCategoryContentFieldCommand $command): int;
 
     public function update(UpdateCategoryContentFieldCommand $command): void;
+
+    public function updateValue(UpdateCategoryContentFieldValueCommand $command): void;
 
     public function updateDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand $command): void;
 
