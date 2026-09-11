@@ -12,6 +12,7 @@ use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
 use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
@@ -267,7 +268,7 @@ final class DomainMutationServiceTest extends TestCase
         );
 
         $service->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand(5, 2));
-        $imageService->updateDisplayOrder(
+        $imageService->reorder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand(21, 2),
         );
         $fieldService->updateDisplayOrder(
@@ -474,15 +475,19 @@ final class DomainMutationServiceTest extends TestCase
             new FixedClock(),
         );
 
-        $createdId = $service->create(
-            new CreateCategoryImageAssignmentCommand(5, 900, 'en-US', 'web'),
+        $createdId = $service->assign(
+            new CreateCategoryImageAssignmentCommand(
+                5,
+                900,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            ),
         );
-        $service->updateDisplayOrder(
+        $service->reorder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand($createdId, 2),
         );
         $service->setDefault(new SetCategoryImageAssignmentDefaultCommand($createdId));
         $service->clearDefault(new ClearCategoryImageAssignmentDefaultCommand($createdId));
-        $service->softDelete(new SoftDeleteCategoryImageAssignmentCommand($createdId));
+        $service->remove(new SoftDeleteCategoryImageAssignmentCommand($createdId));
         $service->restore(new RestoreCategoryImageAssignmentCommand($createdId));
 
         self::assertSame(77, $createdId);

@@ -291,9 +291,7 @@ RestoreCategoryImageRoleCommand(string|int $roleId)
 
 CreateCategoryImageAssignmentCommand(string|int $categoryId,
                                      string|int $mediaAssetId,
-                                     ?string $languageCode = null,
-                                     ?string $platform = null,
-                                     string|int|null $roleId = null)
+                                     ?CategoryImageAssignmentScopeDTO $scope = null)
 UpdateCategoryImageAssignmentDisplayOrderCommand(string|int $assignmentId,
                                                  int $displayOrder)
 SetCategoryImageAssignmentDefaultCommand(string|int $assignmentId)
@@ -465,11 +463,11 @@ ImageRoleApiInterface
   paginateForManagement(CategoryImageRoleListCriteriaDTO, PageRequest): PageResult<CategoryImageRoleDTO>
 
 ImageAssignmentApiInterface [images()]
-  create(CreateCategoryImageAssignmentCommand): int
-  updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
+  assign(CreateCategoryImageAssignmentCommand): int
+  reorder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
   setDefault(SetCategoryImageAssignmentDefaultCommand): void
   clearDefault(ClearCategoryImageAssignmentDefaultCommand): void
-  softDelete(SoftDeleteCategoryImageAssignmentCommand): void
+  remove(SoftDeleteCategoryImageAssignmentCommand): void
   restore(RestoreCategoryImageAssignmentCommand): void
   listVisibleForCategory(int, CategoryImageAssignmentScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
@@ -724,11 +722,41 @@ They are the v1 contract; no parent-state redesign is implied.
 
 ### Image Assignment parent-state contract
 
-`images()->create()` requires a Category that exists and is not
+`images()->assign()` requires a Category that exists and is not
 soft-deleted; `CategoryStatusEnum::INACTIVE` is allowed. After an Image
 Assignment is created, ordering, soft-delete, and restore operations depend on
 the assignment's own lifecycle. An Image Assignment is not a Category child
 and therefore does not prevent Category soft-delete.
+
+### Image Assignment consumer workflow
+
+The Host owns upload and Media/Storage lifecycle. After the Host completes its
+upload workflow and receives a `mediaAssetId`, it passes only that ID to
+Category:
+
+```php
+$scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+$images = $category->images();
+
+$assignmentId = $images->assign(
+    new CreateCategoryImageAssignmentCommand($categoryId, $mediaAssetId, $scope),
+);
+
+$visibleAssignments = $images->listVisibleForCategory($categoryId, $scope);
+$images->reorder(new UpdateCategoryImageAssignmentDisplayOrderCommand($assignmentId, 1));
+$images->setDefault(new SetCategoryImageAssignmentDefaultCommand($assignmentId));
+$images->clearDefault(new ClearCategoryImageAssignmentDefaultCommand($assignmentId));
+$images->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+$images->restore(new RestoreCategoryImageAssignmentCommand($assignmentId));
+```
+
+Use the same `CategoryImageAssignmentScopeDTO` for assignment and exact
+consumer reads. `NULL` language, platform, or Role values are exact scope
+dimensions and never fall back. Add a Role ID only when the Host needs a
+Role-scoped assignment and has an active, non-deleted Category Image Role.
+`remove()` is a reversible soft delete; it clears `isDefault`, does not
+promote another assignment, and `restore()` leaves the assignment
+non-default. Ordering and default selection are independent operations.
 
 Content Field creation requires a non-deleted parent Category. Field value,
 ordering, soft-delete, and restore mutations depend on the field's own

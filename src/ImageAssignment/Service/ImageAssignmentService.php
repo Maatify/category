@@ -49,7 +49,7 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
         private ClockInterface $clock,
     ) {}
 
-    public function create(CreateCategoryImageAssignmentCommand $command): int
+    public function assign(CreateCategoryImageAssignmentCommand $command): int
     {
         return $this->transaction->run(function () use ($command): int {
             $this->requireActiveCategoryForUpdate($command->categoryId);
@@ -59,7 +59,7 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
         });
     }
 
-    public function updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void
+    public function reorder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveAssignmentForUpdate($command->assignmentId);
@@ -88,7 +88,7 @@ final readonly class ImageAssignmentService implements ImageAssignmentServiceInt
         });
     }
 
-    public function softDelete(SoftDeleteCategoryImageAssignmentCommand $command): void
+    public function remove(SoftDeleteCategoryImageAssignmentCommand $command): void
     {
         $this->transaction->run(function () use ($command): void {
             $this->requireActiveAssignmentForUpdate($command->assignmentId);

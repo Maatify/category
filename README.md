@@ -44,9 +44,9 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 - Category and Content create, full-form update, typed inline field updates,
   soft-delete, and restore lifecycle mutations, plus Category status and
   display-order mutations.
-- Image Assignment create, exact-scope ordering, explicit default assignment,
-  soft-delete, and restore mutations; stable identity remains reserved after
-  soft deletion.
+- Image Assignment assign, exact-scope ordering, explicit default assignment,
+  reversible remove/restore lifecycle; stable identity remains reserved after
+  removal.
 - Image Role create, status update, soft-delete, restore, and bounded management
   reads; role keys remain permanently reserved after soft deletion.
 - Content Field create, atomic value/format full-form update, typed inline value
@@ -125,6 +125,35 @@ is independent from `display_order`; soft-deleting a default clears it and
 restoring the assignment leaves it non-default. Category does not own Media,
 Platform, or Language lifecycle and creates no foreign key to those host
 concepts.
+
+## Image Assignment consumer workflow
+
+The Host owns upload and Media/Storage lifecycle. After upload returns a
+mediaAssetId, pass only that ID to Category. Use one exact typed scope for both
+assignment and consumer reads:
+
+    use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+    use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+    use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+    use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+    use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+    use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+
+    $images = $category->images();
+    $scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+
+    $assignmentId = $images->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, $mediaAssetId, $scope),
+    );
+    $images->reorder(new UpdateCategoryImageAssignmentDisplayOrderCommand($assignmentId, 1));
+    $images->setDefault(new SetCategoryImageAssignmentDefaultCommand($assignmentId));
+    $visibleAssignments = $images->listVisibleForCategory($categoryId, $scope);
+    $images->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+    $images->restore(new RestoreCategoryImageAssignmentCommand($assignmentId));
+
+NULL language, platform, or Role values are exact scope dimensions and never
+fall back. A Role ID is optional and is added to the scope only for a
+Role-scoped assignment backed by an active, non-deleted Category Image Role.
 
 ## Category Image Role model
 

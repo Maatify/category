@@ -32,6 +32,11 @@ use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PHPUnit\Framework\TestCase;
@@ -94,11 +99,23 @@ final class CategoryCompositionTest extends TestCase
         self::assertSame(14, (new ImageRoleApi($roleService))->create(new CreateCategoryImageRoleCommand('gallery')));
 
         $imageService = $this->createMock(ImageAssignmentServiceInterface::class);
-        $imageService->expects(self::once())->method('create')->willReturn(15);
+        $imageService->expects(self::once())->method('assign')->willReturn(15);
         self::assertSame(
             15,
-            (new ImageAssignmentApi($imageService))->create(new CreateCategoryImageAssignmentCommand(11, 99)),
+            (new ImageAssignmentApi($imageService))->assign(new CreateCategoryImageAssignmentCommand(11, 99)),
         );
+
+        $imageService->expects(self::once())->method('reorder');
+        $imageService->expects(self::once())->method('setDefault');
+        $imageService->expects(self::once())->method('clearDefault');
+        $imageService->expects(self::once())->method('remove');
+        $imageService->expects(self::once())->method('restore');
+        $imageApi = new ImageAssignmentApi($imageService);
+        $imageApi->reorder(new UpdateCategoryImageAssignmentDisplayOrderCommand(15, 2));
+        $imageApi->setDefault(new SetCategoryImageAssignmentDefaultCommand(15));
+        $imageApi->clearDefault(new ClearCategoryImageAssignmentDefaultCommand(15));
+        $imageApi->remove(new SoftDeleteCategoryImageAssignmentCommand(15));
+        $imageApi->restore(new RestoreCategoryImageAssignmentCommand(15));
     }
 
     public function testCategoryApiRoutesManagementCodeAndPaginationReadsToItsService(): void
@@ -184,6 +201,28 @@ final class CategoryCompositionTest extends TestCase
 
             self::assertSame($serviceMethods, $apiMethods, $apiContract . ' must preserve its service operation surface.');
         }
+    }
+
+    public function testImageAssignmentApiUsesConsumerWorkflowNames(): void
+    {
+        $methods = $this->methodNames(ImageAssignmentApiInterface::class);
+        sort($methods);
+
+        self::assertSame([
+            'assign',
+            'clearDefault',
+            'getByIdForManagement',
+            'listForManagement',
+            'listVisibleForCategory',
+            'paginateForManagement',
+            'remove',
+            'reorder',
+            'restore',
+            'setDefault',
+        ], $methods);
+        self::assertNotContains('create', $methods);
+        self::assertNotContains('softDelete', $methods);
+        self::assertNotContains('updateDisplayOrder', $methods);
     }
 
     public function testFactoryIsFrameworkNeutralAndRequiresHostPrimitives(): void

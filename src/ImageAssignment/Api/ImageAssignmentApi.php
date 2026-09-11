@@ -26,14 +26,14 @@ final readonly class ImageAssignmentApi implements ImageAssignmentApiInterface
 {
     public function __construct(private ImageAssignmentServiceInterface $service) {}
 
-    public function create(CreateCategoryImageAssignmentCommand $command): int
+    public function assign(CreateCategoryImageAssignmentCommand $command): int
     {
-        return $this->service->create($command);
+        return $this->service->assign($command);
     }
 
-    public function updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void
+    public function reorder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void
     {
-        $this->service->updateDisplayOrder($command);
+        $this->service->reorder($command);
     }
 
     public function setDefault(SetCategoryImageAssignmentDefaultCommand $command): void
@@ -46,9 +46,9 @@ final readonly class ImageAssignmentApi implements ImageAssignmentApiInterface
         $this->service->clearDefault($command);
     }
 
-    public function softDelete(SoftDeleteCategoryImageAssignmentCommand $command): void
+    public function remove(SoftDeleteCategoryImageAssignmentCommand $command): void
     {
-        $this->service->softDelete($command);
+        $this->service->remove($command);
     }
 
     public function restore(RestoreCategoryImageAssignmentCommand $command): void
