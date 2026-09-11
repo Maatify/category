@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-These unreleased notes describe the proposed `v1.0.0` release line. No stable
-tag, release date, or owner-approved release metadata is claimed.
+## [1.0.0] - 2026-09-11
+
+These notes record the `v1.0.0` Final Release Candidate. The version and date
+are prepared release metadata; no stable tag, GitHub Release, or Packagist
+publication exists yet.
 
 ### Added
 
@@ -32,8 +35,8 @@ tag, release date, or owner-approved release metadata is claimed.
 - Consumer Readiness Stage 6 audit closure: reconciled the public `src/`
   inventory, stale API/alias sweep, package documentation, boundary checks,
   and standalone external Composer consumer verification with the current
-  v1 runtime; this records verification scope and does not publish or accept
-  the Consumer Readiness Draft.
+  v1 runtime. Consumer Readiness Stages 1–6 and Final Consumer Draft Closure
+  are complete within the Phase V1 Readiness Wave Draft.
 
 ### Changed
 
@@ -52,17 +55,19 @@ tag, release date, or owner-approved release metadata is claimed.
 - Corrected the Stage 3 pagination sort-key contract: Image Assignment and
   Content Field default to the explicit `business_order` key while
   `category_id` retains direct Category ID semantics.
-- Marked Consumer Readiness Stages 1–5, including the current Stage 5 Image
-  Assignment consumer workflow, as implemented in the v1 line; later stages
-  remain separate scope.
+- Marked Consumer Readiness Stages 1–6, including the Stage 5 Image Assignment
+  consumer workflow and Stage 6 audit closure, as implemented in the v1 line;
+  Final Consumer Draft Closure is complete within the Phase V1 Readiness Wave
+  Draft.
 - Kept existing full-form mutation operations intact while exposing typed
   partial operations for safe inline editing. Category and Image Role retain
   their existing dedicated operations; Image Assignment exposes consumer-oriented
   `assign()`, `reorder()`, and `remove()` operations with typed
   default and restore mutations. No generic `updateField()` contract or
   Media/Storage workflow was added.
-- Prepared release-facing documentation for owner approval without creating a
-  tag, release, or Packagist publication.
+- Prepared release-facing documentation for the `v1.0.0` Final Release
+  Candidate without creating a stable tag, GitHub Release, or Packagist
+  publication.
 - Corrected the previous content model to unified Category Content,
   supporting one unlocalized (`language_code = NULL`) row and localized rows
   under a database-enforced logical identity.
@@ -89,4 +94,5 @@ tag, release date, or owner-approved release metadata is claimed.
   `PdoTransactionRunner` with the same PDO used by Category persistence;
   caller-owned outer transactions remain Host-owned.
 
-[Unreleased]: https://github.com/Maatify/category/compare/main...HEAD
+[Unreleased]: https://github.com/Maatify/category/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Maatify/category/releases/tag/v1.0.0

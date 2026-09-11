@@ -5,16 +5,26 @@
 
 ## Scope
 
-This policy covers the published `maatify/category` package, its package-owned
-runtime contracts, Composer metadata, schema, and CI configuration. Host
-applications, Host-owned tables, and integrations outside this repository are
-not maintained by this package.
+This policy covers the `maatify/category` v1.0.0 Final Release Candidate, its
+package-owned runtime contracts, Composer metadata, schema, and CI
+configuration. Host applications, Host-owned tables, and integrations outside
+this repository are not maintained by this package.
+
+This policy is prepared for direct publication after owner approval. No stable
+Git tag, GitHub Release, or Packagist publication exists yet.
 
 ## Supported Versions
 
-No stable release line has been published yet. Security fixes will be
-provided for the latest stable release after the first supported version is
-tagged.
+The actively supported release line is `1.x`.
+
+Security fixes are provided in the latest stable release within the supported
+`1.x` line. Users should upgrade to the latest available `1.x` version before
+reporting a vulnerability.
+
+| Version | Supported |
+|---------|-----------|
+| `1.x` | Yes |
+| Older lines | No |
 
 ## Reporting a Vulnerability
 

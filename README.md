@@ -17,7 +17,11 @@ Framework-neutral hierarchical categories, contents, extensible Host-defined
 content fields, a Category-owned Image Role registry, and Category-owned image assignments for reusable PHP
 applications.
 
-**Status:** v1.0.0 preparation · owner release metadata pending · not published
+**Status:** v1.0.0 Final Release Candidate · not yet tagged, released, or published
+
+The code and release-facing documentation are prepared as a `v1.0.0` Final
+Release Candidate. No stable Git tag, GitHub Release, or Packagist publication
+exists yet.
 
 </div>
 
@@ -191,8 +195,9 @@ visibility.
 
 ## Installation
 
-The package is currently prepared for independent publication from the
-`Maatify/category` repository. After publication, install it with:
+The package is prepared as the `v1.0.0` Final Release Candidate for independent
+publication from the `Maatify/category` repository. After publication, install
+it with:
 
 ```bash
 composer require maatify/category
@@ -278,8 +283,9 @@ composer test:integration
 composer test
 ```
 
-Packagist, tags, GitHub Releases, and a stable `v1.0.0` publication are not
-performed by this repository preparation.
+No Packagist publication, stable Git tag, or GitHub Release has been created by
+this repository preparation; those publication actions remain outside its
+scope.
 
 ## License
 
