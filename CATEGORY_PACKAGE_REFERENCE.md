@@ -628,10 +628,11 @@ at most 100 rows per call. Management Content lists accept
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Content lists are ordered by `language_code, id`.
 Image Role lists are ordered by `role_key, id`.
-The package does not implement a local pagination or search engine; the next
-Consumer Readiness Stage 3 scope exposes those capabilities through
-`maatify/persistence`. Language fallback remains Host-owned. Content collections
-may contain the single NULL-language row together with zero or more
+The package does not implement a local pagination engine; the next Consumer
+Readiness Stage 3 scope uses `maatify/persistence` for pagination, while Search
+is a Category-owned query capability implemented through the package's SQL/query
+layer. Language fallback remains Host-owned. Content collections may contain
+the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
