@@ -25,6 +25,10 @@ tag, release date, or owner-approved release metadata is claimed.
   `description` inline updates, typed Content Field value inline updates that
   preserve the atomic format/value invariant, and Unit, MySQL Integration, and
   standalone consumer coverage through the public Facade APIs.
+- Consumer Readiness Stage 5 Image Assignment consumer workflow: explicit
+  `assign()`, `reorder()`, and `remove()` operations, typed exact
+  scope input, and complete lifecycle/default/order/read coverage through the
+  public Facade APIs.
 
 ### Changed
 
@@ -43,14 +47,15 @@ tag, release date, or owner-approved release metadata is claimed.
 - Corrected the Stage 3 pagination sort-key contract: Image Assignment and
   Content Field default to the explicit `business_order` key while
   `category_id` retains direct Category ID semantics.
-- Marked Consumer Readiness Stages 1–4, including the current Stage 4 mutation
-  ergonomics, as implemented in the v1 line; later stages remain separate
-  scope.
+- Marked Consumer Readiness Stages 1–5, including the current Stage 5 Image
+  Assignment consumer workflow, as implemented in the v1 line; later stages
+  remain separate scope.
 - Kept existing full-form mutation operations intact while exposing typed
-  partial operations for safe inline editing. Category, Image Role, and Image
-  Assignment retain their existing dedicated status, hierarchy, ordering,
-  default, and lifecycle operations; no generic `updateField()` contract or
-  Stage 5 Media/Storage workflow was added.
+  partial operations for safe inline editing. Category and Image Role retain
+  their existing dedicated operations; Image Assignment exposes consumer-oriented
+  `assign()`, `reorder()`, and `remove()` operations with typed
+  default and restore mutations. No generic `updateField()` contract or
+  Media/Storage workflow was added.
 - Prepared release-facing documentation for owner approval without creating a
   tag, release, or Packagist publication.
 - Corrected the previous content model to unified Category Content,

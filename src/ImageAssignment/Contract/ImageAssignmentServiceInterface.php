@@ -22,15 +22,16 @@ use Maatify\Persistence\Pdo\Pagination\PageResult;
 /** Public application contract for ImageAssignment business mutations and visible/management reads and lists. */
 interface ImageAssignmentServiceInterface
 {
-    public function create(CreateCategoryImageAssignmentCommand $command): int;
+    public function assign(CreateCategoryImageAssignmentCommand $command): int;
 
-    public function updateDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void;
+    public function reorder(UpdateCategoryImageAssignmentDisplayOrderCommand $command): void;
 
     public function setDefault(SetCategoryImageAssignmentDefaultCommand $command): void;
 
     public function clearDefault(ClearCategoryImageAssignmentDefaultCommand $command): void;
 
-    public function softDelete(SoftDeleteCategoryImageAssignmentCommand $command): void;
+    /** Removes the assignment reversibly; use restore() to make it visible again. */
+    public function remove(SoftDeleteCategoryImageAssignmentCommand $command): void;
 
     public function restore(RestoreCategoryImageAssignmentCommand $command): void;
 

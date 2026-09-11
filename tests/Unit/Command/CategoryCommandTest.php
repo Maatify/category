@@ -11,6 +11,7 @@ use ReflectionProperty;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
 use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
@@ -142,11 +143,19 @@ final class CategoryCommandTest extends TestCase
                 sprintf('CreateCategoryContent.languageCode must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
-                static fn (): object => new CreateCategoryImageAssignmentCommand(1, 100, $value, null),
+                static fn (): object => new CreateCategoryImageAssignmentCommand(
+                    1,
+                    100,
+                    new CategoryImageAssignmentScopeDTO($value),
+                ),
                 sprintf('CreateCategoryImageAssignment.languageCode must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
-                static fn (): object => new CreateCategoryImageAssignmentCommand(1, 100, null, $value),
+                static fn (): object => new CreateCategoryImageAssignmentCommand(
+                    1,
+                    100,
+                    new CategoryImageAssignmentScopeDTO(null, $value),
+                ),
                 sprintf('CreateCategoryImageAssignment.platform must reject %s input.', $label),
             );
             $this->assertInvalidArgument(
@@ -254,10 +263,17 @@ final class CategoryCommandTest extends TestCase
 
     public function testImageAssignmentCreateUsesExactNullableScopeAndNeverAcceptsDisplayOrder(): void
     {
-        $command = new CreateCategoryImageAssignmentCommand(42, 900, 'en-US', 'web');
+        $command = new CreateCategoryImageAssignmentCommand(
+            42,
+            900,
+            new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+        );
 
         self::assertSame(42, $command->categoryId);
         self::assertSame(900, $command->mediaAssetId);
+        self::assertSame('en-US', $command->scope->languageCode);
+        self::assertSame('web', $command->scope->platform);
+        self::assertNull($command->scope->roleId);
         self::assertSame('en-US', $command->languageCode);
         self::assertSame('web', $command->platform);
         self::assertSame(
@@ -269,6 +285,13 @@ final class CategoryCommandTest extends TestCase
             array_map(
                 static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
                 (new ReflectionMethod(UpdateCategoryImageAssignmentDisplayOrderCommand::class, '__construct'))->getParameters(),
+            ),
+        );
+        self::assertSame(
+            ['categoryId', 'mediaAssetId', 'scope'],
+            array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                (new ReflectionMethod(CreateCategoryImageAssignmentCommand::class, '__construct'))->getParameters(),
             ),
         );
         self::assertFalse(property_exists(CreateCategoryImageAssignmentCommand::class, 'displayOrder'));

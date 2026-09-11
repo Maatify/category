@@ -119,17 +119,33 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         $galleryId = $roles->create(new CreateCategoryImageRoleCommand('gallery'));
         $heroId = $roles->create(new CreateCategoryImageRoleCommand('hero'));
 
-        $genericId = $consumer->create(
-            new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios'),
+        $genericId = $consumer->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                1000,
+                new CategoryImageAssignmentScopeDTO('ar', 'ios'),
+            ),
         );
-        $galleryFirstId = $consumer->create(
-            new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $galleryId),
+        $galleryFirstId = $consumer->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                1000,
+                new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
+            ),
         );
-        $gallerySecondId = $consumer->create(
-            new CreateCategoryImageAssignmentCommand($categoryId, 1001, 'ar', 'ios', $galleryId),
+        $gallerySecondId = $consumer->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                1001,
+                new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
+            ),
         );
-        $heroIdAssignment = $consumer->create(
-            new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $heroId),
+        $heroIdAssignment = $consumer->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                1000,
+                new CategoryImageAssignmentScopeDTO('ar', 'ios', $heroId),
+            ),
         );
 
         self::assertSame(
@@ -200,8 +216,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
 
         try {
-            $consumer->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 1000, 'ar', 'ios', $galleryId),
+            $consumer->assign(
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    1000,
+                    new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
+                ),
             );
             self::fail('The exact Category/Image/Role/scope identity must be unique.');
         } catch (CategoryImageAssignmentAlreadyExistsException $exception) {
@@ -274,8 +294,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         ));
 
         try {
-            $imageService->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 2000, null, null, $inactiveRoleId),
+            $imageService->assign(
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    2000,
+                    new CategoryImageAssignmentScopeDTO(null, null, $inactiveRoleId),
+                ),
             );
             self::fail('Inactive Roles must reject new assignments.');
         } catch (CategoryImageRoleUnavailableException $exception) {
@@ -283,8 +307,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         }
 
         try {
-            $imageService->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 2001, null, null, 999999),
+            $imageService->assign(
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    2001,
+                    new CategoryImageAssignmentScopeDTO(null, null, 999999),
+                ),
             );
             self::fail('Missing Roles must reject new assignments.');
         } catch (CategoryImageRoleNotFoundException $exception) {
@@ -296,8 +324,12 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
         );
         $roleService->softDelete(new SoftDeleteCategoryImageRoleCommand($inactiveRoleId));
         try {
-            $imageService->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 2002, null, null, $inactiveRoleId),
+            $imageService->assign(
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    2002,
+                    new CategoryImageAssignmentScopeDTO(null, null, $inactiveRoleId),
+                ),
             );
             self::fail('Soft-deleted Roles must reject new assignments.');
         } catch (CategoryImageRoleUnavailableException $exception) {

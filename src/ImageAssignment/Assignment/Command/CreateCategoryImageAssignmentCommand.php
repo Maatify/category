@@ -20,13 +20,11 @@ final readonly class CreateCategoryImageAssignmentCommand implements \JsonSerial
     public function __construct(
         int|string $categoryId,
         int|string $mediaAssetId,
-        ?string $languageCode = null,
-        ?string $platform = null,
-        int|string|null $roleId = null,
+        ?CategoryImageAssignmentScopeDTO $scope = null,
     ) {
         $this->categoryId = (new CategoryIdDTO($categoryId, 'categoryId'))->value;
         $this->mediaAssetId = (new CategoryIdDTO($mediaAssetId, 'mediaAssetId'))->value;
-        $this->scope = new CategoryImageAssignmentScopeDTO($languageCode, $platform, $roleId);
+        $this->scope = $scope ?? new CategoryImageAssignmentScopeDTO();
         $this->languageCode = $this->scope->languageCode;
         $this->platform = $this->scope->platform;
         $this->roleId = $this->scope->roleId;

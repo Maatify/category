@@ -348,20 +348,23 @@ try {
     $localizedContentId = $category->contents()->create(
         new CreateCategoryContentCommand($categoryId, 'en-US', 'Standalone Category English', null),
     );
-    $imageAssignmentId = $category->images()->create(
-        new CreateCategoryImageAssignmentCommand($categoryId, 700),
+    $genericScope = new CategoryImageAssignmentScopeDTO();
+    $localizedScope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+    $imageAssignmentId = $category->images()->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, 700, $genericScope),
     );
-    $secondImageAssignmentId = $category->images()->create(
-        new CreateCategoryImageAssignmentCommand($categoryId, 702),
+    $secondImageAssignmentId = $category->images()->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, 702, $genericScope),
     );
-    $localizedImageAssignmentId = $category->images()->create(
-        new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
+    $localizedImageAssignmentId = $category->images()->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, 700, $localizedScope),
     );
     $imageRoleId = $category->imageRoles()->create(
         new CreateCategoryImageRoleCommand('gallery'),
     );
-    $roleImageAssignmentId = $category->images()->create(
-        new CreateCategoryImageAssignmentCommand($categoryId, 701, 'en-US', 'web', $imageRoleId),
+    $roleScope = new CategoryImageAssignmentScopeDTO('en-US', 'web', $imageRoleId);
+    $roleImageAssignmentId = $category->images()->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, 701, $roleScope),
     );
     $contentFieldId = $category->contentFields()->create(
         new CreateCategoryContentFieldCommand(
@@ -414,11 +417,45 @@ try {
     );
     $category->contents()->softDelete(new SoftDeleteCategoryContentCommand($localizedContentId));
     $category->contents()->restore(new RestoreCategoryContentCommand($localizedContentId));
-    $category->images()->updateDisplayOrder(
-        new UpdateCategoryImageAssignmentDisplayOrderCommand($imageAssignmentId, 2),
+    $category->images()->reorder(
+        new UpdateCategoryImageAssignmentDisplayOrderCommand($secondImageAssignmentId, 1),
     );
-    $category->images()->softDelete(new SoftDeleteCategoryImageAssignmentCommand($imageAssignmentId));
+    $category->images()->setDefault(
+        new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
+    );
+    $category->images()->remove(new SoftDeleteCategoryImageAssignmentCommand($imageAssignmentId));
+    standalone_consumer_require(
+        $category->images()->listVisibleForCategory($categoryId, $genericScope)->count() === 1,
+        'Standalone remove did not hide the removed Image Assignment from exact consumer reads.',
+    );
+    $removedImageAssignment = $category->images()->getByIdForManagement(
+        $imageAssignmentId,
+        CategoryDeletedStateEnum::DELETED_ONLY,
+    );
+    standalone_consumer_require(
+        $removedImageAssignment->deletedAt !== null && !$removedImageAssignment->isDefault,
+        'Standalone remove did not clear the default or preserve deleted lifecycle state.',
+    );
+    $removedStateStatement = $pdo->prepare(
+        'SELECT media_asset_id, is_default, deleted_at '
+        . 'FROM maa_category_category_image_assignments WHERE id = :image_assignment_id',
+    );
+    $removedStateStatement->execute(['image_assignment_id' => $imageAssignmentId]);
+    /** @var array<string, mixed>|false $removedState */
+    $removedState = $removedStateStatement->fetch(\PDO::FETCH_ASSOC);
+    standalone_consumer_require(
+        is_array($removedState)
+        && in_array($removedState['media_asset_id'] ?? null, [700, '700'], true)
+        && in_array($removedState['is_default'] ?? null, [0, '0'], true)
+        && is_string($removedState['deleted_at'] ?? null),
+        'Standalone PDO observation did not match the removed Image Assignment state.',
+    );
     $category->images()->restore(new RestoreCategoryImageAssignmentCommand($imageAssignmentId));
+    standalone_consumer_require(
+        $category->images()->listVisibleForCategory($categoryId, $genericScope)->count() === 2
+        && !$category->images()->getByIdForManagement($imageAssignmentId)->isDefault,
+        'Standalone restore did not expose the assignment as non-default.',
+    );
     $category->imageRoles()->updateStatus(
         new UpdateCategoryImageRoleStatusCommand($imageRoleId, CategoryImageRoleStatusEnum::INACTIVE),
     );
@@ -495,20 +532,27 @@ try {
         'Standalone query did not return both unlocalized and localized Content.',
     );
     standalone_consumer_require(
-        $category->images()->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 2,
+        $category->images()->listVisibleForCategory($categoryId, $genericScope)->count() === 2,
         'Standalone exact unlocalized Image Assignment query returned the wrong rows.',
     );
     standalone_consumer_require(
         $category->images()->listVisibleForCategory(
             $categoryId,
-            new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            $localizedScope,
         )->count() === 1,
         'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
     );
     standalone_consumer_require(
         $category->images()->listVisibleForCategory(
             $categoryId,
-            new CategoryImageAssignmentScopeDTO('en-US', 'web', $imageRoleId),
+            new CategoryImageAssignmentScopeDTO('en-US'),
+        )->isEmpty(),
+        'Standalone exact scope read must not fall back across a missing platform.',
+    );
+    standalone_consumer_require(
+        $category->images()->listVisibleForCategory(
+            $categoryId,
+            $roleScope,
         )->count() === 1,
         'Standalone exact Role-scoped Image Assignment query returned the wrong rows.',
     );

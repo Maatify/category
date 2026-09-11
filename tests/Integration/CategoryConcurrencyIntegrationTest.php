@@ -14,6 +14,7 @@ use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
@@ -549,7 +550,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         try {
             $this->assertLockWaitTimeout(
                 function () use ($blockedImageService, $categoryId): void {
-                    $blockedImageService->create(
+                    $blockedImageService->assign(
                         new CreateCategoryImageAssignmentCommand($categoryId, 700),
                     );
                 },
@@ -560,7 +561,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->commit();
 
             try {
-                $blockedImageService->create(
+                $blockedImageService->assign(
                     new CreateCategoryImageAssignmentCommand($categoryId, 700),
                 );
                 self::fail('A committed Image Assignment identity must not be duplicated.');
@@ -605,7 +606,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             // real creation reaches lockCreationScope() for the same scope.
             $firstConnection->beginTransaction();
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 701, 'en-US', 'web'),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    701,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                ),
                 $occurredAt,
             );
 
@@ -614,7 +619,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 702, 'en-US', 'web'),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        702,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent creation must wait for the exact ordering scope lock.');
@@ -632,7 +641,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 702, 'en-US', 'web'),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    702,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -677,7 +690,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         try {
             $firstConnection->beginTransaction();
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 703, 'en-US', 'web', $roleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    703,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                ),
                 $occurredAt,
             );
 
@@ -686,7 +703,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        704,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent creation must wait for the exact Role ordering scope lock.');
@@ -704,7 +725,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    704,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -748,13 +773,21 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection->beginTransaction();
 
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 705, 'en-US', 'web', $firstRoleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    705,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $firstRoleId),
+                ),
                 $occurredAt,
             );
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        706,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web', $secondRoleId),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent operation may wait, but must not corrupt a different Role scope.');
@@ -772,7 +805,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    706,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $secondRoleId),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -1004,10 +1041,10 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $service = $this->service($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-default-category'));
         $imageService = $this->imageService($this->connection());
-        $firstId = $imageService->create(
+        $firstId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 705),
         );
-        $secondId = $imageService->create(
+        $secondId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 706),
         );
 

@@ -11,6 +11,7 @@ use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
@@ -89,10 +90,10 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
         $reader = new PdoCategoryImageAssignmentQueryReader($connection, new FixedCategoryClock());
         $categoryId = $service->create(new CreateCategoryCommand('host-default-transaction-category'));
         $imageService = $this->imageService($connection);
-        $firstId = $imageService->create(
+        $firstId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 1003),
         );
-        $secondId = $imageService->create(
+        $secondId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 1004),
         );
 
@@ -175,10 +176,10 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
         $secondCategoryId = $service->create(new CreateCategoryCommand('outer-ordering-second'));
         $imageService = $this->imageService($connection);
         $fieldService = $this->fieldService($connection);
-        $firstAssignmentId = $imageService->create(
+        $firstAssignmentId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($firstCategoryId, 1001),
         );
-        $secondAssignmentId = $imageService->create(
+        $secondAssignmentId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($firstCategoryId, 1002),
         );
         $firstFieldId = $fieldService->create(
@@ -214,7 +215,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
             $service->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondCategoryId, 1));
             self::assertTrue($connection->inTransaction());
 
-            $imageService->updateDisplayOrder(
+            $imageService->reorder(
                 new UpdateCategoryImageAssignmentDisplayOrderCommand($secondAssignmentId, 1),
             );
             self::assertTrue($connection->inTransaction());

@@ -122,7 +122,11 @@ final class CategoryContractJsonSerializationTest extends TestCase
             new CreateCategoryContentFieldCommand(7, 'badge', 'ar', 'web', CategoryContentFieldFormatEnum::JSON, '{"enabled":true}'),
             new CreateCategoryImageRoleCommand('gallery'),
             new UpdateCategoryImageRoleStatusCommand(19, CategoryImageRoleStatusEnum::INACTIVE),
-            new CreateCategoryImageAssignmentCommand(7, 900, null, 'web'),
+            new CreateCategoryImageAssignmentCommand(
+                7,
+                900,
+                new CategoryImageAssignmentScopeDTO(null, 'web'),
+            ),
             new MoveCategoryCommand(7, 3),
             new RestoreCategoryCommand(7),
             new RestoreCategoryContentCommand(11),
