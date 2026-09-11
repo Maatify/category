@@ -208,6 +208,10 @@ development and do not rely on a Packagist version claim.
 
 ## Quick Usage
 
+For a complete Host workflow covering all five Domain APIs, exact scopes,
+management reads, pagination, lifecycle, and external Media assignments, see
+the [Consumer Usage Guide](docs/USAGE_GUIDE.md).
+
 The Host provides the existing `PDO` connection and
 `Maatify\SharedCommon\Contracts\ClockInterface`. Category owns timestamps as
 values, but does not own timezone policy or normalize timestamps to UTC. The
@@ -239,6 +243,7 @@ envelopes, and presentation formatting.
 
 ## Documentation
 
+- [Consumer Usage Guide](docs/USAGE_GUIDE.md)
 - [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md)
 - [Category schema](schema/category.sql)
 - [Schema notes](schema/README.md)

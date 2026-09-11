@@ -7,6 +7,9 @@ Assignments. This file is the package's
 single stable contract reference. Detailed implementation notes belong under
 `docs/` and must link back here.
 
+For the practical Host workflow through `CategoryFactory`, the facade, and its
+five Domain APIs, see the [Consumer Usage Guide](docs/USAGE_GUIDE.md).
+
 ## Scope and boundaries
 
 The package owns Category, Category Content, Category Content Fields, the Image

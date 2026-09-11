@@ -20,6 +20,9 @@ publication exists yet.
 - MySQL schema, PDO repositories, shared Persistence transaction runner, and real-engine
   Integration tests for hierarchy, lifecycle, ordering, and visibility.
 - Root Package Reference and standards-aligned Composer/CI configuration.
+- Added the practical [Consumer Usage Guide](docs/USAGE_GUIDE.md) for factory
+  setup, the five Domain APIs, exact scopes, lifecycle, pagination, and
+  end-to-end Host workflows.
 - Consumer Readiness Stage 3 management query expansion: shared Persistence
   pagination for all management list APIs, Category-owned SQL search by code,
   public management `getByCode()`, and unit, MySQL Integration, and standalone
