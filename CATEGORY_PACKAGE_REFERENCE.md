@@ -918,9 +918,11 @@ that PDO, the shared runner participates without committing or rolling it back;
 outer transaction ownership remains with the Host. Category does not provide a
 local transaction implementation.
 
-Package-owned storage/hydration failures use the appropriate
-`CategoryPersistenceException` hierarchy. An external `PDOException` is not
-wrapped and propagates unchanged.
+Repository adapters classify selected database failures. Known duplicate-key
+failures are translated into the relevant package-owned `AlreadyExistsException`;
+other database failures that are not explicitly classified may propagate as
+`PDOException`. Package-owned storage/hydration validation failures use the
+appropriate `CategoryPersistenceException` hierarchy.
 
 ## Composer and platform contract
 

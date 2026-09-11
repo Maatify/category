@@ -114,8 +114,11 @@ $category->categories()->restore(new RestoreCategoryCommand($childId));
 ```
 
 Category codes are immutable after creation and must be unique. Creating a
-child requires an existing active, non-deleted parent. Moving a category
-requires an active, non-deleted target and rejects direct or indirect cycles.
+child requires an existing, non-deleted parent; the parent's
+`CategoryStatusEnum` may be `INACTIVE`. Moving a category requires a
+non-deleted source and, when a new parent is supplied, a non-deleted target;
+the target may also be `INACTIVE`. These mutation checks are soft-delete
+checks, not status checks, and direct or indirect cycles are still rejected.
 Soft deletion is blocked while the category has non-deleted children. A
 category's status and display order are independent typed mutations.
 
@@ -189,9 +192,12 @@ Category row. Its immutable identity is `(category_id, language_code)`:
 - a non-null code is one localized Content record for that exact code.
 - an empty string is invalid and is not equivalent to `null`.
 
-The Host decides which language codes are supported and which locale to request.
+The Host decides which language codes are supported and which locale to select.
 The package performs no fallback and does not replace a missing localized row
-with the unlocalized row.
+with the unlocalized row. The visible Content read returns all visible Content
+records for the Category, ordered by `language_code, id`; it has no language
+filter. The Host selects the DTO whose `languageCode` matches its chosen
+locale, if one exists.
 
 ### Mutations and reads
 
@@ -366,6 +372,12 @@ $category->imageRoles()->softDelete(
 $category->imageRoles()->restore(
     new RestoreCategoryImageRoleCommand($galleryRoleId),
 );
+$category->imageRoles()->updateStatus(
+    new UpdateCategoryImageRoleStatusCommand(
+        $galleryRoleId,
+        CategoryImageRoleStatusEnum::ACTIVE,
+    ),
+);
 
 $role = $category->imageRoles()->getByKeyForManagement('gallery');
 $roles = $category->imageRoles()->listForManagement(
@@ -379,9 +391,12 @@ $roles = $category->imageRoles()->listForManagement(
 The role API also provides `getByIdForManagement()`,
 `paginateForManagement()`, and status/deleted-state criteria. A role-scoped
 Image Assignment can be created only while the referenced Role is active and
-non-deleted. If a Role later becomes inactive or soft-deleted, existing
-assignments remain management-visible but disappear from consumer Image
-Assignment reads until the Role is active and non-deleted again.
+non-deleted. Restore preserves the Role's status, so the explicit
+`updateStatus(..., CategoryImageRoleStatusEnum::ACTIVE)` above is required
+before using this Role for a new assignment. If a Role later becomes inactive
+or soft-deleted, existing assignments remain management-visible but disappear
+from consumer Image Assignment reads until the Role is active and non-deleted
+again.
 
 ## Image Assignments and the external Media workflow
 
@@ -651,9 +666,13 @@ Typical package-owned failures include:
   names an inactive or deleted Role.
 - `CategoryPersistenceException` for package-owned storage/hydration failures.
 
-An external `PDOException` is not wrapped by the package and propagates to the
-Host. The Host should map exceptions to its own transport or UI policy without
-changing the package contracts.
+Repository adapters classify selected database failures. In particular,
+known duplicate-key failures are translated into the relevant package-owned
+`AlreadyExistsException`; other database failures that are not explicitly
+classified may propagate as `PDOException`. Package-owned storage and hydration
+validation failures use `CategoryPersistenceException`. The Host should map
+these outcomes to its own transport or UI policy without changing the package
+contracts.
 
 ## Transactions and the Host clock
 
@@ -702,9 +721,11 @@ foreach ($visibleContents as $content) {
 ```
 
 The result is visible only because the Category is active, non-deleted, and has
-a complete visible ancestor path. If the Host needs a localized value, it
-requests that exact language through its own policy and reads the corresponding
-Content record; the package does not choose a fallback.
+a complete visible ancestor path. `listVisibleForCategory()` returns all
+visible Content rows for the Category, ordered by `language_code, id`; it does
+not accept a language filter. If the Host needs a localized value, it selects
+the DTO whose `languageCode` matches its chosen locale. The package does not
+choose a fallback.
 
 ### 2. CMS: localized Content -> fields -> management and consumer reads
 
