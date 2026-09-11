@@ -17,11 +17,13 @@ Framework-neutral hierarchical categories, contents, extensible Host-defined
 content fields, a Category-owned Image Role registry, and Category-owned image assignments for reusable PHP
 applications.
 
-**Status:** v1.0.0 Final Release Candidate · not yet tagged, released, or published
+**Status:** v1.0.0-rc.1 Pre-release Validation Build
 
-The code and release-facing documentation are prepared as a `v1.0.0` Final
-Release Candidate. No stable Git tag, GitHub Release, or Packagist publication
-exists yet.
+The code and release-facing documentation are prepared as the first
+`v1.0.0-rc.1` pre-release validation build for real Host-project integration.
+The public API remains pre-stable and may change if RC validation identifies
+necessary findings. Stable compatibility begins with `v1.0.0`; this RC does
+not make a stable-release claim.
 
 </div>
 
@@ -195,16 +197,16 @@ visibility.
 
 ## Installation
 
-The package is prepared as the `v1.0.0` Final Release Candidate for independent
-publication from the `Maatify/category` repository. After publication, install
-it with:
+The package is prepared as the `v1.0.0-rc.1` pre-release validation build for
+Host integration from the `Maatify/category` repository. After the stable
+release is published, install it with:
 
 ```bash
 composer require maatify/category
 ```
 
-Until the first stable release is published, use the repository checkout for
-development and do not rely on a Packagist version claim.
+For RC validation, use the repository checkout; stable `v1.0.0` compatibility
+begins only after its owner-approved publication.
 
 ## Quick Usage
 
@@ -288,9 +290,8 @@ composer test:integration
 composer test
 ```
 
-No Packagist publication, stable Git tag, or GitHub Release has been created by
-this repository preparation; those publication actions remain outside its
-scope.
+Packagist publication, GitHub Release, and stable `v1.0.0` publication are
+separate release actions outside this RC preparation scope.
 
 ## License
 

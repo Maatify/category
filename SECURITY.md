@@ -5,26 +5,28 @@
 
 ## Scope
 
-This policy covers the `maatify/category` v1.0.0 Final Release Candidate, its
-package-owned runtime contracts, Composer metadata, schema, and CI
+This policy covers the `maatify/category` `v1.0.0-rc.1` pre-release validation
+build, its package-owned runtime contracts, Composer metadata, schema, and CI
 configuration. Host applications, Host-owned tables, and integrations outside
 this repository are not maintained by this package.
 
-This policy is prepared for direct publication after owner approval. No stable
-Git tag, GitHub Release, or Packagist publication exists yet.
+The target supported major line is `1.x`; it becomes active only when the
+stable `v1.0.0` release is published after owner approval. The RC is not a
+stable supported release line.
 
 ## Supported Versions
 
-The actively supported release line is `1.x`.
+The target stable release line is `1.x`, pending the first stable `v1.0.0`
+publication.
 
-Security fixes are provided in the latest stable release within the supported
-`1.x` line. Users should upgrade to the latest available `1.x` version before
-reporting a vulnerability.
+Once `v1.0.0` is published, security fixes will be provided in the latest
+stable release within the supported `1.x` line. Until then, the RC is for
+validation and is not a stable support commitment.
 
 | Version | Supported |
 |---------|-----------|
-| `1.x` | Yes |
-| Older lines | No |
+| `1.x` after stable `v1.0.0` publication | Planned |
+| `v1.0.0-rc.1` | Pre-release validation only |
 
 ## Reporting a Vulnerability
 

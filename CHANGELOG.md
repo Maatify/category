@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-09-11
+## [1.0.0-rc.1] - 2026-09-11
 
-These notes record the `v1.0.0` Final Release Candidate. The version and date
-are prepared release metadata; no stable tag, GitHub Release, or Packagist
-publication exists yet.
+These notes record the contents of the `v1.0.0-rc.1` pre-release validation
+build for Host-project integration before the stable `v1.0.0` compatibility
+commitment.
 
 ### Added
 
@@ -23,23 +23,19 @@ publication exists yet.
 - Added the practical [Consumer Usage Guide](docs/USAGE_GUIDE.md) for factory
   setup, the five Domain APIs, exact scopes, lifecycle, pagination, and
   end-to-end Host workflows.
-- Consumer Readiness Stage 3 management query expansion: shared Persistence
-  pagination for all management list APIs, Category-owned SQL search by code,
-  public management `getByCode()`, and unit, MySQL Integration, and standalone
-  consumer coverage through the public Facade APIs.
-- Consumer Readiness Stage 4 mutation ergonomics: typed Content `name` and
-  `description` inline updates, typed Content Field value inline updates that
-  preserve the atomic format/value invariant, and Unit, MySQL Integration, and
-  standalone consumer coverage through the public Facade APIs.
-- Consumer Readiness Stage 5 Image Assignment consumer workflow: explicit
-  `assign()`, `reorder()`, and `remove()` operations, typed exact
-  scope input, and complete lifecycle/default/order/read coverage through the
+- Expanded management query APIs with shared Persistence pagination,
+  Category-owned SQL search by code, public management `getByCode()`, and
+  unit, MySQL Integration, and standalone consumer coverage through the
   public Facade APIs.
-- Consumer Readiness Stage 6 audit closure: reconciled the public `src/`
-  inventory, stale API/alias sweep, package documentation, boundary checks,
-  and standalone external Composer consumer verification with the current
-  v1 runtime. Consumer Readiness Stages 1–6 and Final Consumer Draft Closure
-  are complete within the Phase V1 Readiness Wave Draft.
+- Added typed Content `name` and `description` inline updates and typed
+  Content Field value inline updates that preserve the atomic format/value
+  invariant.
+- Added the Image Assignment consumer workflow with explicit `assign()`,
+  `reorder()`, and `remove()` operations, typed exact scope input, and
+  lifecycle/default/order/read coverage through the public Facade APIs.
+- Completed public consumer-surface verification, stale API/alias review,
+  package-boundary checks, and standalone external Composer consumer
+  verification against the v1 runtime.
 
 ### Changed
 
@@ -53,24 +49,20 @@ publication exists yet.
   five Domain APIs, split domain services, domain-owned read contracts and PDO
   adapters, and a framework-neutral package-level `CategoryFactory`.
 - Documented separate management and consumer visibility reads, bounded
-  unpaginated lists, deterministic ordering, and the completed Stage 3
-  management query expansion while keeping Search Category-owned and SQL-based.
-- Corrected the Stage 3 pagination sort-key contract: Image Assignment and
-  Content Field default to the explicit `business_order` key while
+  unpaginated lists, deterministic ordering, and management query behavior
+  while keeping Search Category-owned and SQL-based.
+- Corrected the pagination sort-key contract: Image Assignment and Content
+  Field default to the explicit `business_order` key while
   `category_id` retains direct Category ID semantics.
-- Marked Consumer Readiness Stages 1–6, including the Stage 5 Image Assignment
-  consumer workflow and Stage 6 audit closure, as implemented in the v1 line;
-  Final Consumer Draft Closure is complete within the Phase V1 Readiness Wave
-  Draft.
 - Kept existing full-form mutation operations intact while exposing typed
   partial operations for safe inline editing. Category and Image Role retain
   their existing dedicated operations; Image Assignment exposes consumer-oriented
   `assign()`, `reorder()`, and `remove()` operations with typed
   default and restore mutations. No generic `updateField()` contract or
   Media/Storage workflow was added.
-- Prepared release-facing documentation for the `v1.0.0` Final Release
-  Candidate without creating a stable tag, GitHub Release, or Packagist
-  publication.
+- Prepared release-facing documentation for the `v1.0.0-rc.1` pre-release
+  validation build; stable `v1.0.0` publication remains a separate release
+  action.
 - Corrected the previous content model to unified Category Content,
   supporting one unlocalized (`language_code = NULL`) row and localized rows
   under a database-enforced logical identity.
@@ -97,5 +89,5 @@ publication exists yet.
   `PdoTransactionRunner` with the same PDO used by Category persistence;
   caller-owned outer transactions remain Host-owned.
 
-[Unreleased]: https://github.com/Maatify/category/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Maatify/category/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Maatify/category/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/Maatify/category/releases/tag/v1.0.0-rc.1
