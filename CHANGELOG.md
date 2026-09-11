@@ -30,7 +30,10 @@ tag, release date, or owner-approved release metadata is claimed.
   five Domain APIs, split domain services, domain-owned read contracts and PDO
   adapters, and a framework-neutral package-level `CategoryFactory`.
 - Documented separate management and consumer visibility reads, bounded
-  unpaginated lists, deterministic ordering, and deferred pagination/search.
+  unpaginated lists, deterministic ordering, and the Stage 3 Consumer
+  Readiness scope for pagination, search, and public management get-by-code.
+- Marked Consumer Readiness Stage 1 and Stage 2 as complete; Stage 3 is the next
+  stage for management query expansion.
 - Prepared release-facing documentation for owner approval without creating a
   tag, release, or Packagist publication.
 - Corrected the previous content model to unified Category Content,

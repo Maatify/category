@@ -70,7 +70,8 @@ The complete constructor and method inventory is maintained in the
 
 The internal `findByCode()` mutation-support lookup is deliberately not exposed
 through the facade's management APIs. Pagination, search, and public management
-get-by-code are deferred from v1.
+get-by-code are the next Consumer Readiness scope in Stage 3; they are not
+post-v1 exclusions.
 
 ## Query and list behavior
 

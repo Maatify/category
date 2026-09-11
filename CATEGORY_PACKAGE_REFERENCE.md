@@ -554,8 +554,9 @@ TransactionRunnerInterface (from maatify/persistence)
 ```
 
 `findByCode()` is intentionally present only on the internal
-mutation-support port. It is not a public management read, service method, or
-v1 get-by-code contract.
+mutation-support port in the current Stage 2 contract. It is not a public
+management read or service method; public management `getByCode()` is part of
+the next Consumer Readiness Stage 3 scope, not post-v1 work.
 
 #### Services and PDO adapters
 
@@ -627,8 +628,11 @@ at most 100 rows per call. Management Content lists accept
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Content lists are ordered by `language_code, id`.
 Image Role lists are ordered by `role_key, id`.
-The package does not add local pagination, search, or language fallback. Content
-collections may contain the single NULL-language row together with zero or more
+The package does not implement a local pagination engine; the next Consumer
+Readiness Stage 3 scope uses `maatify/persistence` for pagination, while Search
+is a Category-owned query capability implemented through the package's SQL/query
+layer. Language fallback remains Host-owned. Content collections may contain
+the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
@@ -654,7 +658,8 @@ means exact NULL/NULL scope.
 Consumer Category lists use the same maximum of 100 through their separate
 criteria DTO; root and child lists use `display_order, id`, and Content
 lists use `language_code, id`. The bound is applied by the persistence query
-with a typed integer parameter; pagination and search remain deferred.
+with a typed integer parameter; pagination and search are the next Consumer
+Readiness Stage 3 scope and are not post-v1 exclusions.
 
 ### Content parent-state contract
 
@@ -744,8 +749,9 @@ management/use-case consumers. They do not apply consumer ancestor visibility
 rules. Management reads provide Category get-by-ID, bounded all/root/child
 lists, Content get-by-ID, and bounded Content lists. Deleted records
 are returned only when the caller explicitly selects `include_deleted` or
-`deleted_only`; management get-by-code, search, and pagination are not part of
-the v1 public contract.
+`deleted_only`; the current Stage 2 public contract does not yet expose
+management `getByCode()`, search, or pagination. They are the next Consumer
+Readiness Stage 3 scope within the v1 line, not work deferred beyond v1.
 
 Visible query methods:
 
@@ -908,11 +914,12 @@ copy `env.testing.example` to the ignored `env.testing`; the PHPUnit bootstrap
 loads those values as defaults and preserves any externally injected values,
 including CI's isolated MySQL configuration.
 
-## Non-goals and deferred work
+## Non-goals and staged work
 
 - Catalog, Product, Pricing, Inventory, and Media composition.
 - HTTP/API routes, controllers, middleware, permissions, Twig, and JavaScript.
 - Presentation serialization and response envelopes.
-- Local pagination or host language fallback.
-- Management search and public management get-by-code.
+- Host language fallback.
+- Consumer Readiness Stage 3: Persistence-backed pagination, Category-owned
+  search, and public management `getByCode()`.
 - A separate Catalog entity or Catalog identity.
