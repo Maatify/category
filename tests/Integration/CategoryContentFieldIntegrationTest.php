@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
@@ -18,20 +20,9 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldAlreadyExistsException;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
-use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
-use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
-use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
-use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
-use Maatify\Category\Api\Service\CategoryCommandService;
-use Maatify\Category\Api\Service\CategoryManagementQueryService;
-use Maatify\Category\Api\Service\CategoryQueryService;
+use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
-use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use PDO;
 
 final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -39,60 +30,58 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     public function testAllFourScopesFormatsAndIndependentOrderingAreSupported(): void
     {
         $service = $this->commandService($this->connection());
-        $clock = new FixedCategoryClock();
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($this->connection(), $clock));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection(), $clock));
+        $fieldService = $this->fieldService($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('field-scopes-category'));
 
-        $neutralFirst = $service->createContentField(
+        $neutralFirst = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'alpha_information', null, null, CategoryContentFieldFormatEnum::TEXT, 'Use gently.'),
         );
-        $neutralSecond = $service->createContentField(
+        $neutralSecond = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'zeta_instructions', null, null, CategoryContentFieldFormatEnum::HTML, '<p>Details</p>'),
         );
-        $languageOnly = $service->createContentField(
+        $languageOnly = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', 'en-US', null, CategoryContentFieldFormatEnum::JSON, '{"audience":["adult"]}'),
         );
-        $platformOnly = $service->createContentField(
+        $platformOnly = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'custom_information', null, 'web', CategoryContentFieldFormatEnum::TEXT, 'Web only'),
         );
-        $languageAndPlatform = $service->createContentField(
+        $languageAndPlatform = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', 'en-US', 'web', CategoryContentFieldFormatEnum::HTML, '<strong>Web</strong>'),
         );
 
         self::assertSame(
             [$neutralFirst, $neutralSecond],
-            $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO())),
+            $this->ids($fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO())),
         );
         self::assertSame(
             [$languageOnly],
-            $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO('en-US'))),
+            $this->ids($fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO('en-US'))),
         );
         self::assertSame(
             [$platformOnly],
-            $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO(null, 'web'))),
+            $this->ids($fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO(null, 'web'))),
         );
         self::assertSame(
             [$languageAndPlatform],
-            $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
+            $this->ids($fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
         );
 
-        $neutral = $queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO());
+        $neutral = $fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO());
         self::assertSame(
             [CategoryContentFieldFormatEnum::TEXT, CategoryContentFieldFormatEnum::HTML],
             $this->formats($neutral),
         );
 
-        $service->updateContentFieldDisplayOrder(
+        $fieldService->updateDisplayOrder(
             new UpdateCategoryContentFieldDisplayOrderCommand($neutralFirst, 2),
         );
         self::assertSame(
             [$neutralSecond, $neutralFirst],
-            $this->ids($queryService->listContentFields($categoryId, new CategoryContentFieldScopeDTO())),
+            $this->ids($fieldService->listVisibleForCategory($categoryId, new CategoryContentFieldScopeDTO())),
         );
         self::assertSame(
             [$neutralSecond, $neutralFirst],
-            $this->ids($management->listContentFields(new CategoryContentFieldListCriteriaDTO(
+            $this->ids($fieldService->listForManagement(new CategoryContentFieldListCriteriaDTO(
                 categoryId: $categoryId,
                 scope: new CategoryContentFieldScopeDTO(),
             ))),
@@ -116,25 +105,24 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     public function testIdentityIsExactAndReservedAcrossSoftDeletion(): void
     {
         $service = $this->commandService($this->connection());
+        $fieldService = $this->fieldService($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('field-identity-category'));
-        $fieldId = $service->createContentField(
+        $fieldId = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::TEXT, 'neutral'),
         );
 
-        $service->softDeleteContentField(new SoftDeleteCategoryContentFieldCommand($fieldId));
+        $fieldService->softDelete(new SoftDeleteCategoryContentFieldCommand($fieldId));
 
         try {
-            $service->createContentField(
+            $fieldService->create(
                 new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::HTML, '<p>duplicate</p>'),
             );
             self::fail('A soft-deleted field must continue reserving its exact identity.');
         } catch (CategoryContentFieldAlreadyExistsException) {
         }
 
-        $service->restoreContentField(new RestoreCategoryContentFieldCommand($fieldId));
-        $restored = (new CategoryManagementQueryService(
-            new PdoCategoryManagementReadQuery($this->connection(), new FixedCategoryClock()),
-        ))->getContentFieldById($fieldId);
+        $fieldService->restore(new RestoreCategoryContentFieldCommand($fieldId));
+        $restored = $fieldService->getByIdForManagement($fieldId);
         self::assertSame($fieldId, $restored->id);
         self::assertSame($categoryId, $restored->categoryId);
         self::assertSame('targeting', $restored->fieldKey);
@@ -146,22 +134,22 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     public function testSameKeyIsAllowedInAnotherScopeAndManagementScopeFilterIsExact(): void
     {
         $service = $this->commandService($this->connection());
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($this->connection(), new FixedCategoryClock()));
+        $fieldService = $this->fieldService($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('field-management-category'));
-        $neutral = $service->createContentField(
+        $neutral = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', null, null, CategoryContentFieldFormatEnum::TEXT, 'neutral'),
         );
-        $language = $service->createContentField(
+        $language = $fieldService->create(
             new CreateCategoryContentFieldCommand($categoryId, 'targeting', 'en-US', null, CategoryContentFieldFormatEnum::TEXT, 'localized'),
         );
 
         self::assertEqualsCanonicalizing(
             [$neutral, $language],
-            $this->ids($management->listContentFields(new CategoryContentFieldListCriteriaDTO(categoryId: $categoryId))),
+            $this->ids($fieldService->listForManagement(new CategoryContentFieldListCriteriaDTO(categoryId: $categoryId))),
         );
         self::assertSame(
             [$neutral],
-            $this->ids($management->listContentFields(new CategoryContentFieldListCriteriaDTO(
+            $this->ids($fieldService->listForManagement(new CategoryContentFieldListCriteriaDTO(
                 categoryId: $categoryId,
                 scope: new CategoryContentFieldScopeDTO(),
             ))),
@@ -172,47 +160,45 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $clock = new FixedCategoryClock();
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
-        $management = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
+        $fieldService = $this->fieldService($connection);
         $rootId = $service->create(new CreateCategoryCommand('field-visibility-root'));
         $childId = $service->create(new CreateCategoryCommand('field-visibility-child', $rootId));
-        $fieldId = $service->createContentField(
+        $fieldId = $fieldService->create(
             new CreateCategoryContentFieldCommand($childId, 'custom_information', 'en-US', 'web', CategoryContentFieldFormatEnum::TEXT, 'before'),
         );
 
-        $service->updateContentField(new UpdateCategoryContentFieldCommand(
+        $fieldService->update(new UpdateCategoryContentFieldCommand(
             $fieldId,
             CategoryContentFieldFormatEnum::JSON,
             '{"enabled":true}',
         ));
-        $updated = $management->getContentFieldById($fieldId);
+        $updated = $fieldService->getByIdForManagement($fieldId);
         self::assertSame(CategoryContentFieldFormatEnum::JSON, $updated->format);
         self::assertSame('{"enabled":true}', $updated->value);
 
         self::assertSame(
             [$fieldId],
-            $this->ids($queryService->listContentFields($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
+            $this->ids($fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
         );
         self::assertTrue(
-            $queryService->listContentFields($childId, new CategoryContentFieldScopeDTO('en-GB', 'web'))->isEmpty(),
+            $fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-GB', 'web'))->isEmpty(),
         );
 
-        $service->softDeleteContentField(new SoftDeleteCategoryContentFieldCommand($fieldId));
+        $fieldService->softDelete(new SoftDeleteCategoryContentFieldCommand($fieldId));
         self::assertTrue(
-            $queryService->listContentFields($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))->isEmpty(),
+            $fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))->isEmpty(),
         );
-        self::assertNotNull($management->getContentFieldById($fieldId, CategoryDeletedStateEnum::DELETED_ONLY)->deletedAt);
+        self::assertNotNull($fieldService->getByIdForManagement($fieldId, CategoryDeletedStateEnum::DELETED_ONLY)->deletedAt);
 
-        $service->restoreContentField(new RestoreCategoryContentFieldCommand($fieldId));
+        $fieldService->restore(new RestoreCategoryContentFieldCommand($fieldId));
         self::assertSame(
             [$fieldId],
-            $this->ids($queryService->listContentFields($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
+            $this->ids($fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))),
         );
 
         $service->updateStatus(new UpdateCategoryStatusCommand($rootId, CategoryStatusEnum::INACTIVE));
         self::assertTrue(
-            $queryService->listContentFields($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))->isEmpty(),
+            $fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))->isEmpty(),
         );
     }
 
@@ -238,16 +224,19 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
         return $formats;
     }
 
-    private function commandService(PDO $connection): CategoryCommandService
+    private function commandService(PDO $connection): CategoryApiInterface
     {
-        return new CategoryCommandService(
-            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
-            new PdoCategoryContentCommandRepository($connection),
-            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoTransactionRunner($connection),
+        return CategoryFactory::create(
+            $connection,
             new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
-        );
+        )->categories();
+    }
+
+    private function fieldService(PDO $connection): ContentFieldApiInterface
+    {
+        return CategoryFactory::create(
+            $connection,
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
+        )->contentFields();
     }
 }

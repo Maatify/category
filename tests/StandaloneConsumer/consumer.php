@@ -3,10 +3,28 @@
 declare(strict_types=1);
 
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
+use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\RestoreCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
 use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
@@ -21,19 +39,7 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
-use Maatify\Category\Query\Infrastructure\PdoCategoryManagementReadQuery;
-use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
-use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
-use Maatify\Category\Query\Infrastructure\PdoCategoryReadQuery;
-use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
-use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\ImageRole\Infrastructure\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Api\Service\CategoryCommandService;
-use Maatify\Category\Api\Service\CategoryManagementQueryService;
-use Maatify\Category\Api\Service\CategoryQueryService;
-use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
+use Maatify\Category\Factory\CategoryFactory;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
 
 /** @return never */
@@ -329,43 +335,31 @@ try {
     );
 
     $clock = new SystemClock(new \DateTimeZone('Africa/Cairo'));
-    $commandService = new CategoryCommandService(
-        new PdoCategoryCommandRepository($pdo, new ScopedOrderingManager()),
-        new PdoCategoryQueryReader($pdo, $clock),
-        new PdoCategoryContentCommandRepository($pdo),
-        new PdoCategoryImageAssignmentCommandRepository($pdo, new ScopedOrderingManager()),
-        new PdoCategoryContentFieldCommandRepository($pdo, new ScopedOrderingManager()),
-        new PdoTransactionRunner($pdo),
-        $clock,
-        new PdoCategoryImageRoleCommandRepository($pdo),
-    );
-    $queryService = new CategoryQueryService(new PdoCategoryReadQuery($pdo, $clock));
-    $managementReader = new PdoCategoryManagementReadQuery($pdo, $clock);
-    $managementService = new CategoryManagementQueryService($managementReader);
+    $category = CategoryFactory::create($pdo, $clock);
 
-    $categoryId = $commandService->create(new CreateCategoryCommand('standalone-consumer-category'));
-    $contentId = $commandService->createContent(
+    $categoryId = $category->categories()->create(new CreateCategoryCommand('standalone-consumer-category'));
+    $contentId = $category->contents()->create(
         new CreateCategoryContentCommand($categoryId, null, 'Standalone Category', null),
     );
-    $localizedContentId = $commandService->createContent(
+    $localizedContentId = $category->contents()->create(
         new CreateCategoryContentCommand($categoryId, 'en-US', 'Standalone Category English', null),
     );
-    $imageAssignmentId = $commandService->createImageAssignment(
+    $imageAssignmentId = $category->images()->create(
         new CreateCategoryImageAssignmentCommand($categoryId, 700),
     );
-    $secondImageAssignmentId = $commandService->createImageAssignment(
+    $secondImageAssignmentId = $category->images()->create(
         new CreateCategoryImageAssignmentCommand($categoryId, 702),
     );
-    $localizedImageAssignmentId = $commandService->createImageAssignment(
+    $localizedImageAssignmentId = $category->images()->create(
         new CreateCategoryImageAssignmentCommand($categoryId, 700, 'en-US', 'web'),
     );
-    $imageRoleId = $commandService->createImageRole(
+    $imageRoleId = $category->imageRoles()->create(
         new CreateCategoryImageRoleCommand('gallery'),
     );
-    $roleImageAssignmentId = $commandService->createImageAssignment(
+    $roleImageAssignmentId = $category->images()->create(
         new CreateCategoryImageAssignmentCommand($categoryId, 701, 'en-US', 'web', $imageRoleId),
     );
-    $contentFieldId = $commandService->createContentField(
+    $contentFieldId = $category->contentFields()->create(
         new CreateCategoryContentFieldCommand(
             $categoryId,
             'badge_config',
@@ -388,33 +382,81 @@ try {
         'Standalone mutation returned invalid IDs.',
     );
 
-    $commandService->setImageAssignmentDefault(
+    $temporaryCategoryId = $category->categories()->create(
+        new CreateCategoryCommand('standalone-consumer-temporary'),
+    );
+    $category->categories()->move(new MoveCategoryCommand($temporaryCategoryId, $categoryId));
+    $category->categories()->updateDisplayOrder(
+        new UpdateCategoryDisplayOrderCommand($temporaryCategoryId, 2),
+    );
+    $category->categories()->softDelete(new SoftDeleteCategoryCommand($temporaryCategoryId));
+    $category->categories()->restore(new RestoreCategoryCommand($temporaryCategoryId));
+    $category->categories()->softDelete(new SoftDeleteCategoryCommand($temporaryCategoryId));
+
+    $category->categories()->updateStatus(
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE),
+    );
+    $category->categories()->updateStatus(
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::ACTIVE),
+    );
+    $category->contents()->update(
+        new UpdateCategoryContentCommand($localizedContentId, 'Standalone Category English Updated', null),
+    );
+    $category->contents()->softDelete(new SoftDeleteCategoryContentCommand($localizedContentId));
+    $category->contents()->restore(new RestoreCategoryContentCommand($localizedContentId));
+    $category->images()->updateDisplayOrder(
+        new UpdateCategoryImageAssignmentDisplayOrderCommand($imageAssignmentId, 2),
+    );
+    $category->images()->softDelete(new SoftDeleteCategoryImageAssignmentCommand($imageAssignmentId));
+    $category->images()->restore(new RestoreCategoryImageAssignmentCommand($imageAssignmentId));
+    $category->imageRoles()->updateStatus(
+        new UpdateCategoryImageRoleStatusCommand($imageRoleId, CategoryImageRoleStatusEnum::INACTIVE),
+    );
+    $category->imageRoles()->updateStatus(
+        new UpdateCategoryImageRoleStatusCommand($imageRoleId, CategoryImageRoleStatusEnum::ACTIVE),
+    );
+    $category->imageRoles()->softDelete(new SoftDeleteCategoryImageRoleCommand($imageRoleId));
+    $category->imageRoles()->restore(new RestoreCategoryImageRoleCommand($imageRoleId));
+    $category->contentFields()->update(
+        new UpdateCategoryContentFieldCommand(
+            $contentFieldId,
+            CategoryContentFieldFormatEnum::JSON,
+            '{"enabled":false}',
+        ),
+    );
+    $category->contentFields()->updateDisplayOrder(
+        new UpdateCategoryContentFieldDisplayOrderCommand($contentFieldId, 2),
+    );
+    $category->contentFields()->softDelete(new SoftDeleteCategoryContentFieldCommand($contentFieldId));
+    $category->contentFields()->restore(new RestoreCategoryContentFieldCommand($contentFieldId));
+
+    $category->images()->setDefault(
         new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
     );
-    $commandService->setImageAssignmentDefault(
+    $category->images()->setDefault(
         new SetCategoryImageAssignmentDefaultCommand($secondImageAssignmentId),
     );
     standalone_consumer_require(
-        !$managementService->getImageAssignmentById($imageAssignmentId)->isDefault
-        && $managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault,
+        !$category->images()->getByIdForManagement($imageAssignmentId)->isDefault
+        && $category->images()->getByIdForManagement($secondImageAssignmentId)->isDefault,
         'Standalone default assignment switch did not clear the previous default.',
     );
-    $commandService->clearImageAssignmentDefault(
+    $category->images()->clearDefault(
         new ClearCategoryImageAssignmentDefaultCommand($secondImageAssignmentId),
     );
     standalone_consumer_require(
-        !$managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault,
+        !$category->images()->getByIdForManagement($secondImageAssignmentId)->isDefault,
         'Standalone default clear did not remove the explicit default.',
     );
-    $commandService->setImageAssignmentDefault(
+    $category->images()->setDefault(
         new SetCategoryImageAssignmentDefaultCommand($imageAssignmentId),
     );
 
-    $category = $queryService->getById($categoryId);
-    standalone_consumer_require($category->id === $categoryId, 'Standalone query returned the wrong Category.');
-    standalone_consumer_require($category->code === 'standalone-consumer-category', 'Standalone Category code mismatch.');
+    $categoryDto = $category->categories()->getById($categoryId);
+    standalone_consumer_require($categoryDto->id === $categoryId, 'Standalone query returned the wrong Category.');
+    standalone_consumer_require($categoryDto->code === 'standalone-consumer-category', 'Standalone Category code mismatch.');
     standalone_consumer_require(
-        $category->createdAt->getTimezone()->getName() === 'Africa/Cairo',
+        $categoryDto->createdAt->getTimezone()->getName() === 'Africa/Cairo',
         'Standalone hydration did not use the Host Clock timezone.',
     );
     $createdAtStatement = $pdo->prepare(
@@ -424,40 +466,40 @@ try {
     $storedCreatedAt = $createdAtStatement->fetchColumn();
     standalone_consumer_require(
         is_string($storedCreatedAt)
-        && $storedCreatedAt === $category->createdAt->format('Y-m-d H:i:s'),
+        && $storedCreatedAt === $categoryDto->createdAt->format('Y-m-d H:i:s'),
         'Standalone persistence did not preserve the Host timestamp value.',
     );
     standalone_consumer_require(
-        $queryService->listRootCategories(new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
+        $category->categories()->listRootCategories(new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 1,
         'Standalone visible root query did not return the stored Category.',
     );
     standalone_consumer_require(
-        $queryService->listChildren($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 0,
+        $category->categories()->listChildren($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 0,
         'Standalone visible child query returned an unexpected Category.',
     );
     standalone_consumer_require(
-        $queryService->listContents($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 2,
+        $category->contents()->listVisibleForCategory($categoryId, new CategoryVisibleListCriteriaDTO(maxResults: 10))->count() === 2,
         'Standalone query did not return both unlocalized and localized Content.',
     );
     standalone_consumer_require(
-        $queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 2,
+        $category->images()->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())->count() === 2,
         'Standalone exact unlocalized Image Assignment query returned the wrong rows.',
     );
     standalone_consumer_require(
-        $queryService->listImageAssignments(
+        $category->images()->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('en-US', 'web'),
         )->count() === 1,
         'Standalone exact localized/platform Image Assignment query returned the wrong rows.',
     );
     standalone_consumer_require(
-        $queryService->listImageAssignments(
+        $category->images()->listVisibleForCategory(
             $categoryId,
             new CategoryImageAssignmentScopeDTO('en-US', 'web', $imageRoleId),
         )->count() === 1,
         'Standalone exact Role-scoped Image Assignment query returned the wrong rows.',
     );
-    $visibleContentFields = $queryService->listContentFields(
+    $visibleContentFields = $category->contentFields()->listVisibleForCategory(
         $categoryId,
         new CategoryContentFieldScopeDTO('en-US', 'web'),
         new CategoryVisibleListCriteriaDTO(maxResults: 10),
@@ -471,7 +513,7 @@ try {
         'Standalone exact Content Field consumer query returned the wrong rows.',
     );
 
-    $managementCategory = $managementService->getById(
+    $managementCategory = $category->categories()->getByIdForManagement(
         $categoryId,
         CategoryDeletedStateEnum::NON_DELETED,
     );
@@ -479,7 +521,7 @@ try {
         $managementCategory->id === $categoryId,
         'Standalone management read service returned the wrong Category.',
     );
-    $managementCategories = $managementService->listCategories(
+    $managementCategories = $category->categories()->listForManagement(
         new CategoryListCriteriaDTO(
             status: CategoryStatusEnum::ACTIVE,
             deletedState: CategoryDeletedStateEnum::NON_DELETED,
@@ -491,14 +533,14 @@ try {
         'Standalone management Category list did not return the stored Category.',
     );
     standalone_consumer_require(
-        $managementService->listRootCategories(new CategoryListCriteriaDTO(maxResults: 10))->count() === 1,
+        $category->categories()->listRootCategoriesForManagement(new CategoryListCriteriaDTO(maxResults: 10))->count() === 1,
         'Standalone management root list did not return the stored Category.',
     );
     standalone_consumer_require(
-        $managementService->listChildren($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
+        $category->categories()->listChildrenForManagement($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
         'Standalone management child list returned an unexpected Category.',
     );
-    $managementContent = $managementService->getContentById(
+    $managementContent = $category->contents()->getByIdForManagement(
         $contentId,
         CategoryDeletedStateEnum::NON_DELETED,
     );
@@ -511,7 +553,7 @@ try {
         'Standalone management read did not preserve the unlocalized NULL language identity.',
     );
     standalone_consumer_require(
-        $managementService->listContents(
+        $category->contents()->listForManagement(
             new CategoryContentListCriteriaDTO(
                 categoryId: $categoryId,
                 deletedState: CategoryDeletedStateEnum::NON_DELETED,
@@ -521,32 +563,32 @@ try {
         'Standalone management Content list did not return both Content records.',
     );
     standalone_consumer_require(
-        $managementService->getImageAssignmentById($imageAssignmentId)->id === $imageAssignmentId,
+        $category->images()->getByIdForManagement($imageAssignmentId)->id === $imageAssignmentId,
         'Standalone management read service returned the wrong Image Assignment.',
     );
     standalone_consumer_require(
-        $managementService->getImageAssignmentById($imageAssignmentId)->isDefault
-        && !$managementService->getImageAssignmentById($secondImageAssignmentId)->isDefault
-        && !$managementService->getImageAssignmentById($localizedImageAssignmentId)->isDefault
-        && !$managementService->getImageAssignmentById($roleImageAssignmentId)->isDefault,
+        $category->images()->getByIdForManagement($imageAssignmentId)->isDefault
+        && !$category->images()->getByIdForManagement($secondImageAssignmentId)->isDefault
+        && !$category->images()->getByIdForManagement($localizedImageAssignmentId)->isDefault
+        && !$category->images()->getByIdForManagement($roleImageAssignmentId)->isDefault,
         'Standalone management hydration returned the wrong Image Assignment default state.',
     );
     standalone_consumer_require(
-        $managementService->listImageAssignments(
+        $category->images()->listForManagement(
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
         )->count() === 4,
         'Standalone management Image Assignment list did not return all scopes.',
     );
     standalone_consumer_require(
-        $managementService->getImageRoleById($imageRoleId)->roleKey === 'gallery',
+        $category->imageRoles()->getByIdForManagement($imageRoleId)->roleKey === 'gallery',
         'Standalone management Role read returned the wrong Role.',
     );
     standalone_consumer_require(
-        $managementService->getImageRoleByKey('gallery')->id === $imageRoleId,
+        $category->imageRoles()->getByKeyForManagement('gallery')->id === $imageRoleId,
         'Standalone management Role resolve returned the wrong Role.',
     );
     standalone_consumer_require(
-        $managementService->listImageRoles(
+        $category->imageRoles()->listForManagement(
             new CategoryImageRoleListCriteriaDTO(
                 status: CategoryImageRoleStatusEnum::ACTIVE,
                 maxResults: 10,
@@ -554,7 +596,7 @@ try {
         )->count() === 1,
         'Standalone management Role list did not return the stored Role.',
     );
-    $managementContentField = $managementService->getContentFieldById($contentFieldId);
+    $managementContentField = $category->contentFields()->getByIdForManagement($contentFieldId);
     standalone_consumer_require(
         $managementContentField->id === $contentFieldId
         && $managementContentField->fieldKey === 'badge_config'
@@ -562,7 +604,7 @@ try {
         'Standalone management read service returned the wrong Content Field.',
     );
     standalone_consumer_require(
-        $managementService->listContentFields(
+        $category->contentFields()->listForManagement(
             new CategoryContentFieldListCriteriaDTO(
                 categoryId: $categoryId,
                 scope: new CategoryContentFieldScopeDTO('en-US', 'web'),
@@ -571,13 +613,10 @@ try {
         )->count() === 1,
         'Standalone management Content Field list did not return the exact scope.',
     );
-    $commandService->updateStatus(
-        new \Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand(
-            $categoryId,
-            CategoryStatusEnum::INACTIVE,
-        ),
+    $category->categories()->updateStatus(
+        new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE),
     );
-    $updatedCategory = $managementService->getById($categoryId, CategoryDeletedStateEnum::NON_DELETED);
+    $updatedCategory = $category->categories()->getByIdForManagement($categoryId, CategoryDeletedStateEnum::NON_DELETED);
     $updatedAtStatement = $pdo->prepare(
         'SELECT `updated_at` FROM `maa_category_categories` WHERE `id` = :id',
     );

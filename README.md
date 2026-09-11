@@ -63,13 +63,13 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 The package exposes twenty-five typed mutation Commands, immutable Category,
 Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
-criteria DTOs, five enums, typed service and
-repository contracts, and framework-neutral PDO adapters. The complete
-constructor and method inventory is maintained in the
+criteria DTOs, five enums, a unified `CategoryFacade` with five domain APIs,
+typed service and repository contracts, and framework-neutral PDO adapters.
+The complete constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
 
 The internal `findByCode()` mutation-support lookup is deliberately not exposed
-as a management service method. Pagination, search, and public management
+through the facade's management APIs. Pagination, search, and public management
 get-by-code are deferred from v1.
 
 ## Query and list behavior
@@ -161,26 +161,28 @@ development and do not rely on a Packagist version claim.
 
 ## Quick Usage
 
-The Host provides `Maatify\SharedCommon\Contracts\ClockInterface` and its
-timezone to Category. Category owns timestamps as values, but does not own
-timezone policy or normalize timestamps to UTC. The example below uses the
-Host timezone `Africa/Cairo`.
+The Host provides the existing `PDO` connection and
+`Maatify\SharedCommon\Contracts\ClockInterface`. Category owns timestamps as
+values, but does not own timezone policy or normalize timestamps to UTC. The
+Factory wires the complete framework-neutral application once; each facade
+accessor exposes one domain API.
 
 ```php
-use DateTimeImmutable;
-use Maatify\Category\Query\DTO\CategoryDTO;
-use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 
-$category = new CategoryDTO(
-    id: 1,
-    parentId: null,
-    code: 'clothing',
-    status: CategoryStatusEnum::ACTIVE,
-    displayOrder: 1,
-    createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
-    updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
-    deletedAt: null,
+// $pdo and $clock are supplied by the host application.
+$category = CategoryFactory::create($pdo, $clock);
+
+$categoryId = $category->categories()->create(
+    new CreateCategoryCommand('clothing'),
 );
+$category->contents()->create(
+    new CreateCategoryContentCommand($categoryId, null, 'Clothing', null),
+);
+
+$visibleCategory = $category->categories()->getById($categoryId);
 ```
 
 The Category package owns the syntactic and storage validation of non-NULL

@@ -24,7 +24,7 @@ use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\Api\Contract\CategoryCommandServiceInterface;
+use Maatify\Category\Contract\CategoryServiceInterface;
 use Maatify\Category\Common\DTO\CategoryIdDTO;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
@@ -336,23 +336,15 @@ final class CategoryCommandTest extends TestCase
     {
         $expectedCommands = [
             'create' => CreateCategoryCommand::class,
-            'createContent' => CreateCategoryContentCommand::class,
-            'createImageAssignment' => CreateCategoryImageAssignmentCommand::class,
             'move' => MoveCategoryCommand::class,
             'softDelete' => SoftDeleteCategoryCommand::class,
-            'softDeleteContent' => SoftDeleteCategoryContentCommand::class,
-            'softDeleteImageAssignment' => SoftDeleteCategoryImageAssignmentCommand::class,
             'restore' => RestoreCategoryCommand::class,
-            'restoreContent' => RestoreCategoryContentCommand::class,
-            'restoreImageAssignment' => RestoreCategoryImageAssignmentCommand::class,
             'updateStatus' => UpdateCategoryStatusCommand::class,
             'updateDisplayOrder' => UpdateCategoryDisplayOrderCommand::class,
-            'updateContent' => UpdateCategoryContentCommand::class,
-            'updateImageAssignmentDisplayOrder' => UpdateCategoryImageAssignmentDisplayOrderCommand::class,
         ];
 
-        $serviceReflection = new ReflectionClass(CategoryCommandServiceInterface::class);
-        self::assertCount(14, $expectedCommands);
+        $serviceReflection = new ReflectionClass(CategoryServiceInterface::class);
+        self::assertCount(6, $expectedCommands);
 
         foreach ($expectedCommands as $methodName => $expectedCommand) {
             $method = $serviceReflection->getMethod($methodName);

@@ -24,8 +24,11 @@ tag, release date, or owner-approved release metadata is claimed.
   `Maatify\SharedCommon\Contracts\ClockInterface` and its timezone; Category
   persists timestamp values as supplied and hydrates them using that Host Clock
   timezone.
-- Reconciled the roadmap and package documentation with the selective pinned
-  standards adoption and the current v1 runtime contract.
+- Reconciled package documentation with the selective pinned standards adoption
+  and the current v1 runtime contract.
+- Replaced the former command-service composition with a thin `CategoryFacade`,
+  five Domain APIs, split domain services, domain-owned read contracts and PDO
+  adapters, and a framework-neutral package-level `CategoryFactory`.
 - Documented separate management and consumer visibility reads, bounded
   unpaginated lists, deterministic ordering, and deferred pagination/search.
 - Prepared release-facing documentation for owner approval without creating a

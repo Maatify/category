@@ -29,10 +29,11 @@
   "autoload": {
     "psr-4": {
       "Maatify\\Category\\": "src/Category/",
-      "Maatify\\Category\\Api\\": "src/Api/",
       "Maatify\\Category\\Common\\": "src/Common/",
       "Maatify\\Category\\Content\\": "src/Content/",
       "Maatify\\Category\\ContentField\\": "src/ContentField/",
+      "Maatify\\Category\\Facade\\": "src/Facade/",
+      "Maatify\\Category\\Factory\\": "src/Factory/",
       "Maatify\\Category\\ImageAssignment\\": "src/ImageAssignment/",
       "Maatify\\Category\\ImageRole\\": "src/ImageRole/"
     }

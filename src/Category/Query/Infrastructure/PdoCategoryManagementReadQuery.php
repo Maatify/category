@@ -4,47 +4,28 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Query\Infrastructure;
 
-use DateTimeImmutable;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Common\Exception\CategoryPersistenceException;
+use Maatify\Category\Common\Infrastructure\PdoReadQuerySupport;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Query\Contract\CategoryManagementReadQueryInterface;
 use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
-use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
-use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
-use Maatify\Category\ImageRole\CategoryImageRoleDTO;
-use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
-use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
-use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
-use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
-use Maatify\Category\ImageAssignment\Query\Enum\CategoryImageAssignmentRoleFilterModeEnum;
-use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
-use Maatify\Category\Common\Exception\CategoryPersistenceException;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
 /** PDO adapter for bounded management reads without consumer visibility rules. */
-final readonly class PdoCategoryManagementReadQuery implements CategoryManagementReadQueryInterface
+final readonly class PdoCategoryManagementReadQuery extends PdoReadQuerySupport implements CategoryManagementReadQueryInterface
 {
     private const CATEGORY_TABLE = 'maa_category_categories';
-    private const CONTENT_TABLE = 'maa_category_category_contents';
-    private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
-    private const IMAGE_ROLE_TABLE = 'maa_category_category_image_roles';
-    private const CONTENT_FIELD_TABLE = 'maa_category_category_content_fields';
 
     public function __construct(
         private PDO $pdo,
         private ClockInterface $clock,
     ) {}
 
+    /** Finds a Category using the requested explicit soft-deletion state. */
     public function findById(int $categoryId, CategoryDeletedStateEnum $deletedState): ?CategoryDTO
     {
         $where = ['`id` = :category_id'];
@@ -61,266 +42,22 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         return is_array($row) ? $this->hydrateCategory($row) : null;
     }
 
+    /** Lists Categories in display-order/id order, bounded by the criteria. */
     public function listCategories(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
         return $this->listCategoriesWithWhere($criteria, []);
     }
 
+    /** Lists root Categories in display-order/id order, bounded by the criteria. */
     public function listRootCategories(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
         return $this->listCategoriesWithWhere($criteria, ['`parent_id` IS NULL']);
     }
 
+    /** Lists direct children in display-order/id order, bounded by the criteria. */
     public function listChildren(int $parentId, CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
-        return $this->listCategoriesWithWhere($criteria, [
-            '`parent_id` = :parent_id',
-        ], ['parent_id' => $parentId]);
-    }
-
-    public function findContentById(
-        int $contentId,
-        CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryContentDTO {
-        $where = ['`id` = :content_id'];
-        $params = ['content_id' => $contentId];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'content');
-
-        $statement = $this->pdo->prepare(
-            $this->contentSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
-        );
-        $statement->execute($params);
-        /** @var array<string, mixed>|false $row */
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-
-        return is_array($row) ? $this->hydrateContent($row) : null;
-    }
-
-    public function listContents(
-        CategoryContentListCriteriaDTO $criteria,
-    ): CategoryContentCollectionDTO {
-        $where = [];
-        /** @var array<string, int|string> $params */
-        $params = [];
-        if ($criteria->categoryId !== null) {
-            $where[] = '`category_id` = :content_category_id';
-            $params['content_category_id'] = $criteria->categoryId;
-        }
-        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'content');
-
-        $statement = $this->pdo->prepare(
-            $this->contentSelect()
-            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
-            . ' ORDER BY `language_code` ASC, `id` ASC LIMIT :max_results',
-        );
-        $this->executeBounded($statement, $params, $criteria->maxResults);
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-        $items = [];
-        foreach ($rows as $row) {
-            $items[] = $this->hydrateContent($row);
-        }
-
-        /** @var list<CategoryContentDTO> $items */
-        return new CategoryContentCollectionDTO($items);
-    }
-
-    public function findImageAssignmentById(
-        int $assignmentId,
-        CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryImageAssignmentDTO {
-        $where = ['`id` = :assignment_id'];
-        $params = ['assignment_id' => $assignmentId];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'assignment');
-
-        $statement = $this->pdo->prepare(
-            $this->imageAssignmentSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
-        );
-        $statement->execute($params);
-        /** @var array<string, mixed>|false $row */
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-
-        return is_array($row) ? $this->hydrateImageAssignment($row) : null;
-    }
-
-    public function listImageAssignments(
-        CategoryImageAssignmentListCriteriaDTO $criteria,
-    ): CategoryImageAssignmentCollectionDTO {
-        $where = [];
-        $params = [];
-        if ($criteria->categoryId !== null) {
-            $where[] = '`assignment`.`category_id` = :image_category_id';
-            $params['image_category_id'] = $criteria->categoryId;
-        }
-        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'assignment');
-
-        if ($criteria->scope !== null) {
-            if ($criteria->scope->languageCode === null) {
-                $where[] = '`assignment`.`language_code` IS NULL';
-            } else {
-                $where[] = '`assignment`.`language_code` = :image_language_code';
-                $params['image_language_code'] = $criteria->scope->languageCode;
-            }
-            if ($criteria->scope->platform === null) {
-                $where[] = '`assignment`.`platform` IS NULL';
-            } else {
-                $where[] = '`assignment`.`platform` = :image_platform';
-                $params['image_platform'] = $criteria->scope->platform;
-            }
-        }
-
-        switch ($criteria->roleFilter->mode) {
-            case CategoryImageAssignmentRoleFilterModeEnum::OMITTED:
-                break;
-            case CategoryImageAssignmentRoleFilterModeEnum::EXACT_NULL:
-                $where[] = '`assignment`.`role_id` IS NULL';
-                break;
-            case CategoryImageAssignmentRoleFilterModeEnum::CONCRETE:
-                $roleId = $criteria->roleFilter->roleId;
-                if ($roleId === null) {
-                    throw CategoryInvalidArgumentException::invalidId('roleId');
-                }
-                $where[] = '`assignment`.`role_id` = :image_role_id';
-                $params['image_role_id'] = $roleId;
-                break;
-        }
-
-        $statement = $this->pdo->prepare(
-            $this->imageAssignmentSelect()
-            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
-            . ' ORDER BY `assignment`.`category_id` ASC, `assignment`.`ordering_scope` ASC, '
-            . '`assignment`.`display_order` ASC, `assignment`.`id` ASC LIMIT :max_results',
-        );
-        $this->executeBounded($statement, $params, $criteria->maxResults);
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-        $items = [];
-        foreach ($rows as $row) {
-            $items[] = $this->hydrateImageAssignment($row);
-        }
-
-        /** @var list<CategoryImageAssignmentDTO> $items */
-        return new CategoryImageAssignmentCollectionDTO($items);
-    }
-
-    public function findImageRoleById(
-        int $roleId,
-        CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryImageRoleDTO {
-        $where = ['`id` = :role_id'];
-        $params = ['role_id' => $roleId];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'role');
-
-        $statement = $this->pdo->prepare(
-            $this->imageRoleSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
-        );
-        $statement->execute($params);
-        /** @var array<string, mixed>|false $row */
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-
-        return is_array($row) ? $this->hydrateImageRole($row) : null;
-    }
-
-    public function findImageRoleByKey(
-        string $roleKey,
-        CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryImageRoleDTO {
-        $where = ['`role_key` = :role_key'];
-        $params = ['role_key' => $roleKey];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'role');
-
-        $statement = $this->pdo->prepare(
-            $this->imageRoleSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
-        );
-        $statement->execute($params);
-        /** @var array<string, mixed>|false $row */
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-
-        return is_array($row) ? $this->hydrateImageRole($row) : null;
-    }
-
-    public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO
-    {
-        $where = [];
-        /** @var array<string, int|string> $params */
-        $params = [];
-        if ($criteria->status !== null) {
-            $where[] = '`role`.`status` = :role_status';
-            $params['role_status'] = $criteria->status->value;
-        }
-        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'role');
-
-        $statement = $this->pdo->prepare(
-            $this->imageRoleSelect()
-            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
-            . ' ORDER BY BINARY `role`.`role_key` ASC, `role`.`id` ASC LIMIT :max_results',
-        );
-        $this->executeBounded($statement, $params, $criteria->maxResults);
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-        $items = [];
-        foreach ($rows as $row) {
-            $items[] = $this->hydrateImageRole($row);
-        }
-
-        /** @var list<CategoryImageRoleDTO> $items */
-        return new CategoryImageRoleCollectionDTO($items);
-    }
-
-    public function findContentFieldById(
-        int $fieldId,
-        CategoryDeletedStateEnum $deletedState,
-    ): ?CategoryContentFieldDTO {
-        $where = ['`id` = :field_id'];
-        $params = ['field_id' => $fieldId];
-        $this->appendDeletedStateFilter($where, $params, $deletedState, 'field');
-
-        $statement = $this->pdo->prepare(
-            $this->contentFieldSelect() . ' WHERE ' . implode(' AND ', $where) . ' LIMIT 1',
-        );
-        $statement->execute($params);
-        /** @var array<string, mixed>|false $row */
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-
-        return is_array($row) ? $this->hydrateContentField($row) : null;
-    }
-
-    public function listContentFields(
-        CategoryContentFieldListCriteriaDTO $criteria,
-    ): CategoryContentFieldCollectionDTO {
-        $where = [];
-        $params = [];
-        if ($criteria->categoryId !== null) {
-            $where[] = '`field`.`category_id` = :field_category_id';
-            $params['field_category_id'] = $criteria->categoryId;
-        }
-        if ($criteria->fieldKey !== null) {
-            $where[] = '`field`.`field_key` = :field_key';
-            $params['field_key'] = $criteria->fieldKey;
-        }
-        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'field');
-        $this->appendContentFieldScopeFilter($where, $params, $criteria->scope);
-
-        $statement = $this->pdo->prepare(
-            $this->contentFieldSelect()
-            . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
-            . ' ORDER BY `field`.`category_id` ASC, `field`.`ordering_scope` ASC, '
-            . '`field`.`display_order` ASC, `field`.`id` ASC LIMIT :max_results',
-        );
-        $this->executeBounded($statement, $params, $criteria->maxResults);
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-        $items = [];
-        foreach ($rows as $row) {
-            $items[] = $this->hydrateContentField($row);
-        }
-
-        /** @var list<CategoryContentFieldDTO> $items */
-        return new CategoryContentFieldCollectionDTO($items);
+        return $this->listCategoriesWithWhere($criteria, ['`parent_id` = :parent_id'], ['parent_id' => $parentId]);
     }
 
     /**
@@ -380,81 +117,6 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             . 'FROM `' . self::CATEGORY_TABLE . '` AS `category`';
     }
 
-    private function contentSelect(): string
-    {
-        return 'SELECT `id`, `category_id`, `language_code`, `name`, `description`, '
-            . '`created_at`, `updated_at`, `deleted_at` '
-            . 'FROM `' . self::CONTENT_TABLE . '` AS `content`';
-    }
-
-    private function imageAssignmentSelect(): string
-    {
-        return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
-            . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
-            . '`assignment`.`language_code`, `assignment`.`platform`, '
-            . '`assignment`.`is_default`, '
-            . '`assignment`.`display_order`, `assignment`.`created_at`, '
-            . '`assignment`.`updated_at`, `assignment`.`deleted_at`, `assignment`.`ordering_scope` '
-            . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
-    }
-
-    private function imageRoleSelect(): string
-    {
-        return 'SELECT `role`.`id`, `role`.`role_key`, `role`.`status`, '
-            . '`role`.`created_at`, `role`.`updated_at`, `role`.`deleted_at` '
-            . 'FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role`';
-    }
-
-    private function contentFieldSelect(): string
-    {
-        return 'SELECT `field`.`id`, `field`.`category_id`, `field`.`field_key`, '
-            . '`field`.`language_code`, `field`.`platform`, `field`.`format`, `field`.`value`, '
-            . '`field`.`display_order`, `field`.`ordering_scope`, `field`.`created_at`, '
-            . '`field`.`updated_at`, `field`.`deleted_at` '
-            . 'FROM `' . self::CONTENT_FIELD_TABLE . '` AS `field`';
-    }
-
-    /**
-     * @param list<string> $where
-     * @param array<string, int|string> $params
-     */
-    private function appendContentFieldScopeFilter(
-        array &$where,
-        array &$params,
-        ?\Maatify\Category\ContentField\CategoryContentFieldScopeDTO $scope,
-    ): void {
-        if ($scope === null) {
-            return;
-        }
-
-        if ($scope->languageCode === null) {
-            $where[] = '`field`.`language_code` IS NULL';
-        } else {
-            $where[] = '`field`.`language_code` = :field_language_code';
-            $params['field_language_code'] = $scope->languageCode;
-        }
-        if ($scope->platform === null) {
-            $where[] = '`field`.`platform` IS NULL';
-        } else {
-            $where[] = '`field`.`platform` = :field_platform';
-            $params['field_platform'] = $scope->platform;
-        }
-    }
-
-    /** @param array<string, int|string> $params */
-    private function executeBounded(\PDOStatement $statement, array $params, int $maxResults): void
-    {
-        foreach ($params as $name => $value) {
-            $statement->bindValue(
-                ':' . $name,
-                $value,
-                is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR,
-            );
-        }
-        $statement->bindValue(':max_results', $maxResults, PDO::PARAM_INT);
-        $statement->execute();
-    }
-
     /** @param array<string, mixed> $row */
     private function hydrateCategory(array $row): CategoryDTO
     {
@@ -462,7 +124,6 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
         if (!is_string($status)) {
             throw CategoryPersistenceException::unexpectedColumnType('status');
         }
-
         $parentId = $row['parent_id'] ?? null;
         if ($parentId !== null && !is_int($parentId) && !is_string($parentId)) {
             throw CategoryPersistenceException::unexpectedColumnType('parent_id');
@@ -479,178 +140,9 @@ final readonly class PdoCategoryManagementReadQuery implements CategoryManagemen
             code: $this->stringValue($row, 'code'),
             status: $categoryStatus,
             displayOrder: $this->integerValue($row, 'display_order'),
-            createdAt: $this->timestampValue($row, 'created_at'),
-            updatedAt: $this->timestampValue($row, 'updated_at'),
-            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
+            createdAt: $this->timestampValue($row, 'created_at', $this->clock),
+            updatedAt: $this->timestampValue($row, 'updated_at', $this->clock),
+            deletedAt: $this->nullableTimestampValue($row, 'deleted_at', $this->clock),
         );
-    }
-
-    /** @param array<string, mixed> $row */
-    private function hydrateContent(array $row): CategoryContentDTO
-    {
-        return new CategoryContentDTO(
-            id: $this->integerValue($row, 'id'),
-            categoryId: $this->integerValue($row, 'category_id'),
-            languageCode: $this->nullableStringValue($row, 'language_code'),
-            name: $this->stringValue($row, 'name'),
-            description: $this->nullableStringValue($row, 'description'),
-            createdAt: $this->timestampValue($row, 'created_at'),
-            updatedAt: $this->timestampValue($row, 'updated_at'),
-            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
-        );
-    }
-
-    /** @param array<string, mixed> $row */
-    private function hydrateImageAssignment(array $row): CategoryImageAssignmentDTO
-    {
-        return new CategoryImageAssignmentDTO(
-            id: $this->integerValue($row, 'id'),
-            categoryId: $this->integerValue($row, 'category_id'),
-            mediaAssetId: $this->integerValue($row, 'media_asset_id'),
-            roleId: $this->nullableIntegerValue($row, 'role_id'),
-            languageCode: $this->nullableStringValue($row, 'language_code'),
-            platform: $this->nullableStringValue($row, 'platform'),
-            isDefault: $this->booleanValue($row, 'is_default'),
-            displayOrder: $this->integerValue($row, 'display_order'),
-            createdAt: $this->timestampValue($row, 'created_at'),
-            updatedAt: $this->timestampValue($row, 'updated_at'),
-            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
-        );
-    }
-
-    /** @param array<string, mixed> $row */
-    private function hydrateImageRole(array $row): CategoryImageRoleDTO
-    {
-        $status = $this->stringValue($row, 'status');
-        try {
-            $roleStatus = CategoryImageRoleStatusEnum::from($status);
-        } catch (\ValueError $exception) {
-            throw CategoryPersistenceException::invalidStorageValue('status', $exception);
-        }
-
-        return new CategoryImageRoleDTO(
-            id: $this->integerValue($row, 'id'),
-            roleKey: $this->stringValue($row, 'role_key'),
-            status: $roleStatus,
-            createdAt: $this->timestampValue($row, 'created_at'),
-            updatedAt: $this->timestampValue($row, 'updated_at'),
-            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
-        );
-    }
-
-    /** @param array<string, mixed> $row */
-    private function hydrateContentField(array $row): CategoryContentFieldDTO
-    {
-        $format = $this->stringValue($row, 'format');
-        try {
-            $fieldFormat = CategoryContentFieldFormatEnum::from($format);
-        } catch (\ValueError $exception) {
-            throw CategoryPersistenceException::invalidStorageValue('format', $exception);
-        }
-
-        return new CategoryContentFieldDTO(
-            id: $this->integerValue($row, 'id'),
-            categoryId: $this->integerValue($row, 'category_id'),
-            fieldKey: $this->stringValue($row, 'field_key'),
-            languageCode: $this->nullableStringValue($row, 'language_code'),
-            platform: $this->nullableStringValue($row, 'platform'),
-            format: $fieldFormat,
-            value: $this->stringValue($row, 'value'),
-            displayOrder: $this->integerValue($row, 'display_order'),
-            createdAt: $this->timestampValue($row, 'created_at'),
-            updatedAt: $this->timestampValue($row, 'updated_at'),
-            deletedAt: $this->nullableTimestampValue($row, 'deleted_at'),
-        );
-    }
-
-    /** @param array<string, mixed> $row */
-    private function integerValue(array $row, string $column): int
-    {
-        $value = $row[$column] ?? null;
-        if (!is_int($value) && !is_string($value)) {
-            throw CategoryPersistenceException::unexpectedColumnType($column);
-        }
-
-        return (int) $value;
-    }
-
-    /** @param array<string, mixed> $row */
-    private function stringValue(array $row, string $column): string
-    {
-        $value = $row[$column] ?? null;
-        if (!is_string($value)) {
-            throw CategoryPersistenceException::unexpectedColumnType($column);
-        }
-
-        return $value;
-    }
-
-    /** @param array<string, mixed> $row */
-    private function nullableStringValue(array $row, string $column): ?string
-    {
-        $value = $row[$column] ?? null;
-        if ($value !== null && !is_string($value)) {
-            throw CategoryPersistenceException::unexpectedColumnType($column);
-        }
-
-        return $value;
-    }
-
-    /** @param array<string, mixed> $row */
-    private function nullableIntegerValue(array $row, string $column): ?int
-    {
-        $value = $row[$column] ?? null;
-        if ($value === null) {
-            return null;
-        }
-        if (!is_int($value) && !is_string($value)) {
-            throw CategoryPersistenceException::unexpectedColumnType($column);
-        }
-
-        return (int) $value;
-    }
-
-    /** @param array<string, mixed> $row */
-    private function booleanValue(array $row, string $column): bool
-    {
-        $value = $row[$column] ?? null;
-        if ($value === 0 || $value === '0') {
-            return false;
-        }
-        if ($value === 1 || $value === '1') {
-            return true;
-        }
-
-        throw CategoryPersistenceException::unexpectedColumnType($column);
-    }
-
-    /** @param array<string, mixed> $row */
-    private function timestampValue(array $row, string $column): DateTimeImmutable
-    {
-        $value = $this->stringValue($row, $column);
-
-        try {
-            return new DateTimeImmutable($value, $this->clock->getTimezone());
-        } catch (\Exception $exception) {
-            throw CategoryPersistenceException::invalidStorageValue($column, $exception);
-        }
-    }
-
-    /** @param array<string, mixed> $row */
-    private function nullableTimestampValue(array $row, string $column): ?DateTimeImmutable
-    {
-        $value = $row[$column] ?? null;
-        if ($value === null) {
-            return null;
-        }
-        if (!is_string($value)) {
-            throw CategoryPersistenceException::unexpectedColumnType($column);
-        }
-
-        try {
-            return new DateTimeImmutable($value, $this->clock->getTimezone());
-        } catch (\Exception $exception) {
-            throw CategoryPersistenceException::invalidStorageValue($column, $exception);
-        }
     }
 }

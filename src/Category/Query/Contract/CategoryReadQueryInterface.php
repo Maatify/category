@@ -6,11 +6,6 @@ namespace Maatify\Category\Query\Contract;
 
 use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
-use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
-use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 
 /** Dedicated public read port for visible Category query behavior. */
@@ -32,28 +27,4 @@ interface CategoryReadQueryInterface
         int $parentId,
         CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
     ): CategoryCollectionDTO;
-
-    /**
-     * Lists non-deleted contents for a visible Category in language-code
-     * order. The Package validates the syntactic/storage contract; the Host
-     * validates semantic language support and owns fallback/locale policy.
-     */
-    public function listVisibleContents(
-        int $categoryId,
-        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryContentCollectionDTO;
-
-    /** Lists assignments for the exact requested scope, with no fallback. */
-    public function listVisibleImageAssignments(
-        int $categoryId,
-        CategoryImageAssignmentScopeDTO $scope,
-        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryImageAssignmentCollectionDTO;
-
-    /** Lists fields for the exact requested scope, with no fallback. */
-    public function listVisibleContentFields(
-        int $categoryId,
-        CategoryContentFieldScopeDTO $scope,
-        CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO(),
-    ): CategoryContentFieldCollectionDTO;
 }
