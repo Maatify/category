@@ -4,27 +4,26 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentFieldCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
+use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
+use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Service\CategoryCommandService;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\ImageAssignment\Query\Infrastructure\PdoCategoryImageAssignmentQueryReader;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
-use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
 use PDO;
 
 final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -88,18 +87,19 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
     {
         $connection = $this->connection();
         $service = $this->service($connection);
-        $reader = new PdoCategoryQueryReader($connection, new FixedCategoryClock());
+        $reader = new PdoCategoryImageAssignmentQueryReader($connection, new FixedCategoryClock());
         $categoryId = $service->create(new CreateCategoryCommand('host-default-transaction-category'));
-        $firstId = $service->createImageAssignment(
+        $imageService = $this->imageService($connection);
+        $firstId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 1003),
         );
-        $secondId = $service->createImageAssignment(
+        $secondId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 1004),
         );
 
         $connection->beginTransaction();
         try {
-            $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
+            $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
             self::assertTrue($connection->inTransaction());
             $firstAssignment = $reader->findImageAssignmentById($firstId);
             self::assertNotNull($firstAssignment);
@@ -117,7 +117,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
 
         $connection->beginTransaction();
         try {
-            $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($secondId));
+            $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($secondId));
             self::assertTrue($connection->inTransaction());
             $secondAssignment = $reader->findImageAssignmentById($secondId);
             self::assertNotNull($secondAssignment);
@@ -174,13 +174,15 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
 
         $firstCategoryId = $service->create(new CreateCategoryCommand('outer-ordering-first'));
         $secondCategoryId = $service->create(new CreateCategoryCommand('outer-ordering-second'));
-        $firstAssignmentId = $service->createImageAssignment(
+        $imageService = $this->imageService($connection);
+        $fieldService = $this->fieldService($connection);
+        $firstAssignmentId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($firstCategoryId, 1001),
         );
-        $secondAssignmentId = $service->createImageAssignment(
+        $secondAssignmentId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($firstCategoryId, 1002),
         );
-        $firstFieldId = $service->createContentField(
+        $firstFieldId = $fieldService->create(
             new CreateCategoryContentFieldCommand(
                 $firstCategoryId,
                 'outer-first-field',
@@ -190,7 +192,7 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
                 'first',
             ),
         );
-        $secondFieldId = $service->createContentField(
+        $secondFieldId = $fieldService->create(
             new CreateCategoryContentFieldCommand(
                 $firstCategoryId,
                 'outer-second-field',
@@ -213,12 +215,12 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
             $service->updateDisplayOrder(new UpdateCategoryDisplayOrderCommand($secondCategoryId, 1));
             self::assertTrue($connection->inTransaction());
 
-            $service->updateImageAssignmentDisplayOrder(
+            $imageService->reorder(
                 new UpdateCategoryImageAssignmentDisplayOrderCommand($secondAssignmentId, 1),
             );
             self::assertTrue($connection->inTransaction());
 
-            $service->updateContentFieldDisplayOrder(
+            $fieldService->updateDisplayOrder(
                 new UpdateCategoryContentFieldDisplayOrderCommand($secondFieldId, 1),
             );
             self::assertTrue($connection->inTransaction());
@@ -297,18 +299,26 @@ final class CategoryTransactionIntegrationTest extends CategoryMySqlIntegrationT
         return $updatedAt;
     }
 
-    private function service(PDO $connection): CategoryCommandService
+    private function service(PDO $connection): CategoryApiInterface
     {
         $clock = new FixedCategoryClock('2026-01-05 00:00:00 Africa/Cairo');
 
-        return new CategoryCommandService(
-            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection, $clock),
-            new PdoCategoryContentCommandRepository($connection),
-            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoTransactionRunner($connection),
-            $clock,
-        );
+        return CategoryFactory::create($connection, $clock)->categories();
+    }
+
+    private function imageService(PDO $connection): ImageAssignmentApiInterface
+    {
+        return CategoryFactory::create(
+            $connection,
+            new FixedCategoryClock('2026-01-05 00:00:00 Africa/Cairo'),
+        )->images();
+    }
+
+    private function fieldService(PDO $connection): ContentFieldApiInterface
+    {
+        return CategoryFactory::create(
+            $connection,
+            new FixedCategoryClock('2026-01-05 00:00:00 Africa/Cairo'),
+        )->contentFields();
     }
 }

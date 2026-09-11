@@ -87,7 +87,7 @@ and mutation-support Image Assignment hydration.
 Image Roles are package-owned registry records with an immutable, globally
 unique `role_key`. `status` is typed `active`/`inactive` and independent from
 soft deletion. Role keys remain permanently reserved after soft deletion;
-restore preserves the same Role identity and status. The management service
+restore preserves the same Role identity and status. The management API
 provides get-by-ID, get-by-key, and bounded list reads with explicit status and
 deleted-state criteria. Role semantics, cardinality, and media policy remain
 Host-owned.
@@ -113,16 +113,24 @@ explicit reorder commands.
 
 The production namespace is `Maatify\Category\`.
 
+The public application entry point is `Maatify\Category\Factory\CategoryFactory`.
+The Host supplies its existing `PDO` connection and
+`Maatify\SharedCommon\Contracts\ClockInterface`; the Factory returns one
+`Maatify\Category\Facade\Contract\CategoryFacadeInterface`. The facade exposes domain APIs through
+`categories()`, `contents()`, `contentFields()`, `imageRoles()`, and
+`images()` (Image Assignments). Domain APIs preserve the existing consumer,
+management, transaction, ordering, and timestamp behavior.
+
 ### Status
 
-`Maatify\Category\Enum\CategoryStatusEnum` is a string-backed enum with:
+`Maatify\Category\Lifecycle\Enum\CategoryStatusEnum` is a string-backed enum with:
 
 - `active`
 - `inactive`
 
 Status is independent from soft deletion.
 
-`Maatify\Category\Enum\CategoryDeletedStateEnum` explicitly selects
+`Maatify\Category\Common\Enum\CategoryDeletedStateEnum` explicitly selects
 `non_deleted`, `include_deleted`, or `deleted_only` for management reads.
 
 ### DTOs
@@ -160,6 +168,8 @@ The immutable record DTOs are:
 - `UpdateCategoryDisplayOrderCommand`
 - `CreateCategoryContentCommand`
 - `UpdateCategoryContentCommand`
+- `UpdateCategoryContentNameCommand`
+- `UpdateCategoryContentDescriptionCommand`
 - `SoftDeleteCategoryContentCommand`
 - `RestoreCategoryContentCommand`
 - `CreateCategoryImageRoleCommand`
@@ -174,6 +184,7 @@ The immutable record DTOs are:
 - `RestoreCategoryImageAssignmentCommand`
 - `CreateCategoryContentFieldCommand`
 - `UpdateCategoryContentFieldCommand`
+- `UpdateCategoryContentFieldValueCommand`
 - `UpdateCategoryContentFieldDisplayOrderCommand`
 - `SoftDeleteCategoryContentFieldCommand`
 - `RestoreCategoryContentFieldCommand`
@@ -186,27 +197,41 @@ their backing values.
 Commands and DTOs validate their input/domain invariants. `CategoryDTO`,
 `CategoryContentDTO`, `CategoryImageAssignmentDTO`, and
 `CategoryContentFieldDTO` require canonical positive identities. A Category
-cannot use itself as its parent. `UpdateCategoryContentCommand` accepts only
-  content fields, preserving the logical identity
-`(category_id, language_code)`. Category mutation Commands do not expose `code`, so
-the stable Category code remains immutable after creation. Content Field update
-commands accept only format/value or display order, preserving the field's
-immutable identity.
+cannot use itself as its parent. `UpdateCategoryContentCommand` is the full-form
+Content update. The typed `UpdateCategoryContentNameCommand` and
+`UpdateCategoryContentDescriptionCommand` support independent inline edits while
+preserving the other Content field and the logical identity
+`(category_id, language_code)`. Category mutation Commands do not expose `code`,
+so the stable Category code remains immutable after creation.
+`UpdateCategoryContentFieldCommand` is the atomic full-form `format`/`value`
+update; `UpdateCategoryContentFieldValueCommand` supports an inline value edit
+by preserving the current format and delegating both fields through that same
+atomic update. No generic or string-based field update exists.
 
 ### Services and contracts
 
-- `CategoryCommandServiceInterface` and `CategoryCommandService` own mutation
-  orchestration for creation, content creation/content update/soft
-  delete/restore, parent movement, cycle prevention, Category soft delete,
-  restore, status, and display order, plus Image Role creation, status update,
-  soft deletion, restoration, and Image Assignment creation, exact scope
-  ordering, explicit default assignment/clearing, soft deletion, and
-  restoration, plus Content Field creation,
-  value/format updates, exact-scope ordering, soft deletion, and restoration.
-- `CategoryQueryServiceInterface` and `CategoryQueryService` expose visible
-  identity and list reads.
-- `CategoryManagementQueryServiceInterface` and
-  `CategoryManagementQueryService` expose management identity and list reads.
+- `CategoryFacadeInterface` is the single package entry point. Its accessors
+  return the five domain APIs: `categories()`, `contents()`,
+  `contentFields()`, `imageRoles()`, and `images()`. The `images()` accessor is
+  intentionally the Image Assignment API; it does not own Media.
+- `Maatify\Category\Factory\CategoryFactory::create(PDO $pdo, ClockInterface $clock):
+  CategoryFacadeInterface` is the framework-neutral host-wiring entry point.
+  It builds all PDO adapters, one shared transaction runner, and one shared
+  ordering manager around the supplied primitives.
+- `CategoryServiceInterface`/`CategoryService` own Category mutation
+  orchestration and Category consumer/management reads only.
+- `ContentServiceInterface`/`ContentService` own Category Content mutation
+  orchestration and Content consumer/management reads only.
+- `ContentFieldServiceInterface`/`ContentFieldService` own Category Content
+  Field mutation orchestration and Field consumer/management reads only.
+- `ImageRoleServiceInterface`/`ImageRoleService` own Image Role lifecycle and
+  management reads only.
+- `ImageAssignmentServiceInterface`/`ImageAssignmentService` own Image
+  Assignment lifecycle, exact-scope ordering/default behavior, and
+  consumer/management reads only.
+- Each domain API is a thin public delegation boundary over its matching
+  domain service. Business orchestration is not duplicated in the facade,
+  Factory, or API wrappers.
 - `CategoryCommandRepositoryInterface` is the Category write port.
 - `CategoryContentCommandRepositoryInterface` is the Content
   lifecycle write port.
@@ -216,22 +241,23 @@ immutable identity.
   lifecycle and exact-scope ordering write port.
 - `CategoryImageRoleCommandRepositoryInterface` is the Image Role lifecycle
   write port.
-- `CategoryQueryReaderInterface` is the mutation-support read port. Its
-  `findById()` includes soft-deleted rows; `findActiveById()` excludes them;
-  explicit `ForUpdate` methods lock Category, Content, Image Role, Image
-  Assignment, and Content Field rows inside the
-  application transaction.
-- `CategoryReadQueryInterface` is the dedicated visible query/read port and is
-  separate from mutation-support reads.
+- `CategoryQueryReaderInterface` is the Category mutation-support read port.
+  Its `findById()` includes soft-deleted rows; `findActiveById()` excludes
+  them; explicit `ForUpdate` methods lock Category rows inside the application
+  transaction. Content, Content Field, Image Role, and Image Assignment each
+  expose their own mutation-support read port in their domain boundary.
+- `CategoryReadQueryInterface` is the dedicated visible Category read port.
+  Content, Content Field, and Image Assignment each expose a separate visible
+  read port in their own domain boundary.
 - Consumer visibility list methods accept only the typed
   `CategoryVisibleListCriteriaDTO`, which bounds each call to 1–100 rows. It
   exposes no status or deleted-state override, preserving consumer visibility
   semantics and the complete ancestor rule.
-- `CategoryManagementReadQueryInterface` is the dedicated management read port
-  and is separate from both mutation-support reads and consumer visibility
-  reads.
+- `CategoryManagementReadQueryInterface` is the dedicated management Category
+  read port. Content, Content Field, Image Role, and Image Assignment each
+  expose a separate management read port in their own domain boundary.
 - `Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface` defines
-  the shared transaction boundary used by the application service. The Host
+  the shared transaction boundary used by the domain services. The Factory
   wires `PdoTransactionRunner` with the same PDO instance used by Category
   repositories and shared Ordering operations.
 
@@ -253,6 +279,8 @@ RestoreCategoryCommand(string|int $categoryId)
 
 CreateCategoryContentCommand(string|int $categoryId, ?string $languageCode, string $name, ?string $description)
 UpdateCategoryContentCommand(string|int $contentId, string $name, ?string $description)
+UpdateCategoryContentNameCommand(string|int $contentId, string $name)
+UpdateCategoryContentDescriptionCommand(string|int $contentId, ?string $description)
 SoftDeleteCategoryContentCommand(string|int $contentId)
 RestoreCategoryContentCommand(string|int $contentId)
 
@@ -263,9 +291,7 @@ RestoreCategoryImageRoleCommand(string|int $roleId)
 
 CreateCategoryImageAssignmentCommand(string|int $categoryId,
                                      string|int $mediaAssetId,
-                                     ?string $languageCode = null,
-                                     ?string $platform = null,
-                                     string|int|null $roleId = null)
+                                     ?CategoryImageAssignmentScopeDTO $scope = null)
 UpdateCategoryImageAssignmentDisplayOrderCommand(string|int $assignmentId,
                                                  int $displayOrder)
 SetCategoryImageAssignmentDefaultCommand(string|int $assignmentId)
@@ -281,6 +307,7 @@ CreateCategoryContentFieldCommand(string|int $categoryId, string $fieldKey,
 UpdateCategoryContentFieldCommand(string|int $fieldId,
                                   CategoryContentFieldFormatEnum $format,
                                   string $value)
+UpdateCategoryContentFieldValueCommand(string|int $fieldId, string $value)
 UpdateCategoryContentFieldDisplayOrderCommand(string|int $fieldId,
                                               int $displayOrder)
 SoftDeleteCategoryContentFieldCommand(string|int $fieldId)
@@ -336,7 +363,8 @@ CategoryImageAssignmentCollectionDTO(array $items)
 CategoryContentFieldCollectionDTO(array $items)
 CategoryListCriteriaDTO(?CategoryStatusEnum $status = null,
                         CategoryDeletedStateEnum $deletedState = NON_DELETED,
-                        int $maxResults = 100)
+                        int $maxResults = 100,
+                        ?string $search = null)
 CategoryContentListCriteriaDTO(?int $categoryId = null,
                                    CategoryDeletedStateEnum $deletedState = NON_DELETED,
                                    int $maxResults = 100)
@@ -374,55 +402,77 @@ CategoryImageAssignmentRoleFilterModeEnum: OMITTED = 'omitted',
 #### Public contracts and method signatures
 
 ```text
-CategoryCommandServiceInterface
+CategoryFacadeInterface [Maatify\Category\Facade\Contract; src/Facade/Contract]
+  categories(): CategoryApiInterface
+  contents(): ContentApiInterface
+  contentFields(): ContentFieldApiInterface
+  imageRoles(): ImageRoleApiInterface
+  images(): ImageAssignmentApiInterface
+
+CategoryApiInterface [Maatify\Category\Api; src/Category/Api]
   create(CreateCategoryCommand): int
-  createContent(CreateCategoryContentCommand): int
-  createImageRole(CreateCategoryImageRoleCommand): int
-  updateImageRoleStatus(UpdateCategoryImageRoleStatusCommand): void
-  softDeleteImageRole(SoftDeleteCategoryImageRoleCommand): void
-  restoreImageRole(RestoreCategoryImageRoleCommand): void
-  createImageAssignment(CreateCategoryImageAssignmentCommand): int
-  setImageAssignmentDefault(SetCategoryImageAssignmentDefaultCommand): void
-  clearImageAssignmentDefault(ClearCategoryImageAssignmentDefaultCommand): void
   move(MoveCategoryCommand): void
   softDelete(SoftDeleteCategoryCommand): void
   restore(RestoreCategoryCommand): void
   updateStatus(UpdateCategoryStatusCommand): void
   updateDisplayOrder(UpdateCategoryDisplayOrderCommand): void
-  updateContent(UpdateCategoryContentCommand): void
-  softDeleteContent(SoftDeleteCategoryContentCommand): void
-  restoreContent(RestoreCategoryContentCommand): void
-  updateImageAssignmentDisplayOrder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
-  softDeleteImageAssignment(SoftDeleteCategoryImageAssignmentCommand): void
-  restoreImageAssignment(RestoreCategoryImageAssignmentCommand): void
-  createContentField(CreateCategoryContentFieldCommand): int
-  updateContentField(UpdateCategoryContentFieldCommand): void
-  updateContentFieldDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
-  softDeleteContentField(SoftDeleteCategoryContentFieldCommand): void
-  restoreContentField(RestoreCategoryContentFieldCommand): void
-
-CategoryQueryServiceInterface
   getById(int): CategoryDTO
-  listRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
-  listContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
-  listImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
-  listContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
+  listRootCategories(CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  listChildren(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
+  getByCode(string, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
+  listForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listRootCategoriesForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
+  listChildrenForManagement(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  paginateForManagement(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateRootCategoriesForManagement(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateChildrenForManagement(int, CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
 
-CategoryManagementQueryServiceInterface
-  getById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
-  listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
-  listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
-  listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
-  getContentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
-  listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
-  getImageRoleById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
-  getImageRoleByKey(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
-  listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
-  getImageAssignmentById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
-  listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
-  getContentFieldById(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
-  listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+ContentApiInterface
+  create(CreateCategoryContentCommand): int
+  update(UpdateCategoryContentCommand): void
+  updateName(UpdateCategoryContentNameCommand): void
+  updateDescription(UpdateCategoryContentDescriptionCommand): void
+  softDelete(SoftDeleteCategoryContentCommand): void
+  restore(RestoreCategoryContentCommand): void
+  listVisibleForCategory(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
+  listForManagement(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  paginateForManagement(CategoryContentListCriteriaDTO, PageRequest): PageResult<CategoryContentDTO>
+
+ContentFieldApiInterface
+  create(CreateCategoryContentFieldCommand): int
+  update(UpdateCategoryContentFieldCommand): void
+  updateValue(UpdateCategoryContentFieldValueCommand): void
+  updateDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
+  softDelete(SoftDeleteCategoryContentFieldCommand): void
+  restore(RestoreCategoryContentFieldCommand): void
+  listVisibleForCategory(int, CategoryContentFieldScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
+  listForManagement(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+  paginateForManagement(CategoryContentFieldListCriteriaDTO, PageRequest): PageResult<CategoryContentFieldDTO>
+
+ImageRoleApiInterface
+  create(CreateCategoryImageRoleCommand): int
+  updateStatus(UpdateCategoryImageRoleStatusCommand): void
+  softDelete(SoftDeleteCategoryImageRoleCommand): void
+  restore(RestoreCategoryImageRoleCommand): void
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  getByKeyForManagement(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
+  listForManagement(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+  paginateForManagement(CategoryImageRoleListCriteriaDTO, PageRequest): PageResult<CategoryImageRoleDTO>
+
+ImageAssignmentApiInterface [images()]
+  assign(CreateCategoryImageAssignmentCommand): int
+  reorder(UpdateCategoryImageAssignmentDisplayOrderCommand): void
+  setDefault(SetCategoryImageAssignmentDefaultCommand): void
+  clearDefault(ClearCategoryImageAssignmentDefaultCommand): void
+  remove(SoftDeleteCategoryImageAssignmentCommand): void
+  restore(RestoreCategoryImageAssignmentCommand): void
+  listVisibleForCategory(int, CategoryImageAssignmentScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+  getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
+  listForManagement(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  paginateForManagement(CategoryImageAssignmentListCriteriaDTO, PageRequest): PageResult<CategoryImageAssignmentDTO>
 
 CategoryCommandRepositoryInterface
   create(CreateCategoryCommand, DateTimeImmutable): int
@@ -459,28 +509,50 @@ CategoryContentFieldCommandRepositoryInterface
   softDelete(SoftDeleteCategoryContentFieldCommand, DateTimeImmutable): bool
   restore(RestoreCategoryContentFieldCommand, DateTimeImmutable): bool
 
-CategoryReadQueryInterface
+CategoryReadQueryInterface [Category domain]
   findVisibleById(int): ?CategoryDTO
   listVisibleRootCategories(CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listVisibleChildren(int $parentId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
+
+CategoryContentReadQueryInterface
   listVisibleContents(int $categoryId, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
-  listVisibleImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+
+CategoryContentFieldReadQueryInterface
   listVisibleContentFields(int $categoryId, CategoryContentFieldScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
 
-CategoryManagementReadQueryInterface
+CategoryImageAssignmentReadQueryInterface
+  listVisibleImageAssignments(int $categoryId, CategoryImageAssignmentScopeDTO $scope, CategoryVisibleListCriteriaDTO $criteria = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
+
+CategoryManagementReadQueryInterface [Category domain]
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
+  findByCode(string, CategoryDeletedStateEnum): ?CategoryDTO
   listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  paginateCategories(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateRootCategories(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateChildren(int, CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+
+CategoryContentManagementReadQueryInterface
   findContentById(int, CategoryDeletedStateEnum): ?CategoryContentDTO
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  paginateContents(CategoryContentListCriteriaDTO, PageRequest): PageResult<CategoryContentDTO>
+
+CategoryImageRoleManagementReadQueryInterface
   findImageRoleById(int, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   findImageRoleByKey(string, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+  paginateImageRoles(CategoryImageRoleListCriteriaDTO, PageRequest): PageResult<CategoryImageRoleDTO>
+
+CategoryImageAssignmentManagementReadQueryInterface
   findImageAssignmentById(int, CategoryDeletedStateEnum): ?CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  paginateImageAssignments(CategoryImageAssignmentListCriteriaDTO, PageRequest): PageResult<CategoryImageAssignmentDTO>
+
+CategoryContentFieldManagementReadQueryInterface
   findContentFieldById(int, CategoryDeletedStateEnum): ?CategoryContentFieldDTO
   listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+  paginateContentFields(CategoryContentFieldListCriteriaDTO, PageRequest): PageResult<CategoryContentFieldDTO>
 
 CategoryQueryReaderInterface [internal mutation-support port]
   findById(int): ?CategoryDTO
@@ -489,11 +561,19 @@ CategoryQueryReaderInterface [internal mutation-support port]
   findActiveByIdForUpdate(int): ?CategoryDTO
   findByIdForUpdate(int): ?CategoryDTO
   hasNonDeletedChildrenForUpdate(int): bool
+
+CategoryContentQueryReaderInterface
   findContentById(int): ?CategoryContentDTO
   findContentByIdForUpdate(int): ?CategoryContentDTO
+
+CategoryImageRoleQueryReaderInterface
   findImageRoleByIdForUpdate(int): ?CategoryImageRoleDTO
+
+CategoryImageAssignmentQueryReaderInterface
   findImageAssignmentById(int): ?CategoryImageAssignmentDTO
   findImageAssignmentByIdForUpdate(int): ?CategoryImageAssignmentDTO
+
+CategoryContentFieldQueryReaderInterface
   findContentFieldById(int): ?CategoryContentFieldDTO
   findContentFieldByIdForUpdate(int): ?CategoryContentFieldDTO
 
@@ -501,23 +581,48 @@ TransactionRunnerInterface (from maatify/persistence)
   run(callable $callback): mixed
 ```
 
-`findByCode()` is intentionally present only on the internal
-mutation-support port. It is not a public management read, service method, or
-v1 get-by-code contract.
+The internal mutation-support `findByCode()` remains separate from the public
+management read port. The management surface now exposes exact `getByCode()`;
+its deleted-state argument preserves the same explicit non-deleted,
+include-deleted, and deleted-only semantics as management get-by-ID.
 
 #### Services and PDO adapters
 
 ```text
-CategoryCommandService(CategoryCommandRepositoryInterface,
+CategoryFactory::create(PDO $pdo, ClockInterface $clock): CategoryFacadeInterface
+CategoryService(CategoryCommandRepositoryInterface,
+                CategoryQueryReaderInterface,
+                CategoryReadQueryInterface,
+                CategoryManagementReadQueryInterface,
+                TransactionRunnerInterface,
+                ClockInterface)
+ContentService(CategoryContentCommandRepositoryInterface,
+               CategoryQueryReaderInterface,
+               CategoryContentQueryReaderInterface,
+               CategoryContentReadQueryInterface,
+               CategoryContentManagementReadQueryInterface,
+               TransactionRunnerInterface,
+               ClockInterface)
+ContentFieldService(CategoryContentFieldCommandRepositoryInterface,
+                    CategoryQueryReaderInterface,
+                    CategoryContentFieldQueryReaderInterface,
+                    CategoryContentFieldReadQueryInterface,
+                    CategoryContentFieldManagementReadQueryInterface,
+                    TransactionRunnerInterface,
+                    ClockInterface)
+ImageRoleService(CategoryImageRoleCommandRepositoryInterface,
+                 CategoryImageRoleQueryReaderInterface,
+                 CategoryImageRoleManagementReadQueryInterface,
+                 TransactionRunnerInterface,
+                 ClockInterface)
+ImageAssignmentService(CategoryImageAssignmentCommandRepositoryInterface,
                        CategoryQueryReaderInterface,
-                       CategoryContentCommandRepositoryInterface,
-                       CategoryImageAssignmentCommandRepositoryInterface,
-                       CategoryContentFieldCommandRepositoryInterface,
+                       CategoryImageRoleQueryReaderInterface,
+                       CategoryImageAssignmentQueryReaderInterface,
+                       CategoryImageAssignmentReadQueryInterface,
+                       CategoryImageAssignmentManagementReadQueryInterface,
                        TransactionRunnerInterface,
-                       ClockInterface,
-                       ?CategoryImageRoleCommandRepositoryInterface = null)
-CategoryQueryService(CategoryReadQueryInterface)
-CategoryManagementQueryService(CategoryManagementReadQueryInterface)
+                       ClockInterface)
 
 PdoCategoryCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryContentCommandRepository(PDO)
@@ -527,6 +632,17 @@ PdoCategoryContentFieldCommandRepository(PDO, ScopedOrderingManager)
 PdoCategoryQueryReader(PDO, ClockInterface)
 PdoCategoryReadQuery(PDO, ClockInterface)
 PdoCategoryManagementReadQuery(PDO, ClockInterface)
+PdoCategoryContentQueryReader(PDO, ClockInterface)
+PdoCategoryContentReadQuery(PDO, ClockInterface)
+PdoCategoryContentManagementReadQuery(PDO, ClockInterface)
+PdoCategoryContentFieldQueryReader(PDO, ClockInterface)
+PdoCategoryContentFieldReadQuery(PDO, ClockInterface)
+PdoCategoryContentFieldManagementReadQuery(PDO, ClockInterface)
+PdoCategoryImageRoleQueryReader(PDO, ClockInterface)
+PdoCategoryImageRoleManagementReadQuery(PDO, ClockInterface)
+PdoCategoryImageAssignmentQueryReader(PDO, ClockInterface)
+PdoCategoryImageAssignmentReadQuery(PDO, ClockInterface)
+PdoCategoryImageAssignmentManagementReadQuery(PDO, ClockInterface)
 PdoTransactionRunner(PDO) [Host wiring from maatify/persistence]
 ```
 
@@ -534,23 +650,32 @@ The concrete adapters implement the public contracts listed above and contain
 no Host framework/container bindings.
 
 Management Category lists accept `CategoryListCriteriaDTO`, apply an optional
-status filter and an explicit `CategoryDeletedStateEnum`, and are bounded to
-at most 100 rows per call. Management Content lists accept
+status filter, explicit `CategoryDeletedStateEnum`, and optional Category-owned
+SQL search against `code`. Their unpaginated form remains bounded to at most
+100 rows per call. Management Content lists accept
 `CategoryContentListCriteriaDTO`, optionally filter by Category, apply an
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Content lists are ordered by `language_code, id`.
 Image Role lists are ordered by `role_key, id`.
-The package does not add local pagination, search, or language fallback. Content
-collections may contain the single NULL-language row together with zero or more
+Every management list API also has a paginated counterpart returning the
+canonical `PageResult<T>` from `maatify/persistence`. The package does not
+implement a local pagination engine: the shared `PdoPaginator` owns page
+normalization, counts, limits, offsets, sorting, and pagination metadata, while
+the package owns SQL, filters, Category search, and row mapping. Language fallback remains Host-owned. Content collections may contain
+the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
 apply exact nullable language/platform scope predicates only when a scope object
 is supplied, and are ordered by Category, exact scope, `display_order, id`.
+For paginated Content Field and Image Assignment management lists, the default
+`sortBy` is the explicit `business_order` key, which represents that complete
+business ordering; `sortBy=category_id` remains a direct Category ID sort
+with the shared `id` tie-breaker.
 The management criteria also support three independent Role-filter states
 through `CategoryImageAssignmentRoleFilterDTO`: omitted (all Roles), exact
 NULL Role, or one concrete Role. When the explicit Role filter is absent, the
-legacy `scope->roleId` value remains an exact Role predicate. Visible Image
+`scope->roleId` value remains an exact Role predicate. Visible Image
 Assignment lists require an exact `CategoryImageAssignmentScopeDTO`, exclude
 deleted rows, and apply complete ancestor visibility plus active/non-deleted
 Role visibility with no fallback. Role-scoped assignment creation requires the
@@ -567,7 +692,9 @@ means exact NULL/NULL scope.
 Consumer Category lists use the same maximum of 100 through their separate
 criteria DTO; root and child lists use `display_order, id`, and Content
 lists use `language_code, id`. The bound is applied by the persistence query
-with a typed integer parameter; pagination and search remain deferred.
+with a typed integer parameter; paginated management queries use the shared
+Persistence pagination contract and do not change the consumer visibility or
+deleted/status semantics.
 
 ### Content parent-state contract
 
@@ -577,21 +704,59 @@ mutation-support names `findActiveById()` and `findActiveByIdForUpdate()` mean
 non-deleted Category lifecycle state; they do not mean
 `CategoryStatusEnum::ACTIVE`.
 
-- `createContent()` requires the Category to exist and have
+- `contents()->create()` requires the Category to exist and have
   `deleted_at IS NULL`. A Category with status `INACTIVE` is valid; a
   soft-deleted Category is rejected.
-- `updateContent()` depends on the Content's own non-deleted lifecycle
+- `contents()->update()` depends on the Content's own non-deleted lifecycle
   and is allowed when the parent Category is inactive or soft-deleted.
-- `softDeleteContent()` depends on the Content's own non-deleted
+- `contents()->softDelete()` depends on the Content's own non-deleted
   lifecycle and is allowed when the parent Category is inactive or
   soft-deleted.
-- `restoreContent()` depends on the Content row existing in its
+- `contents()->restore()` depends on the Content row existing in its
   soft-deleted lifecycle and is allowed when the parent Category is inactive
   or soft-deleted.
 
 These semantics are proven against the real MySQL schema by
 `CategoryPdoIntegrationTest::testContentMutationsFollowParentLifecycleStateContractOnMySql`.
 They are the v1 contract; no parent-state redesign is implied.
+
+### Image Assignment parent-state contract
+
+`images()->assign()` requires a Category that exists and is not
+soft-deleted; `CategoryStatusEnum::INACTIVE` is allowed. After an Image
+Assignment is created, ordering, soft-delete, and restore operations depend on
+the assignment's own lifecycle. An Image Assignment is not a Category child
+and therefore does not prevent Category soft-delete.
+
+### Image Assignment consumer workflow
+
+The Host owns upload and Media/Storage lifecycle. After the Host completes its
+upload workflow and receives a `mediaAssetId`, it passes only that ID to
+Category:
+
+```php
+$scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+$images = $category->images();
+
+$assignmentId = $images->assign(
+    new CreateCategoryImageAssignmentCommand($categoryId, $mediaAssetId, $scope),
+);
+
+$visibleAssignments = $images->listVisibleForCategory($categoryId, $scope);
+$images->reorder(new UpdateCategoryImageAssignmentDisplayOrderCommand($assignmentId, 1));
+$images->setDefault(new SetCategoryImageAssignmentDefaultCommand($assignmentId));
+$images->clearDefault(new ClearCategoryImageAssignmentDefaultCommand($assignmentId));
+$images->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+$images->restore(new RestoreCategoryImageAssignmentCommand($assignmentId));
+```
+
+Use the same `CategoryImageAssignmentScopeDTO` for assignment and exact
+consumer reads. `NULL` language, platform, or Role values are exact scope
+dimensions and never fall back. Add a Role ID only when the Host needs a
+Role-scoped assignment and has an active, non-deleted Category Image Role.
+`remove()` is a reversible soft delete; it clears `isDefault`, does not
+promote another assignment, and `restore()` leaves the assignment
+non-default. Ordering and default selection are independent operations.
 
 Content Field creation requires a non-deleted parent Category. Field value,
 ordering, soft-delete, and restore mutations depend on the field's own
@@ -604,7 +769,10 @@ ancestor path to be active and non-deleted.
 - Category `code` is immutable and unique among all stored identities.
 - Category Content logical identity `(category_id, language_code)` is
   immutable and unique, including the database-enforced single NULL-language
-  identity per Category.
+  identity per Category. Full-form updates change `name` and `description`
+  together; typed `updateName()` and `updateDescription()` operations preserve
+  the other field by locking the current row and delegating the same full-form
+  write.
 - Content creation rejects an existing identity, including a soft-deleted
   row; restoration reuses that same identity.
 - Parent movement rejects direct self-parenting and every indirect cycle,
@@ -631,6 +799,10 @@ ancestor path to be active and non-deleted.
 - Content Field formats are exact lowercase `text`, `html`, and `json`; declared JSON values
   must be syntactically valid, while Host HTML/semantic validation is outside
   the package.
+- Content Field full-form updates change `format` and `value` atomically. The
+  typed `updateValue()` operation preserves the current format and uses that
+  same atomic update, so no independent format/value mutation can violate the
+  format invariant.
 - Content Field ordering is independent per Category and exact scope, uses
   explicit reorder commands, and is stable across soft delete/restore.
 - Restore reuses the same Category, Content, Image Role, Image Assignment, or
@@ -646,11 +818,13 @@ ancestor path to be active and non-deleted.
 Management query methods expose stored Category, Content, Image Role, and Image
 Assignment state for
 management/use-case consumers. They do not apply consumer ancestor visibility
-rules. Management reads provide Category get-by-ID, bounded all/root/child
-lists, Content get-by-ID, and bounded Content lists. Deleted records
-are returned only when the caller explicitly selects `include_deleted` or
-`deleted_only`; management get-by-code, search, and pagination are not part of
-the v1 public contract.
+rules. Management reads provide Category get-by-ID/get-by-code, bounded
+all/root/child lists plus paginated counterparts, and the same paginated
+management surfaces for Content, Image Roles, Image Assignments, and Content
+Fields. Deleted records are returned only when the caller explicitly selects
+`include_deleted` or `deleted_only`. Category search remains within the
+selected status and deleted-state scope, and `getByCode()` applies the
+requested deleted state exactly.
 
 Visible query methods:
 
@@ -676,7 +850,8 @@ language/NULL platform. To keep language/platform exact while omitting the
 Role predicate, pass `CategoryImageAssignmentRoleFilterDTO::omitted()`. Use
 `CategoryImageAssignmentRoleFilterDTO::exactNull()` for an explicit NULL Role
 filter or `::forRole($roleId)` for one concrete Role. Image Role reads are
-management-only and are not part of `CategoryQueryService`.
+management-only and are exposed by `imageRoles()`; they are not part of
+`categories()` or any consumer visibility API.
 
 ## Persistence contract
 
@@ -732,13 +907,13 @@ then sets the requested target. This scope lock and the conditional generated
 unique key provide application- and database-level protection against
 concurrent default changes.
 
-`CategoryCommandService` wraps orchestrated mutations with the shared
-`TransactionRunnerInterface`. The Host provides `PdoTransactionRunner` using
-the same PDO instance supplied to Category repositories and Ordering
-operations. When the Host already owns a transaction on that PDO, the shared
-runner participates without committing or rolling it back; outer transaction
-ownership remains with the Host. Category does not provide a local transaction
-implementation.
+Each domain service wraps its orchestrated mutations with the shared
+`TransactionRunnerInterface`. `CategoryFactory` provides
+`PdoTransactionRunner` using the same PDO instance supplied to every Category
+repository and Ordering operation. When the Host already owns a transaction on
+that PDO, the shared runner participates without committing or rolling it back;
+outer transaction ownership remains with the Host. Category does not provide a
+local transaction implementation.
 
 Package-owned storage/hydration failures use the appropriate
 `CategoryPersistenceException` hierarchy. An external `PDOException` is not
@@ -805,6 +980,9 @@ The package must pass, where applicable:
 - Full PHPUnit suite
 - Real MySQL Integration tests with cleanup and repeatability coverage
 - Workflow syntax validation
+- Standalone external Composer consumer verification through `CategoryFactory`,
+  the `CategoryFacade`, and all five Domain APIs
+- Public `src/` inventory reconciliation and stale API/alias sweep
 
 The integration suite is configured with `CATEGORY_TEST_DSN`,
 `CATEGORY_TEST_DB_USER`, and `CATEGORY_TEST_DB_PASSWORD`. For local runs,
@@ -812,11 +990,10 @@ copy `env.testing.example` to the ignored `env.testing`; the PHPUnit bootstrap
 loads those values as defaults and preserves any externally injected values,
 including CI's isolated MySQL configuration.
 
-## Non-goals and deferred work
+## Non-goals and staged work
 
 - Catalog, Product, Pricing, Inventory, and Media composition.
 - HTTP/API routes, controllers, middleware, permissions, Twig, and JavaScript.
 - Presentation serialization and response envelopes.
-- Local pagination or host language fallback.
-- Management search and public management get-by-code.
+- Host language fallback.
 - A separate Catalog entity or Catalog identity.

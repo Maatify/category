@@ -2,9 +2,11 @@
 
 ## Scope
 
-Keep this repository framework-neutral and focused on reusable Category and
-optional Category Content behavior. Do not add Catalog, Product, Admin/Slim,
-presentation, or Host-specific integrations to this package.
+Keep this repository framework-neutral and focused on the reusable Category,
+Category Content, Content Field, Image Role, and Image Assignment capabilities.
+Their domain APIs, thin package Facade, and framework-neutral Factory are
+package-owned boundaries. Do not add Catalog, Product, Admin/Slim, presentation,
+or Host-specific integrations to this package.
 
 The stable package contract is [CATEGORY_PACKAGE_REFERENCE.md](CATEGORY_PACKAGE_REFERENCE.md).
 Detailed architecture notes belong under `docs/` and must link back to that
@@ -14,7 +16,7 @@ reference.
 
 - Report a reproducible bug or propose a focused documentation improvement.
 - Submit a narrowly scoped change with the required Unit and real-engine
-  Integration coverage when behavior changes.
+  Integration coverage when behavior changes in any owned capability.
 - Discuss architecture or public-contract changes before implementation when
   they affect package boundaries, dependencies, schema, or compatibility.
 

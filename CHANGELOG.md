@@ -17,6 +17,23 @@ tag, release date, or owner-approved release metadata is claimed.
 - MySQL schema, PDO repositories, shared Persistence transaction runner, and real-engine
   Integration tests for hierarchy, lifecycle, ordering, and visibility.
 - Root Package Reference and standards-aligned Composer/CI configuration.
+- Consumer Readiness Stage 3 management query expansion: shared Persistence
+  pagination for all management list APIs, Category-owned SQL search by code,
+  public management `getByCode()`, and unit, MySQL Integration, and standalone
+  consumer coverage through the public Facade APIs.
+- Consumer Readiness Stage 4 mutation ergonomics: typed Content `name` and
+  `description` inline updates, typed Content Field value inline updates that
+  preserve the atomic format/value invariant, and Unit, MySQL Integration, and
+  standalone consumer coverage through the public Facade APIs.
+- Consumer Readiness Stage 5 Image Assignment consumer workflow: explicit
+  `assign()`, `reorder()`, and `remove()` operations, typed exact
+  scope input, and complete lifecycle/default/order/read coverage through the
+  public Facade APIs.
+- Consumer Readiness Stage 6 audit closure: reconciled the public `src/`
+  inventory, stale API/alias sweep, package documentation, boundary checks,
+  and standalone external Composer consumer verification with the current
+  v1 runtime; this records verification scope and does not publish or accept
+  the Consumer Readiness Draft.
 
 ### Changed
 
@@ -24,10 +41,26 @@ tag, release date, or owner-approved release metadata is claimed.
   `Maatify\SharedCommon\Contracts\ClockInterface` and its timezone; Category
   persists timestamp values as supplied and hydrates them using that Host Clock
   timezone.
-- Reconciled the roadmap and package documentation with the selective pinned
-  standards adoption and the current v1 runtime contract.
+- Reconciled package documentation with the selective pinned standards adoption
+  and the current v1 runtime contract.
+- Replaced the former command-service composition with a thin `CategoryFacade`,
+  five Domain APIs, split domain services, domain-owned read contracts and PDO
+  adapters, and a framework-neutral package-level `CategoryFactory`.
 - Documented separate management and consumer visibility reads, bounded
-  unpaginated lists, deterministic ordering, and deferred pagination/search.
+  unpaginated lists, deterministic ordering, and the completed Stage 3
+  management query expansion while keeping Search Category-owned and SQL-based.
+- Corrected the Stage 3 pagination sort-key contract: Image Assignment and
+  Content Field default to the explicit `business_order` key while
+  `category_id` retains direct Category ID semantics.
+- Marked Consumer Readiness Stages 1–5, including the current Stage 5 Image
+  Assignment consumer workflow, as implemented in the v1 line; later stages
+  remain separate scope.
+- Kept existing full-form mutation operations intact while exposing typed
+  partial operations for safe inline editing. Category and Image Role retain
+  their existing dedicated operations; Image Assignment exposes consumer-oriented
+  `assign()`, `reorder()`, and `remove()` operations with typed
+  default and restore mutations. No generic `updateField()` contract or
+  Media/Storage workflow was added.
 - Prepared release-facing documentation for owner approval without creating a
   tag, release, or Packagist publication.
 - Corrected the previous content model to unified Category Content,

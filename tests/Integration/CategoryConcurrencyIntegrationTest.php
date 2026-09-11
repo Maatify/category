@@ -6,30 +6,35 @@ namespace Maatify\Category\Tests\Integration;
 
 use Closure;
 use DateTimeImmutable;
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\CreateCategoryImageRoleCommand;
-use Maatify\Category\Command\CreateCategoryContentFieldCommand;
-use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\MoveCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
-use Maatify\Category\Exception\CategoryCodeAlreadyExistsException;
-use Maatify\Category\Exception\CategoryCycleException;
-use Maatify\Category\Exception\CategoryHasNonDeletedChildrenException;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
+use Maatify\Category\Content\Api\Contract\ContentApiInterface;
+use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
+use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
+use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Exception\CategoryCodeAlreadyExistsException;
+use Maatify\Category\Hierarchy\Exception\CategoryCycleException;
+use Maatify\Category\Lifecycle\Exception\CategoryHasNonDeletedChildrenException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Exception\CategoryContentAlreadyExistsException;
-use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Service\CategoryCommandService;
+use Maatify\Category\Content\Mutation\Exception\CategoryContentAlreadyExistsException;
+use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
+use Maatify\Category\Infrastructure\PdoCategoryCommandRepository;
+use Maatify\Category\Query\Infrastructure\PdoCategoryQueryReader;
+use Maatify\Category\Content\Infrastructure\PdoCategoryContentCommandRepository;
+use Maatify\Category\ImageAssignment\Infrastructure\PdoCategoryImageAssignmentCommandRepository;
+use Maatify\Category\ImageRole\Infrastructure\PdoCategoryImageRoleCommandRepository;
+use Maatify\Category\ContentField\Infrastructure\PdoCategoryContentFieldCommandRepository;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
 use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
@@ -476,11 +481,12 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $blockedConnection = $this->newConnection();
         $this->setLockWaitTimeout($blockedConnection);
         $blockedService = $this->service($blockedConnection);
+        $blockedContentService = $this->contentService($blockedConnection);
 
         try {
             $this->assertLockWaitTimeout(
-                function () use ($blockedService, $categoryId): void {
-                    $blockedService->createContent(
+                function () use ($blockedContentService, $categoryId): void {
+                    $blockedContentService->create(
                         new CreateCategoryContentCommand($categoryId, 'en-US', 'Competing', null),
                     );
                 },
@@ -491,7 +497,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->commit();
 
             try {
-                $blockedService->createContent(
+                $blockedContentService->create(
                     new CreateCategoryContentCommand($categoryId, 'en-US', 'Competing', null),
                 );
                 self::fail('A committed content identity must not be duplicated.');
@@ -539,11 +545,12 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $blockedConnection = $this->newConnection();
         $this->setLockWaitTimeout($blockedConnection);
         $blockedService = $this->service($blockedConnection);
+        $blockedImageService = $this->imageService($blockedConnection);
 
         try {
             $this->assertLockWaitTimeout(
-                function () use ($blockedService, $categoryId): void {
-                    $blockedService->createImageAssignment(
+                function () use ($blockedImageService, $categoryId): void {
+                    $blockedImageService->assign(
                         new CreateCategoryImageAssignmentCommand($categoryId, 700),
                     );
                 },
@@ -554,7 +561,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $locker->commit();
 
             try {
-                $blockedService->createImageAssignment(
+                $blockedImageService->assign(
                     new CreateCategoryImageAssignmentCommand($categoryId, 700),
                 );
                 self::fail('A committed Image Assignment identity must not be duplicated.');
@@ -599,7 +606,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             // real creation reaches lockCreationScope() for the same scope.
             $firstConnection->beginTransaction();
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 701, 'en-US', 'web'),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    701,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                ),
                 $occurredAt,
             );
 
@@ -608,7 +619,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 702, 'en-US', 'web'),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        702,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent creation must wait for the exact ordering scope lock.');
@@ -626,7 +641,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 702, 'en-US', 'web'),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    702,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -653,7 +672,9 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
     {
         $service = $this->service($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-role-order-category'));
-        $roleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-gallery'));
+        $roleId = $this->roleService($this->connection())->create(
+            new CreateCategoryImageRoleCommand('concurrent-gallery'),
+        );
         $firstConnection = $this->newConnection();
         $secondConnection = $this->newConnection();
         $firstRepository = new PdoCategoryImageAssignmentCommandRepository(
@@ -669,7 +690,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         try {
             $firstConnection->beginTransaction();
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 703, 'en-US', 'web', $roleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    703,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                ),
                 $occurredAt,
             );
 
@@ -678,7 +703,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        704,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent creation must wait for the exact Role ordering scope lock.');
@@ -696,7 +725,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 704, 'en-US', 'web', $roleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    704,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -719,8 +752,9 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
     {
         $service = $this->service($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-role-isolation-category'));
-        $firstRoleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-first'));
-        $secondRoleId = $service->createImageRole(new CreateCategoryImageRoleCommand('concurrent-second'));
+        $roleService = $this->roleService($this->connection());
+        $firstRoleId = $roleService->create(new CreateCategoryImageRoleCommand('concurrent-first'));
+        $secondRoleId = $roleService->create(new CreateCategoryImageRoleCommand('concurrent-second'));
         $firstConnection = $this->newConnection();
         $secondConnection = $this->newConnection();
         $firstRepository = new PdoCategoryImageAssignmentCommandRepository(
@@ -739,13 +773,21 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             $secondConnection->beginTransaction();
 
             $firstId = $firstRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 705, 'en-US', 'web', $firstRoleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    705,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $firstRoleId),
+                ),
                 $occurredAt,
             );
 
             try {
                 $secondRepository->create(
-                    new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                    new CreateCategoryImageAssignmentCommand(
+                        $categoryId,
+                        706,
+                        new CategoryImageAssignmentScopeDTO('en-US', 'web', $secondRoleId),
+                    ),
                     $occurredAt,
                 );
                 self::fail('A concurrent operation may wait, but must not corrupt a different Role scope.');
@@ -763,7 +805,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
 
             $secondConnection->beginTransaction();
             $secondId = $secondRepository->create(
-                new CreateCategoryImageAssignmentCommand($categoryId, 706, 'en-US', 'web', $secondRoleId),
+                new CreateCategoryImageAssignmentCommand(
+                    $categoryId,
+                    706,
+                    new CategoryImageAssignmentScopeDTO('en-US', 'web', $secondRoleId),
+                ),
                 $occurredAt,
             );
             $secondConnection->commit();
@@ -994,10 +1040,11 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
     {
         $service = $this->service($this->connection());
         $categoryId = $service->create(new CreateCategoryCommand('concurrent-image-default-category'));
-        $firstId = $service->createImageAssignment(
+        $imageService = $this->imageService($this->connection());
+        $firstId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 705),
         );
-        $secondId = $service->createImageAssignment(
+        $secondId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 706),
         );
 
@@ -1015,11 +1062,12 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         $blockedConnection = $this->newConnection();
         $this->setLockWaitTimeout($blockedConnection);
         $blockedService = $this->service($blockedConnection);
+        $blockedImageService = $this->imageService($blockedConnection);
 
         try {
             $this->assertLockWaitTimeout(
-                function () use ($blockedService, $secondId): void {
-                    $blockedService->setImageAssignmentDefault(
+                function () use ($blockedImageService, $secondId): void {
+                    $blockedImageService->setDefault(
                         new SetCategoryImageAssignmentDefaultCommand($secondId),
                     );
                 },
@@ -1028,7 +1076,7 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
             );
 
             $locker->rollBack();
-            $blockedService->setImageAssignmentDefault(
+            $blockedImageService->setDefault(
                 new SetCategoryImageAssignmentDefaultCommand($secondId),
             );
 
@@ -1053,20 +1101,26 @@ final class CategoryConcurrencyIntegrationTest extends CategoryMySqlIntegrationT
         }
     }
 
-    private function service(PDO $connection, ?FixedCategoryClock $clock = null): CategoryCommandService
+    private function service(PDO $connection, ?FixedCategoryClock $clock = null): CategoryApiInterface
     {
         $clock ??= new FixedCategoryClock();
 
-        return new CategoryCommandService(
-            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection, $clock),
-            new PdoCategoryContentCommandRepository($connection),
-            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoTransactionRunner($connection),
-            $clock,
-            new PdoCategoryImageRoleCommandRepository($connection),
-        );
+        return CategoryFactory::create($connection, $clock)->categories();
+    }
+
+    private function contentService(PDO $connection): ContentApiInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock())->contents();
+    }
+
+    private function imageService(PDO $connection): ImageAssignmentApiInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock())->images();
+    }
+
+    private function roleService(PDO $connection): ImageRoleApiInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock())->imageRoles();
     }
 
     private function setLockWaitTimeout(PDO $connection): void

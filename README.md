@@ -41,15 +41,17 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
   and an explicit default marker.
 - Stable immutable Category codes and content identities.
 - Parent movement with complete cycle prevention.
-- Category and Content create, update, soft-delete, and restore lifecycle
-  mutations, plus Category status and display-order mutations.
-- Image Assignment create, exact-scope ordering, explicit default assignment,
-  soft-delete, and restore mutations; stable identity remains reserved after
-  soft deletion.
+- Category and Content create, full-form update, typed inline field updates,
+  soft-delete, and restore lifecycle mutations, plus Category status and
+  display-order mutations.
+- Image Assignment assign, exact-scope ordering, explicit default assignment,
+  reversible remove/restore lifecycle; stable identity remains reserved after
+  removal.
 - Image Role create, status update, soft-delete, restore, and bounded management
   reads; role keys remain permanently reserved after soft deletion.
-- Content Field create, value/format update, exact-scope ordering, soft-delete,
-  restore, management reads, and exact consumer reads; field keys remain Host-defined.
+- Content Field create, atomic value/format full-form update, typed inline value
+  update, exact-scope ordering, soft-delete, restore, management reads, and
+  exact consumer reads; field keys remain Host-defined.
 - Shared Persistence transaction and row-locking contracts for
   hierarchy/lifecycle invariants; the Host owns outer transaction boundaries.
 - Shared `maatify/persistence` Ordering API for root and nested scopes.
@@ -61,16 +63,21 @@ Catalog, Product, Admin, Slim, HTTP, permissions, and presentation layers.
 
 ## Public Runtime API
 
-The package exposes twenty-five typed mutation Commands, immutable Category,
+The package exposes twenty-eight typed mutation Commands, immutable Category,
 Content, Image Role, Image Assignment, and Content Field DTOs, six bounded
-criteria DTOs, five enums, typed service and
-repository contracts, and framework-neutral PDO adapters. The complete
-constructor and method inventory is maintained in the
+criteria DTOs, five enums, a unified `CategoryFacade` with five domain APIs,
+typed service and repository contracts, and framework-neutral PDO adapters.
+The complete constructor and method inventory is maintained in the
 [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md).
 
-The internal `findByCode()` mutation-support lookup is deliberately not exposed
-as a management service method. Pagination, search, and public management
-get-by-code are deferred from v1.
+The internal `findByCode()` mutation-support lookup remains separate from the
+management query port. The Stage 3 management surface now provides exact public
+`getByCode()`, shared Persistence pagination for management lists, and
+Category-owned SQL search by Category code. Search does not delegate to a
+Persistence search engine; the Host still owns language fallback and policy.
+The Stage 4 mutation surface retains full-form updates and adds typed Content
+`name`/`description` and Content Field `value` operations for inline editing;
+Content Field `format` and `value` remain one atomic invariant.
 
 ## Query and list behavior
 
@@ -80,7 +87,13 @@ cannot bypass active/non-deleted ancestor visibility. Every unpaginated list is
 bounded to at most 100 rows. Category lists use `display_order, id`; Content
 lists use `language_code, id`; Image Role lists use `role_key, id`; Image
 Assignment and Content Field lists use exact scopes and deterministic
-`display_order, id` ordering within each scope.
+`display_order, id` ordering within each scope. Management list APIs also
+expose canonical `maatify/persistence` pagination results. The package owns
+Category search in its SQL/query layer and does not implement a local search or
+pagination engine.
+For paginated Image Assignment and Content Field management lists, the default
+sort key is the explicit `business_order` key; `category_id` retains its direct
+Category ID sorting semantics.
 Management Image Assignment criteria can independently omit the Role filter,
 match the exact NULL Role, or match one concrete Role while retaining exact
 language/platform filtering.
@@ -112,6 +125,35 @@ is independent from `display_order`; soft-deleting a default clears it and
 restoring the assignment leaves it non-default. Category does not own Media,
 Platform, or Language lifecycle and creates no foreign key to those host
 concepts.
+
+## Image Assignment consumer workflow
+
+The Host owns upload and Media/Storage lifecycle. After upload returns a
+mediaAssetId, pass only that ID to Category. Use one exact typed scope for both
+assignment and consumer reads:
+
+    use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+    use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+    use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+    use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+    use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+    use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+
+    $images = $category->images();
+    $scope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+
+    $assignmentId = $images->assign(
+        new CreateCategoryImageAssignmentCommand($categoryId, $mediaAssetId, $scope),
+    );
+    $images->reorder(new UpdateCategoryImageAssignmentDisplayOrderCommand($assignmentId, 1));
+    $images->setDefault(new SetCategoryImageAssignmentDefaultCommand($assignmentId));
+    $visibleAssignments = $images->listVisibleForCategory($categoryId, $scope);
+    $images->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+    $images->restore(new RestoreCategoryImageAssignmentCommand($assignmentId));
+
+NULL language, platform, or Role values are exact scope dimensions and never
+fall back. A Role ID is optional and is added to the scope only for a
+Role-scoped assignment backed by an active, non-deleted Category Image Role.
 
 ## Category Image Role model
 
@@ -161,26 +203,28 @@ development and do not rely on a Packagist version claim.
 
 ## Quick Usage
 
-The Host provides `Maatify\SharedCommon\Contracts\ClockInterface` and its
-timezone to Category. Category owns timestamps as values, but does not own
-timezone policy or normalize timestamps to UTC. The example below uses the
-Host timezone `Africa/Cairo`.
+The Host provides the existing `PDO` connection and
+`Maatify\SharedCommon\Contracts\ClockInterface`. Category owns timestamps as
+values, but does not own timezone policy or normalize timestamps to UTC. The
+Factory wires the complete framework-neutral application once; each facade
+accessor exposes one domain API.
 
 ```php
-use DateTimeImmutable;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\Enum\CategoryStatusEnum;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 
-$category = new CategoryDTO(
-    id: 1,
-    parentId: null,
-    code: 'clothing',
-    status: CategoryStatusEnum::ACTIVE,
-    displayOrder: 1,
-    createdAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
-    updatedAt: new DateTimeImmutable('2026-01-01 00:00:00 Africa/Cairo'),
-    deletedAt: null,
+// $pdo and $clock are supplied by the host application.
+$category = CategoryFactory::create($pdo, $clock);
+
+$categoryId = $category->categories()->create(
+    new CreateCategoryCommand('clothing'),
 );
+$category->contents()->create(
+    new CreateCategoryContentCommand($categoryId, null, 'Clothing', null),
+);
+
+$visibleCategory = $category->categories()->getById($categoryId);
 ```
 
 The Category package owns the syntactic and storage validation of non-NULL
@@ -191,7 +235,6 @@ envelopes, and presentation formatting.
 ## Documentation
 
 - [Category Package Reference](CATEGORY_PACKAGE_REFERENCE.md)
-- [Category architecture](docs/architecture/CATEGORY_ARCHITECTURE.md)
 - [Category schema](schema/category.sql)
 - [Schema notes](schema/README.md)
 - [Changelog](CHANGELOG.md)

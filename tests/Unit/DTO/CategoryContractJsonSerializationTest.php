@@ -6,49 +6,52 @@ namespace Maatify\Category\Tests\Unit\DTO;
 
 use DateTimeImmutable;
 use JsonSerializable;
-use Maatify\Category\DTO\CategoryCollectionDTO;
-use Maatify\Category\DTO\CategoryDTO;
-use Maatify\Category\DTO\CategoryIdDTO;
-use Maatify\Category\DTO\CategoryContentCollectionDTO;
-use Maatify\Category\DTO\CategoryContentDTO;
-use Maatify\Category\DTO\CategoryContentFieldCollectionDTO;
-use Maatify\Category\DTO\CategoryContentFieldDTO;
-use Maatify\Category\DTO\CategoryContentFieldListCriteriaDTO;
-use Maatify\Category\DTO\CategoryContentFieldScopeDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentRoleFilterDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\DTO\CategoryImageRoleCollectionDTO;
-use Maatify\Category\DTO\CategoryImageRoleDTO;
-use Maatify\Category\DTO\CategoryImageRoleListCriteriaDTO;
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryContentCommand;
-use Maatify\Category\Command\CreateCategoryContentFieldCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\MoveCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryCommand;
-use Maatify\Category\Command\RestoreCategoryContentCommand;
-use Maatify\Category\Command\RestoreCategoryContentFieldCommand;
-use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
-use Maatify\Category\Command\RestoreCategoryImageRoleCommand;
-use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryContentCommand;
-use Maatify\Category\Command\SoftDeleteCategoryContentFieldCommand;
-use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
-use Maatify\Category\Command\SoftDeleteCategoryImageRoleCommand;
-use Maatify\Category\Command\UpdateCategoryDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\Command\UpdateCategoryContentCommand;
-use Maatify\Category\Command\UpdateCategoryContentFieldCommand;
-use Maatify\Category\Command\UpdateCategoryContentFieldDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\Command\CreateCategoryImageRoleCommand;
-use Maatify\Category\Command\UpdateCategoryImageRoleStatusCommand;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Enum\CategoryContentFieldFormatEnum;
-use Maatify\Category\Enum\CategoryImageRoleStatusEnum;
+use Maatify\Category\Query\DTO\CategoryCollectionDTO;
+use Maatify\Category\Query\DTO\CategoryDTO;
+use Maatify\Category\Common\DTO\CategoryIdDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
+use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldCollectionDTO;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldDTO;
+use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
+use Maatify\Category\ContentField\CategoryContentFieldScopeDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentRoleFilterDTO;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
+use Maatify\Category\ImageRole\CategoryImageRoleDTO;
+use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\Hierarchy\Command\MoveCategoryCommand;
+use Maatify\Category\Lifecycle\Command\RestoreCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
+use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\RestoreCategoryImageRoleCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
+use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\SoftDeleteCategoryImageRoleCommand;
+use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
+use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\UpdateCategoryImageRoleStatusCommand;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
+use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryContractJsonSerializationTest extends TestCase
@@ -119,7 +122,11 @@ final class CategoryContractJsonSerializationTest extends TestCase
             new CreateCategoryContentFieldCommand(7, 'badge', 'ar', 'web', CategoryContentFieldFormatEnum::JSON, '{"enabled":true}'),
             new CreateCategoryImageRoleCommand('gallery'),
             new UpdateCategoryImageRoleStatusCommand(19, CategoryImageRoleStatusEnum::INACTIVE),
-            new CreateCategoryImageAssignmentCommand(7, 900, null, 'web'),
+            new CreateCategoryImageAssignmentCommand(
+                7,
+                900,
+                new CategoryImageAssignmentScopeDTO(null, 'web'),
+            ),
             new MoveCategoryCommand(7, 3),
             new RestoreCategoryCommand(7),
             new RestoreCategoryContentCommand(11),
@@ -134,7 +141,10 @@ final class CategoryContractJsonSerializationTest extends TestCase
             new UpdateCategoryDisplayOrderCommand(7, 4),
             new UpdateCategoryStatusCommand(7, CategoryStatusEnum::INACTIVE),
             new UpdateCategoryContentCommand(11, 'قمصان', 'وصف'),
+            new UpdateCategoryContentNameCommand(11, 'قمصان مختصرة'),
+            new UpdateCategoryContentDescriptionCommand(11, 'وصف مختصر'),
             new UpdateCategoryContentFieldCommand(17, CategoryContentFieldFormatEnum::TEXT, 'new badge'),
+            new UpdateCategoryContentFieldValueCommand(17, 'new badge value'),
             new UpdateCategoryContentFieldDisplayOrderCommand(17, 3),
             new UpdateCategoryImageAssignmentDisplayOrderCommand(13, 2),
             new CategoryImageAssignmentScopeDTO(null, 'web', 19),

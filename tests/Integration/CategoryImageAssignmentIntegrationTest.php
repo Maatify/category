@@ -4,113 +4,247 @@ declare(strict_types=1);
 
 namespace Maatify\Category\Tests\Integration;
 
-use Maatify\Category\Command\CreateCategoryCommand;
-use Maatify\Category\Command\CreateCategoryImageRoleCommand;
-use Maatify\Category\Command\CreateCategoryImageAssignmentCommand;
-use Maatify\Category\Command\ClearCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\SoftDeleteCategoryCommand;
-use Maatify\Category\Command\SoftDeleteCategoryImageAssignmentCommand;
-use Maatify\Category\Command\RestoreCategoryImageAssignmentCommand;
-use Maatify\Category\Command\SetCategoryImageAssignmentDefaultCommand;
-use Maatify\Category\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
-use Maatify\Category\Command\UpdateCategoryStatusCommand;
-use Maatify\Category\DTO\CategoryImageAssignmentListCriteriaDTO;
-use Maatify\Category\DTO\CategoryImageAssignmentScopeDTO;
-use Maatify\Category\DTO\CategoryVisibleListCriteriaDTO;
-use Maatify\Category\Enum\CategoryDeletedStateEnum;
-use Maatify\Category\Enum\CategoryStatusEnum;
-use Maatify\Category\Exception\CategoryImageAssignmentAlreadyExistsException;
-use Maatify\Category\Exception\CategoryImageAssignmentNotFoundException;
+use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Category\Api\CategoryApiInterface;
+use Maatify\Category\ImageAssignment\Api\Contract\ImageAssignmentApiInterface;
+use Maatify\Category\ImageRole\Api\Contract\ImageRoleApiInterface;
+use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
+use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
+use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Default\Command\ClearCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\Lifecycle\Command\SoftDeleteCategoryCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
+use Maatify\Category\ImageAssignment\Default\Command\SetCategoryImageAssignmentDefaultCommand;
+use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
+use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentRoleFilterDTO;
+use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
+use Maatify\Category\ImageAssignment\CategoryImageAssignmentScopeDTO;
+use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
+use Maatify\Category\ImageAssignment\Assignment\Exception\CategoryImageAssignmentAlreadyExistsException;
+use Maatify\Category\ImageAssignment\Exception\CategoryImageAssignmentNotFoundException;
 use Maatify\Category\Exception\CategoryNotFoundException;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageAssignmentCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryImageRoleCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryContentFieldCommandRepository;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryManagementReadQuery;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryQueryReader;
-use Maatify\Category\Infrastructure\Repository\PdoCategoryReadQuery;
-use Maatify\Category\Service\CategoryCommandService;
-use Maatify\Category\Service\CategoryManagementQueryService;
-use Maatify\Category\Service\CategoryQueryService;
+use Maatify\Category\ImageAssignment\Query\Infrastructure\PdoCategoryImageAssignmentQueryReader;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
-use Maatify\Persistence\Pdo\Ordering\ScopedOrderingManager;
-use Maatify\Persistence\Pdo\Transaction\PdoTransactionRunner;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
 use PDO;
 
 final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrationTestCase
 {
+    public function testHostCanCompleteTheImageAssignmentWorkflowThroughTheFacadeAndObserveRealState(): void
+    {
+        $connection = $this->connection();
+        $category = CategoryFactory::create(
+            $connection,
+            new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
+        );
+        $categoryId = $category->categories()->create(new CreateCategoryCommand('image-consumer-workflow-category'));
+        $genericScope = new CategoryImageAssignmentScopeDTO();
+        $localizedScope = new CategoryImageAssignmentScopeDTO('en-US', 'web');
+        $galleryRoleId = $category->imageRoles()->create(new CreateCategoryImageRoleCommand('workflow-gallery'));
+
+        $firstAssignmentId = $category->images()->assign(
+            new CreateCategoryImageAssignmentCommand($categoryId, 900, $genericScope),
+        );
+        $secondAssignmentId = $category->images()->assign(
+            new CreateCategoryImageAssignmentCommand($categoryId, 901, $genericScope),
+        );
+        $localizedAssignmentId = $category->images()->assign(
+            new CreateCategoryImageAssignmentCommand($categoryId, 900, $localizedScope),
+        );
+        $roleAssignmentId = $category->images()->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                902,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web', $galleryRoleId),
+            ),
+        );
+
+        self::assertSame(
+            [$firstAssignmentId, $secondAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory($categoryId, $genericScope)),
+        );
+        self::assertSame(
+            [$localizedAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory($categoryId, $localizedScope)),
+        );
+        self::assertSame(
+            [$roleAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory(
+                $categoryId,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web', $galleryRoleId),
+            )),
+        );
+        self::assertTrue(
+            $category->images()->listVisibleForCategory(
+                $categoryId,
+                new CategoryImageAssignmentScopeDTO('en-US'),
+            )->isEmpty(),
+            'A missing platform must remain an exact scope and must not fall back.',
+        );
+
+        $category->images()->reorder(
+            new UpdateCategoryImageAssignmentDisplayOrderCommand($secondAssignmentId, 1),
+        );
+        self::assertSame(
+            [$secondAssignmentId, $firstAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory($categoryId, $genericScope)),
+        );
+
+        $orderedStatement = $connection->prepare(
+            'SELECT id, display_order FROM maa_category_category_image_assignments '
+            . 'WHERE category_id = :workflow_category_id '
+            . 'AND language_code IS NULL AND platform IS NULL AND role_id IS NULL '
+            . 'AND deleted_at IS NULL ORDER BY display_order ASC, id ASC',
+        );
+        $orderedStatement->execute(['workflow_category_id' => $categoryId]);
+        /** @var list<array<string, mixed>> $orderedRows */
+        $orderedRows = $orderedStatement->fetchAll(PDO::FETCH_ASSOC);
+        $orderedIds = [];
+        foreach ($orderedRows as $orderedRow) {
+            $id = $orderedRow['id'] ?? null;
+            $orderedIds[] = is_int($id) || is_string($id) ? (int) $id : 0;
+        }
+        self::assertSame([$secondAssignmentId, $firstAssignmentId], $orderedIds);
+        self::assertSame(2, $this->integerFromRow($orderedRows[1] ?? [], 'display_order'));
+
+        $category->images()->setDefault(new SetCategoryImageAssignmentDefaultCommand($firstAssignmentId));
+        self::assertTrue($category->images()->getByIdForManagement($firstAssignmentId)->isDefault);
+        self::assertFalse($category->images()->getByIdForManagement($secondAssignmentId)->isDefault);
+        self::assertFalse($category->images()->getByIdForManagement($localizedAssignmentId)->isDefault);
+
+        $category->images()->remove(new SoftDeleteCategoryImageAssignmentCommand($firstAssignmentId));
+        self::assertSame(
+            [$secondAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory($categoryId, $genericScope)),
+        );
+        $deletedAssignment = $category->images()->getByIdForManagement(
+            $firstAssignmentId,
+            CategoryDeletedStateEnum::DELETED_ONLY,
+        );
+        self::assertNotNull($deletedAssignment->deletedAt);
+        self::assertFalse($deletedAssignment->isDefault);
+        self::assertFalse($category->images()->getByIdForManagement($secondAssignmentId)->isDefault);
+
+        $stateStatement = $connection->prepare(
+            'SELECT media_asset_id, is_default, deleted_at '
+            . 'FROM maa_category_category_image_assignments '
+            . 'WHERE id = :workflow_assignment_id',
+        );
+        $stateStatement->execute(['workflow_assignment_id' => $firstAssignmentId]);
+        /** @var array<string, mixed>|false $stateRow */
+        $stateRow = $stateStatement->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($stateRow);
+        self::assertSame(900, $this->integerFromRow($stateRow, 'media_asset_id'));
+        self::assertSame(0, $this->integerFromRow($stateRow, 'is_default', 1));
+        self::assertIsString($stateRow['deleted_at'] ?? null);
+
+        $category->images()->restore(new RestoreCategoryImageAssignmentCommand($firstAssignmentId));
+        $restoredAssignment = $category->images()->getByIdForManagement($firstAssignmentId);
+        self::assertNull($restoredAssignment->deletedAt);
+        self::assertFalse($restoredAssignment->isDefault);
+        self::assertSame(
+            [$secondAssignmentId, $firstAssignmentId],
+            $this->ids($category->images()->listVisibleForCategory($categoryId, $genericScope)),
+        );
+        self::assertSame(
+            1,
+            $category->images()->listForManagement(
+                new CategoryImageAssignmentListCriteriaDTO(
+                    categoryId: $categoryId,
+                    scope: $localizedScope,
+                    roleFilter: CategoryImageAssignmentRoleFilterDTO::exactNull(),
+                ),
+            )->count(),
+        );
+    }
+
     public function testDefaultIsExplicitPerExactScopeAndIndependentFromOrdering(): void
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
         $clock = new FixedCategoryClock();
-        $mutationReader = new PdoCategoryQueryReader($connection, $clock);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
+        $mutationReader = $this->queryReader($connection, $clock);
+        $imageService = $this->imageService($connection);
+        $roleService = $this->roleService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-default-category'));
-        $roleId = $service->createImageRole(new CreateCategoryImageRoleCommand('default-gallery'));
+        $roleId = $roleService->create(new CreateCategoryImageRoleCommand('default-gallery'));
 
-        $neutralFirst = $service->createImageAssignment(
+        $neutralFirst = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 100),
         );
-        $neutralSecond = $service->createImageAssignment(
+        $neutralSecond = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 101),
         );
-        $languageOnly = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 102, 'en-US'),
+        $languageOnly = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                102,
+                new CategoryImageAssignmentScopeDTO('en-US'),
+            ),
         );
-        $platformOnly = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 103, null, 'web'),
+        $platformOnly = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                103,
+                new CategoryImageAssignmentScopeDTO(null, 'web'),
+            ),
         );
-        $roleScoped = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 104, 'en-US', 'web', $roleId),
+        $roleScoped = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                104,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web', $roleId),
+            ),
         );
 
         self::assertSame(0, $this->defaultCount($connection));
-        self::assertFalse($managementService->getImageAssignmentById($neutralFirst)->isDefault);
+        self::assertFalse($imageService->getByIdForManagement($neutralFirst)->isDefault);
 
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($neutralFirst));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($neutralFirst));
         self::assertSame($neutralFirst, $this->defaultIdForScope($connection, $categoryId, null, null, null));
-        self::assertTrue($managementService->getImageAssignmentById($neutralFirst)->isDefault);
+        self::assertTrue($imageService->getByIdForManagement($neutralFirst)->isDefault);
         $hydratedAssignment = $mutationReader->findImageAssignmentById($neutralFirst);
         self::assertNotNull($hydratedAssignment);
         self::assertTrue($hydratedAssignment->isDefault);
         $visibleDefaultId = null;
-        foreach ($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO()) as $assignment) {
+        foreach ($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO()) as $assignment) {
             if ($assignment->isDefault) {
                 $visibleDefaultId = $assignment->id;
             }
         }
         self::assertSame($neutralFirst, $visibleDefaultId);
 
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($neutralSecond));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($neutralSecond));
         self::assertSame($neutralSecond, $this->defaultIdForScope($connection, $categoryId, null, null, null));
-        self::assertFalse($managementService->getImageAssignmentById($neutralFirst)->isDefault);
-        self::assertTrue($managementService->getImageAssignmentById($neutralSecond)->isDefault);
+        self::assertFalse($imageService->getByIdForManagement($neutralFirst)->isDefault);
+        self::assertTrue($imageService->getByIdForManagement($neutralSecond)->isDefault);
 
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($languageOnly));
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($platformOnly));
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($roleScoped));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($languageOnly));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($platformOnly));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($roleScoped));
         self::assertSame(4, $this->defaultCount($connection));
         self::assertSame($languageOnly, $this->defaultIdForScope($connection, $categoryId, 'en-US', null, null));
         self::assertSame($platformOnly, $this->defaultIdForScope($connection, $categoryId, null, 'web', null));
         self::assertSame($roleScoped, $this->defaultIdForScope($connection, $categoryId, 'en-US', 'web', $roleId));
 
-        $service->clearImageAssignmentDefault(new ClearCategoryImageAssignmentDefaultCommand($neutralSecond));
+        $imageService->clearDefault(new ClearCategoryImageAssignmentDefaultCommand($neutralSecond));
         self::assertSame(3, $this->defaultCount($connection));
         self::assertNull($this->defaultIdForScope($connection, $categoryId, null, null, null));
 
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($neutralFirst));
-        $service->updateImageAssignmentDisplayOrder(
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($neutralFirst));
+        $imageService->reorder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand($neutralFirst, 2),
         );
         self::assertSame(
             [$neutralSecond, $neutralFirst],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())),
         );
-        self::assertTrue($managementService->getImageAssignmentById($neutralFirst)->isDefault);
+        self::assertTrue($imageService->getByIdForManagement($neutralFirst)->isDefault);
         self::assertSame(4, $this->defaultCount($connection));
     }
 
@@ -119,33 +253,32 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         $connection = $this->connection();
         $service = $this->commandService($connection);
         $clock = new FixedCategoryClock();
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
+        $imageService = $this->imageService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-default-lifecycle-category'));
-        $firstId = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 200));
-        $secondId = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 201));
+        $firstId = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 200));
+        $secondId = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 201));
 
-        $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
-        $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($firstId));
+        $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
+        $imageService->remove(new SoftDeleteCategoryImageAssignmentCommand($firstId));
 
         self::assertSame(0, $this->defaultCount($connection));
         self::assertFalse(
-            $managementService->getImageAssignmentById($firstId, CategoryDeletedStateEnum::DELETED_ONLY)->isDefault,
+            $imageService->getByIdForManagement($firstId, CategoryDeletedStateEnum::DELETED_ONLY)->isDefault,
         );
-        self::assertFalse($managementService->getImageAssignmentById($secondId)->isDefault);
+        self::assertFalse($imageService->getByIdForManagement($secondId)->isDefault);
         self::assertSame(
             [$secondId],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())),
         );
 
         try {
-            $service->setImageAssignmentDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
+            $imageService->setDefault(new SetCategoryImageAssignmentDefaultCommand($firstId));
             self::fail('A soft-deleted assignment must not be eligible for a default.');
         } catch (CategoryImageAssignmentNotFoundException) {
         }
 
-        $service->restoreImageAssignment(new RestoreCategoryImageAssignmentCommand($firstId));
-        self::assertFalse($managementService->getImageAssignmentById($firstId)->isDefault);
+        $imageService->restore(new RestoreCategoryImageAssignmentCommand($firstId));
+        self::assertFalse($imageService->getByIdForManagement($firstId)->isDefault);
         self::assertSame(0, $this->defaultCount($connection));
     }
 
@@ -153,48 +286,60 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
+        $imageService = $this->imageService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-scopes-category'));
 
-        $neutralFirst = $service->createImageAssignment(
+        $neutralFirst = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 100),
         );
-        $neutralSecond = $service->createImageAssignment(
+        $neutralSecond = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 101),
         );
-        $languageOnly = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 100, 'en-US'),
+        $languageOnly = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                100,
+                new CategoryImageAssignmentScopeDTO('en-US'),
+            ),
         );
-        $platformOnly = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 100, null, 'web'),
+        $platformOnly = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                100,
+                new CategoryImageAssignmentScopeDTO(null, 'web'),
+            ),
         );
-        $languageAndPlatform = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 100, 'en-US', 'web'),
+        $languageAndPlatform = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                100,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            ),
         );
 
         self::assertSame(
             [$neutralFirst, $neutralSecond],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())),
         );
         self::assertSame(
             [$languageOnly],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO('en-US'))),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO('en-US'))),
         );
         self::assertSame(
             [$platformOnly],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO(null, 'web'))),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO(null, 'web'))),
         );
         self::assertSame(
             [$languageAndPlatform],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))),
         );
 
-        $service->updateImageAssignmentDisplayOrder(
+        $imageService->reorder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand($neutralSecond, 1),
         );
         self::assertSame(
             [$neutralSecond, $neutralFirst],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())),
         );
     }
 
@@ -203,27 +348,34 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         $connection = $this->connection();
         $service = $this->commandService($connection);
         $clock = new FixedCategoryClock();
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, $clock));
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, $clock));
+        $imageService = $this->imageService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-lifecycle-category'));
-        $assignmentId = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 300, 'en-US', 'web'),
+        $assignmentId = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                300,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            ),
         );
 
-        $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+        $imageService->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
         self::assertTrue(
-            $queryService->listImageAssignments(
+            $imageService->listVisibleForCategory(
                 $categoryId,
                 new CategoryImageAssignmentScopeDTO('en-US', 'web'),
             )->isEmpty(),
         );
         self::assertNotNull(
-            $managementService->getImageAssignmentById($assignmentId, CategoryDeletedStateEnum::DELETED_ONLY)->deletedAt,
+            $imageService->getByIdForManagement($assignmentId, CategoryDeletedStateEnum::DELETED_ONLY)->deletedAt,
         );
 
         $this->expectException(CategoryImageAssignmentAlreadyExistsException::class);
-        $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($categoryId, 300, 'en-US', 'web'),
+        $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                300,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            ),
         );
     }
 
@@ -231,92 +383,144 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
+        $imageService = $this->imageService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-parent-state-category'));
-        $assignmentId = $service->createImageAssignment(
+        $assignmentId = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 301),
         );
 
-        $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
-        $service->restoreImageAssignment(new RestoreCategoryImageAssignmentCommand($assignmentId));
+        $imageService->remove(new SoftDeleteCategoryImageAssignmentCommand($assignmentId));
+        $imageService->restore(new RestoreCategoryImageAssignmentCommand($assignmentId));
         self::assertSame(
             [$assignmentId],
-            $this->ids($queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())),
+            $this->ids($imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())),
         );
 
         $service->updateStatus(new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE));
-        $inactiveParentAssignment = $service->createImageAssignment(
+        $inactiveParentAssignment = $imageService->assign(
             new CreateCategoryImageAssignmentCommand($categoryId, 302),
         );
         self::assertTrue(
-            $queryService->listImageAssignments($categoryId, new CategoryImageAssignmentScopeDTO())->isEmpty(),
+            $imageService->listVisibleForCategory($categoryId, new CategoryImageAssignmentScopeDTO())->isEmpty(),
         );
         self::assertSame(
             [$assignmentId, $inactiveParentAssignment],
             $this->ids(
-                (new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock())))
-                    ->listImageAssignments(new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId)),
+                $imageService->listForManagement(new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId)),
             ),
         );
 
         $service->softDelete(new SoftDeleteCategoryCommand($categoryId));
-        $service->updateImageAssignmentDisplayOrder(
+        $imageService->reorder(
             new UpdateCategoryImageAssignmentDisplayOrderCommand($inactiveParentAssignment, 1),
         );
-        $service->softDeleteImageAssignment(new SoftDeleteCategoryImageAssignmentCommand($inactiveParentAssignment));
-        $service->restoreImageAssignment(new RestoreCategoryImageAssignmentCommand($inactiveParentAssignment));
+        $imageService->remove(new SoftDeleteCategoryImageAssignmentCommand($inactiveParentAssignment));
+        $imageService->restore(new RestoreCategoryImageAssignmentCommand($inactiveParentAssignment));
         $this->expectException(CategoryNotFoundException::class);
-        $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 303));
+        $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 303));
     }
 
     public function testVisibleReadsUseExactScopeWithoutFallbackAndRespectAncestors(): void
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $queryService = new CategoryQueryService(new PdoCategoryReadQuery($connection, new FixedCategoryClock()));
+        $imageService = $this->imageService($connection);
         $rootId = $service->create(new CreateCategoryCommand('image-visibility-root'));
         $childId = $service->create(new CreateCategoryCommand('image-visibility-child', $rootId));
-        $assignmentId = $service->createImageAssignment(
-            new CreateCategoryImageAssignmentCommand($childId, 400, 'en-US', 'web'),
+        $assignmentId = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $childId,
+                400,
+                new CategoryImageAssignmentScopeDTO('en-US', 'web'),
+            ),
         );
 
         self::assertSame(
             [$assignmentId],
-            $this->ids($queryService->listImageAssignments($childId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))),
+            $this->ids($imageService->listVisibleForCategory($childId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))),
         );
         self::assertTrue(
-            $queryService->listImageAssignments($childId, new CategoryImageAssignmentScopeDTO('en-GB', 'web'))->isEmpty(),
+            $imageService->listVisibleForCategory($childId, new CategoryImageAssignmentScopeDTO('en-GB', 'web'))->isEmpty(),
         );
         self::assertTrue(
-            $queryService->listImageAssignments($childId, new CategoryImageAssignmentScopeDTO())->isEmpty(),
+            $imageService->listVisibleForCategory($childId, new CategoryImageAssignmentScopeDTO())->isEmpty(),
         );
 
         $service->updateStatus(new UpdateCategoryStatusCommand($rootId, CategoryStatusEnum::INACTIVE));
         self::assertTrue(
-            $queryService->listImageAssignments($childId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))->isEmpty(),
+            $imageService->listVisibleForCategory($childId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))->isEmpty(),
         );
+    }
+
+    public function testManagementPaginationPreservesExactScopeOrderingByDefault(): void
+    {
+        $connection = $this->connection();
+        $service = $this->commandService($connection);
+        $imageService = $this->imageService($connection);
+        $categoryId = $service->create(new CreateCategoryCommand('image-pagination-category'));
+        $neutralId = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 600));
+        $localizedId = $imageService->assign(
+            new CreateCategoryImageAssignmentCommand(
+                $categoryId,
+                601,
+                new CategoryImageAssignmentScopeDTO('en-US'),
+            ),
+        );
+        $neutralSecondId = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 602));
+
+        $page = $imageService->paginateForManagement(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 3),
+        );
+        $ids = [];
+        foreach ($page->data as $assignment) {
+            $ids[] = $assignment->id;
+        }
+
+        self::assertSame('business_order', $page->sortBy);
+        self::assertSame([$localizedId, $neutralId, $neutralSecondId], $ids);
+
+        $categorySortedPage = $imageService->paginateForManagement(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 3, sortBy: 'category_id'),
+        );
+        $categorySortedIds = [];
+        foreach ($categorySortedPage->data as $assignment) {
+            $categorySortedIds[] = $assignment->id;
+        }
+
+        self::assertSame('category_id', $categorySortedPage->sortBy);
+        self::assertSame([$neutralId, $localizedId, $neutralSecondId], $categorySortedIds);
     }
 
     public function testManagementReadsDistinguishNoScopeFilterFromExactNullScope(): void
     {
         $connection = $this->connection();
         $service = $this->commandService($connection);
-        $managementService = new CategoryManagementQueryService(new PdoCategoryManagementReadQuery($connection, new FixedCategoryClock()));
+        $imageService = $this->imageService($connection);
         $categoryId = $service->create(new CreateCategoryCommand('image-management-category'));
-        $neutral = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 500));
-        $neutralSecond = $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 501));
-        $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 502, 'en-US'));
-        $service->createImageAssignment(new CreateCategoryImageAssignmentCommand($categoryId, 503, null, 'web'));
+        $neutral = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 500));
+        $neutralSecond = $imageService->assign(new CreateCategoryImageAssignmentCommand($categoryId, 501));
+        $imageService->assign(new CreateCategoryImageAssignmentCommand(
+            $categoryId,
+            502,
+            new CategoryImageAssignmentScopeDTO('en-US'),
+        ));
+        $imageService->assign(new CreateCategoryImageAssignmentCommand(
+            $categoryId,
+            503,
+            new CategoryImageAssignmentScopeDTO(null, 'web'),
+        ));
 
         self::assertSame(
             4,
-            $managementService->listImageAssignments(
+            $imageService->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
             )->count(),
         );
         self::assertSame(
             [$neutral, $neutralSecond],
-            $this->ids($managementService->listImageAssignments(
+            $this->ids($imageService->listForManagement(
                 new CategoryImageAssignmentListCriteriaDTO(
                     categoryId: $categoryId,
                     scope: new CategoryImageAssignmentScopeDTO(),
@@ -326,7 +530,7 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
     }
 
     /** @return list<int> */
-    private function ids(\Maatify\Category\DTO\CategoryImageAssignmentCollectionDTO $assignments): array
+    private function ids(\Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollectionDTO $assignments): array
     {
         $ids = [];
         foreach ($assignments as $assignment) {
@@ -336,18 +540,38 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         return $ids;
     }
 
-    private function commandService(PDO $connection): CategoryCommandService
+    /** @param array<string, mixed> $row */
+    private function integerFromRow(array $row, string $key, int $default = 0): int
     {
-        return new CategoryCommandService(
-            new PdoCategoryCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryQueryReader($connection, new FixedCategoryClock()),
-            new PdoCategoryContentCommandRepository($connection),
-            new PdoCategoryImageAssignmentCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoCategoryContentFieldCommandRepository($connection, new ScopedOrderingManager()),
-            new PdoTransactionRunner($connection),
+        $value = $row[$key] ?? null;
+        if (is_int($value)) {
+            return $value;
+        }
+
+        return is_string($value) && ctype_digit($value) ? (int) $value : $default;
+    }
+
+    private function commandService(PDO $connection): CategoryApiInterface
+    {
+        return CategoryFactory::create(
+            $connection,
             new FixedCategoryClock('2026-01-01 00:00:00 Africa/Cairo'),
-            new PdoCategoryImageRoleCommandRepository($connection),
-        );
+        )->categories();
+    }
+
+    private function imageService(PDO $connection): ImageAssignmentApiInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock())->images();
+    }
+
+    private function roleService(PDO $connection): ImageRoleApiInterface
+    {
+        return CategoryFactory::create($connection, new FixedCategoryClock())->imageRoles();
+    }
+
+    private function queryReader(PDO $connection, FixedCategoryClock $clock): PdoCategoryImageAssignmentQueryReader
+    {
+        return new PdoCategoryImageAssignmentQueryReader($connection, $clock);
     }
 
     private function defaultCount(PDO $connection): int
