@@ -105,7 +105,7 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
             totalParams: $params,
             filteredCountSql: 'SELECT COUNT(*) ' . $this->contentFieldFrom() . $whereSql,
             filteredCountParams: $params,
-            dataSql: $this->contentFieldSelect() . $whereSql,
+            dataSql: $this->contentFieldPaginationSelect() . $whereSql,
             dataParams: $params,
         );
 
@@ -115,7 +115,7 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
             $pageRequest,
             new PaginationConfig(
                 sortWhitelist: new SortWhitelist([
-                    'category_id' => 'field.category_id',
+                    'category_id' => 'management_order',
                     'field_key' => 'field.field_key',
                     'display_order' => 'field.display_order',
                     'id' => 'field.id',
@@ -157,6 +157,18 @@ final readonly class PdoCategoryContentFieldManagementReadQuery extends PdoReadQ
     private function contentFieldFrom(): string
     {
         return 'FROM `' . self::CONTENT_FIELD_TABLE . '` AS `field`';
+    }
+
+    private function contentFieldPaginationSelect(): string
+    {
+        // The paginator's single default key is backed by the legacy four-column business ordering.
+        return 'SELECT `field`.`id`, `field`.`category_id`, `field`.`field_key`, '
+            . '`field`.`language_code`, `field`.`platform`, `field`.`format`, `field`.`value`, '
+            . '`field`.`display_order`, `field`.`ordering_scope`, `field`.`created_at`, '
+            . '`field`.`updated_at`, `field`.`deleted_at`, '
+            . 'ROW_NUMBER() OVER (ORDER BY `field`.`category_id` ASC, `field`.`ordering_scope` ASC, '
+            . '`field`.`display_order` ASC, `field`.`id` ASC) AS `management_order` '
+            . 'FROM `' . self::CONTENT_FIELD_TABLE . '` AS `field`';
     }
 
     /**

@@ -23,6 +23,7 @@ use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
 use PDO;
 
 final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -200,6 +201,44 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
         self::assertTrue(
             $fieldService->listVisibleForCategory($childId, new CategoryContentFieldScopeDTO('en-US', 'web'))->isEmpty(),
         );
+    }
+
+    public function testManagementPaginationPreservesExactScopeOrderingByDefault(): void
+    {
+        $service = $this->commandService($this->connection());
+        $fieldService = $this->fieldService($this->connection());
+        $categoryId = $service->create(new CreateCategoryCommand('field-pagination-category'));
+        $neutralId = $fieldService->create(
+            new CreateCategoryContentFieldCommand(
+                $categoryId,
+                'neutral',
+                null,
+                null,
+                CategoryContentFieldFormatEnum::TEXT,
+                'neutral',
+            ),
+        );
+        $localizedId = $fieldService->create(
+            new CreateCategoryContentFieldCommand(
+                $categoryId,
+                'localized',
+                'en-US',
+                null,
+                CategoryContentFieldFormatEnum::TEXT,
+                'localized',
+            ),
+        );
+
+        $page = $fieldService->paginateForManagement(
+            new CategoryContentFieldListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 2),
+        );
+        $ids = [];
+        foreach ($page->data as $field) {
+            $ids[] = $field->id;
+        }
+
+        self::assertSame([$localizedId, $neutralId], $ids);
     }
 
     /** @return list<int> */

@@ -110,6 +110,10 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         $firstId = $commandService->create(new CreateCategoryCommand('stage3-alpha'));
         $secondId = $commandService->create(new CreateCategoryCommand('stage3-beta'));
         $deletedId = $commandService->create(new CreateCategoryCommand('stage3-deleted'));
+        $literalPercentId = $commandService->create(new CreateCategoryCommand('literal%code'));
+        $percentWildcardId = $commandService->create(new CreateCategoryCommand('literalXcode'));
+        $literalUnderscoreId = $commandService->create(new CreateCategoryCommand('literal_code'));
+        $underscoreWildcardId = $commandService->create(new CreateCategoryCommand('literalYcode'));
         $this->setDisplayOrder($connection, $firstId, 1);
         $this->setDisplayOrder($connection, $secondId, 2);
         $this->setDisplayOrder($connection, $deletedId, 3);
@@ -125,7 +129,7 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
             new CategoryListCriteriaDTO(search: 'stage3-', deletedState: CategoryDeletedStateEnum::NON_DELETED),
             new PageRequest(page: 2, perPage: 1, sortBy: 'code', sortDirection: 'ASC'),
         );
-        self::assertSame(2, $page->total);
+        self::assertSame(6, $page->total);
         self::assertSame(2, $page->filtered);
         self::assertSame(2, $page->page);
         self::assertSame(2, $page->totalPages);
@@ -133,6 +137,22 @@ final class CategoryManagementQueryIntegrationTest extends CategoryMySqlIntegrat
         self::assertTrue($page->hasPrevious);
         self::assertCount(1, $page->data);
         self::assertSame($secondId, $page->data[0]->id);
+
+        $percentSearchPage = $commandService->paginateForManagement(
+            new CategoryListCriteriaDTO(search: 'literal%code'),
+            new PageRequest(perPage: 10),
+        );
+        self::assertSame(1, $percentSearchPage->filtered);
+        self::assertSame($literalPercentId, $percentSearchPage->data[0]->id);
+        self::assertNotSame($percentWildcardId, $percentSearchPage->data[0]->id);
+
+        $underscoreSearchPage = $commandService->paginateForManagement(
+            new CategoryListCriteriaDTO(search: 'literal_code'),
+            new PageRequest(perPage: 10),
+        );
+        self::assertSame(1, $underscoreSearchPage->filtered);
+        self::assertSame($literalUnderscoreId, $underscoreSearchPage->data[0]->id);
+        self::assertNotSame($underscoreWildcardId, $underscoreSearchPage->data[0]->id);
 
         $this->expectException(CategoryNotFoundException::class);
         $commandService->getByCode('stage3-deleted');

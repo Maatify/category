@@ -131,7 +131,7 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
             totalParams: $params,
             filteredCountSql: 'SELECT COUNT(*) ' . $this->imageAssignmentFrom() . $whereSql,
             filteredCountParams: $params,
-            dataSql: $this->imageAssignmentSelect() . $whereSql,
+            dataSql: $this->imageAssignmentPaginationSelect() . $whereSql,
             dataParams: $params,
         );
 
@@ -141,7 +141,7 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
             $pageRequest,
             new PaginationConfig(
                 sortWhitelist: new SortWhitelist([
-                    'category_id' => 'assignment.category_id',
+                    'category_id' => 'management_order',
                     'display_order' => 'assignment.display_order',
                     'media_asset_id' => 'assignment.media_asset_id',
                     'id' => 'assignment.id',
@@ -232,6 +232,21 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
     private function imageAssignmentFrom(): string
     {
         return 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
+    }
+
+    private function imageAssignmentPaginationSelect(): string
+    {
+        // The paginator's single default key is backed by the legacy four-column business ordering.
+        return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
+            . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
+            . '`assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`is_default`, `assignment`.`display_order`, '
+            . '`assignment`.`created_at`, `assignment`.`updated_at`, '
+            . '`assignment`.`deleted_at`, `assignment`.`ordering_scope`, '
+            . 'ROW_NUMBER() OVER (ORDER BY `assignment`.`category_id` ASC, '
+            . '`assignment`.`ordering_scope` ASC, `assignment`.`display_order` ASC, '
+            . '`assignment`.`id` ASC) AS `management_order` '
+            . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
     }
 
     /**

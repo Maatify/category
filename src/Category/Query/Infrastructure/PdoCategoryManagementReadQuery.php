@@ -215,8 +215,14 @@ final readonly class PdoCategoryManagementReadQuery extends PdoReadQuerySupport 
             return;
         }
 
-        $where[] = '`category`.`code` LIKE :category_search';
-        $params['category_search'] = '%' . trim($criteria->search) . '%';
+        $where[] = "`category`.`code` LIKE :category_search ESCAPE '\\\\'";
+        $search = trim($criteria->search);
+        $search = strtr($search, [
+            '\\' => '\\\\',
+            '%' => '\\%',
+            '_' => '\\_',
+        ]);
+        $params['category_search'] = '%' . $search . '%';
     }
 
     /** @param list<string> $where */

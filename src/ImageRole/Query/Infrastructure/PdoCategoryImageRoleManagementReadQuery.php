@@ -118,7 +118,7 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
             totalParams: $params,
             filteredCountSql: 'SELECT COUNT(*) ' . $this->imageRoleFrom() . $whereSql,
             filteredCountParams: $params,
-            dataSql: $this->imageRoleSelect() . $whereSql,
+            dataSql: $this->imageRolePaginationSelect() . $whereSql,
             dataParams: $params,
         );
 
@@ -128,7 +128,7 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
             $pageRequest,
             new PaginationConfig(
                 sortWhitelist: new SortWhitelist([
-                    'role_key' => 'role.role_key',
+                    'role_key' => 'binary_role_key',
                     'status' => 'role.status',
                     'id' => 'role.id',
                     'created_at' => 'role.created_at',
@@ -148,6 +148,15 @@ final readonly class PdoCategoryImageRoleManagementReadQuery extends PdoReadQuer
     private function imageRoleFrom(): string
     {
         return 'FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role`';
+    }
+
+    private function imageRolePaginationSelect(): string
+    {
+        // The paginator must retain the legacy binary collation for the public role_key sort.
+        return 'SELECT `role`.`id`, `role`.`role_key`, `role`.`status`, '
+            . '`role`.`created_at`, `role`.`updated_at`, `role`.`deleted_at`, '
+            . 'BINARY `role`.`role_key` AS `binary_role_key` '
+            . 'FROM `' . self::IMAGE_ROLE_TABLE . '` AS `role`';
     }
 
     /**

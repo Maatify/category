@@ -611,12 +611,16 @@ try {
     );
     $managementImagePage = $category->images()->paginateForManagement(
         new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
-        new PageRequest(page: 1, perPage: 2, sortBy: 'id', sortDirection: 'ASC'),
+        new PageRequest(page: 1, perPage: 4),
     );
     standalone_consumer_require(
         $managementImagePage->total === 4
         && $managementImagePage->filtered === 4
-        && count($managementImagePage->data) === 2,
+        && count($managementImagePage->data) === 4
+        && $managementImagePage->data[0]->id === $localizedImageAssignmentId
+        && $managementImagePage->data[1]->id === $roleImageAssignmentId
+        && $managementImagePage->data[2]->id === $secondImageAssignmentId
+        && $managementImagePage->data[3]->id === $imageAssignmentId,
         'Standalone management Image Assignment pagination returned the wrong result.',
     );
     standalone_consumer_require(
@@ -638,7 +642,7 @@ try {
     );
     $managementRolePage = $category->imageRoles()->paginateForManagement(
         new CategoryImageRoleListCriteriaDTO(status: CategoryImageRoleStatusEnum::ACTIVE),
-        new PageRequest(page: 1, perPage: 1, sortBy: 'role_key', sortDirection: 'ASC'),
+        new PageRequest(page: 1, perPage: 1),
     );
     standalone_consumer_require(
         $managementRolePage->total === 1
@@ -669,7 +673,7 @@ try {
             categoryId: $categoryId,
             scope: new CategoryContentFieldScopeDTO('en-US', 'web'),
         ),
-        new PageRequest(page: 1, perPage: 1, sortBy: 'field_key', sortDirection: 'ASC'),
+        new PageRequest(page: 1, perPage: 1),
     );
     standalone_consumer_require(
         $managementContentFieldPage->total === 1
