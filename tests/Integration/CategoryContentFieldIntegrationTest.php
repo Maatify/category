@@ -11,6 +11,7 @@ use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCom
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\ContentField\Query\DTO\CategoryContentFieldListCriteriaDTO;
@@ -19,6 +20,7 @@ use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ContentField\Mutation\Exception\CategoryContentFieldAlreadyExistsException;
+use Maatify\Category\ContentField\Exception\CategoryContentFieldNotFoundException;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\ContentField\Api\Contract\ContentFieldApiInterface;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
@@ -252,6 +254,43 @@ final class CategoryContentFieldIntegrationTest extends CategoryMySqlIntegration
 
         self::assertSame('category_id', $categorySortedPage->sortBy);
         self::assertSame([$neutralId, $localizedId], $categorySortedIds);
+    }
+
+    public function testContentFieldInlineValueMutationPreservesFormatAtomically(): void
+    {
+        $categoryService = $this->commandService($this->connection());
+        $fieldService = $this->fieldService($this->connection());
+        $categoryId = $categoryService->create(new CreateCategoryCommand('field-inline-category'));
+        $fieldId = $fieldService->create(
+            new CreateCategoryContentFieldCommand(
+                $categoryId,
+                'badge',
+                'en-US',
+                'web',
+                CategoryContentFieldFormatEnum::JSON,
+                '{"enabled":true}',
+            ),
+        );
+
+        $fieldService->updateValue(new UpdateCategoryContentFieldValueCommand($fieldId, '{"enabled":false}'));
+        $updated = $fieldService->getByIdForManagement($fieldId);
+        self::assertSame(CategoryContentFieldFormatEnum::JSON, $updated->format);
+        self::assertSame('{"enabled":false}', $updated->value);
+
+        try {
+            $fieldService->updateValue(new UpdateCategoryContentFieldValueCommand($fieldId, '{invalid'));
+            self::fail('The inline value operation must validate against the stored JSON format.');
+        } catch (CategoryInvalidArgumentException) {
+            self::addToAssertionCount(1);
+        }
+
+        $unchanged = $fieldService->getByIdForManagement($fieldId);
+        self::assertSame(CategoryContentFieldFormatEnum::JSON, $unchanged->format);
+        self::assertSame('{"enabled":false}', $unchanged->value);
+
+        $fieldService->softDelete(new SoftDeleteCategoryContentFieldCommand($fieldId));
+        $this->expectException(CategoryContentFieldNotFoundException::class);
+        $fieldService->updateValue(new UpdateCategoryContentFieldValueCommand($fieldId, '{"enabled":true}'));
     }
 
     /** @return list<int> */

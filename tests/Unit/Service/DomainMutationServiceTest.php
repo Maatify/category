@@ -24,6 +24,9 @@ use Maatify\Category\ImageAssignment\Lifecycle\Command\SoftDeleteCategoryImageAs
 use Maatify\Category\Ordering\Command\UpdateCategoryDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Command\UpdateCategoryStatusCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ImageAssignment\Ordering\Command\UpdateCategoryImageAssignmentDisplayOrderCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
@@ -314,6 +317,86 @@ final class DomainMutationServiceTest extends TestCase
         self::assertSame([21], $queryReader->lockedContentIds);
         self::assertFalse(property_exists(UpdateCategoryContentCommand::class, 'categoryId'));
         self::assertFalse(property_exists(UpdateCategoryContentCommand::class, 'languageCode'));
+    }
+
+    public function testContentInlineMutationsPreserveTheOtherContentField(): void
+    {
+        $content = new CategoryContentDTO(
+            id: 21,
+            categoryId: 5,
+            languageCode: 'en-US',
+            name: 'Shirts',
+            description: 'Original description',
+            createdAt: $this->createdAt(),
+            updatedAt: $this->createdAt(),
+            deletedAt: null,
+        );
+        $queryReader = new InMemoryCategoryQueryReader([$this->category(5, null)], [$content]);
+        $contentRepository = new InMemoryCategoryContentCommandRepository();
+        $transaction = new InMemoryCategoryTransaction();
+        $service = new ContentService(
+            $contentRepository,
+            $queryReader,
+            $queryReader,
+            $this->createStub(CategoryContentReadQueryInterface::class),
+            $this->createStub(CategoryContentManagementReadQueryInterface::class),
+            $transaction,
+            new FixedClock(),
+        );
+
+        $service->updateName(new UpdateCategoryContentNameCommand(21, 'T-Shirts'));
+        $service->updateDescription(new UpdateCategoryContentDescriptionCommand(21, null));
+
+        self::assertCount(2, $contentRepository->updates);
+        self::assertSame('T-Shirts', $contentRepository->updates[0]->name);
+        self::assertSame('Original description', $contentRepository->updates[0]->description);
+        self::assertSame('Shirts', $contentRepository->updates[1]->name);
+        self::assertNull($contentRepository->updates[1]->description);
+        self::assertSame([21, 21], $queryReader->lockedContentIds);
+        self::assertSame(2, $transaction->runs);
+    }
+
+    public function testContentFieldInlineValueMutationPreservesFormatAndUsesTheAtomicUpdateCommand(): void
+    {
+        $field = new CategoryContentFieldDTO(
+            id: 31,
+            categoryId: 5,
+            fieldKey: 'badge',
+            languageCode: null,
+            platform: null,
+            format: CategoryContentFieldFormatEnum::JSON,
+            value: '{"enabled":true}',
+            displayOrder: 1,
+            createdAt: $this->createdAt(),
+            updatedAt: $this->createdAt(),
+            deletedAt: null,
+        );
+        $queryReader = new InMemoryCategoryQueryReader(
+            [$this->category(5, null)],
+            [],
+            [],
+            [$field],
+        );
+        $fieldRepository = new InMemoryCategoryContentFieldCommandRepository();
+        $transaction = new InMemoryCategoryTransaction();
+        $service = new ContentFieldService(
+            $fieldRepository,
+            $queryReader,
+            $queryReader,
+            $this->createStub(CategoryContentFieldReadQueryInterface::class),
+            $this->createStub(CategoryContentFieldManagementReadQueryInterface::class),
+            $transaction,
+            new FixedClock(),
+        );
+
+        $service->updateValue(new UpdateCategoryContentFieldValueCommand(31, '{"enabled":false}'));
+
+        self::assertNotNull($fieldRepository->updated);
+        self::assertSame(31, $fieldRepository->updated->fieldId);
+        self::assertSame(CategoryContentFieldFormatEnum::JSON, $fieldRepository->updated->format);
+        self::assertSame('{"enabled":false}', $fieldRepository->updated->value);
+        self::assertSame([31], $queryReader->lockedContentFieldIds);
+        self::assertSame(1, $transaction->runs);
     }
 
     public function testContentLifecycleUsesTypedOperationsAndPreservesIdentity(): void

@@ -16,6 +16,8 @@ final class InMemoryCategoryContentCommandRepository implements CategoryContentC
 {
     public ?CreateCategoryContentCommand $created = null;
     public ?UpdateCategoryContentCommand $updated = null;
+    /** @var list<UpdateCategoryContentCommand> */
+    public array $updates = [];
     public ?SoftDeleteCategoryContentCommand $softDeleted = null;
     public ?RestoreCategoryContentCommand $restored = null;
 
@@ -29,6 +31,7 @@ final class InMemoryCategoryContentCommandRepository implements CategoryContentC
     public function update(UpdateCategoryContentCommand $command, DateTimeImmutable $occurredAt): bool
     {
         $this->updated = $command;
+        $this->updates[] = $command;
 
         return true;
     }

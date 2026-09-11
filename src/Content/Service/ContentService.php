@@ -13,6 +13,8 @@ use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
@@ -55,6 +57,36 @@ final readonly class ContentService implements ContentServiceInterface
             $this->requireActiveContentForUpdate($command->contentId);
 
             if (!$this->commandRepository->update($command, $this->clock->now())) {
+                throw CategoryContentNotFoundException::withId($command->contentId);
+            }
+        });
+    }
+
+    public function updateName(UpdateCategoryContentNameCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $content = $this->requireActiveContentForUpdate($command->contentId);
+            $updated = $this->commandRepository->update(
+                new UpdateCategoryContentCommand($content->id, $command->name, $content->description),
+                $this->clock->now(),
+            );
+
+            if (!$updated) {
+                throw CategoryContentNotFoundException::withId($command->contentId);
+            }
+        });
+    }
+
+    public function updateDescription(UpdateCategoryContentDescriptionCommand $command): void
+    {
+        $this->transaction->run(function () use ($command): void {
+            $content = $this->requireActiveContentForUpdate($command->contentId);
+            $updated = $this->commandRepository->update(
+                new UpdateCategoryContentCommand($content->id, $content->name, $command->description),
+                $this->clock->now(),
+            );
+
+            if (!$updated) {
                 throw CategoryContentNotFoundException::withId($command->contentId);
             }
         });

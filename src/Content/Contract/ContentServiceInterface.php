@@ -9,6 +9,8 @@ use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
@@ -22,6 +24,10 @@ interface ContentServiceInterface
     public function create(CreateCategoryContentCommand $command): int;
 
     public function update(UpdateCategoryContentCommand $command): void;
+
+    public function updateName(UpdateCategoryContentNameCommand $command): void;
+
+    public function updateDescription(UpdateCategoryContentDescriptionCommand $command): void;
 
     public function softDelete(SoftDeleteCategoryContentCommand $command): void;
 

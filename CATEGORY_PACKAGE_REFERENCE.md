@@ -168,6 +168,8 @@ The immutable record DTOs are:
 - `UpdateCategoryDisplayOrderCommand`
 - `CreateCategoryContentCommand`
 - `UpdateCategoryContentCommand`
+- `UpdateCategoryContentNameCommand`
+- `UpdateCategoryContentDescriptionCommand`
 - `SoftDeleteCategoryContentCommand`
 - `RestoreCategoryContentCommand`
 - `CreateCategoryImageRoleCommand`
@@ -182,6 +184,7 @@ The immutable record DTOs are:
 - `RestoreCategoryImageAssignmentCommand`
 - `CreateCategoryContentFieldCommand`
 - `UpdateCategoryContentFieldCommand`
+- `UpdateCategoryContentFieldValueCommand`
 - `UpdateCategoryContentFieldDisplayOrderCommand`
 - `SoftDeleteCategoryContentFieldCommand`
 - `RestoreCategoryContentFieldCommand`
@@ -194,12 +197,16 @@ their backing values.
 Commands and DTOs validate their input/domain invariants. `CategoryDTO`,
 `CategoryContentDTO`, `CategoryImageAssignmentDTO`, and
 `CategoryContentFieldDTO` require canonical positive identities. A Category
-cannot use itself as its parent. `UpdateCategoryContentCommand` accepts only
-  content fields, preserving the logical identity
-`(category_id, language_code)`. Category mutation Commands do not expose `code`, so
-the stable Category code remains immutable after creation. Content Field update
-commands accept only format/value or display order, preserving the field's
-immutable identity.
+cannot use itself as its parent. `UpdateCategoryContentCommand` is the full-form
+Content update. The typed `UpdateCategoryContentNameCommand` and
+`UpdateCategoryContentDescriptionCommand` support independent inline edits while
+preserving the other Content field and the logical identity
+`(category_id, language_code)`. Category mutation Commands do not expose `code`,
+so the stable Category code remains immutable after creation.
+`UpdateCategoryContentFieldCommand` is the atomic full-form `format`/`value`
+update; `UpdateCategoryContentFieldValueCommand` supports an inline value edit
+by preserving the current format and delegating both fields through that same
+atomic update. No generic or string-based field update exists.
 
 ### Services and contracts
 
@@ -272,6 +279,8 @@ RestoreCategoryCommand(string|int $categoryId)
 
 CreateCategoryContentCommand(string|int $categoryId, ?string $languageCode, string $name, ?string $description)
 UpdateCategoryContentCommand(string|int $contentId, string $name, ?string $description)
+UpdateCategoryContentNameCommand(string|int $contentId, string $name)
+UpdateCategoryContentDescriptionCommand(string|int $contentId, ?string $description)
 SoftDeleteCategoryContentCommand(string|int $contentId)
 RestoreCategoryContentCommand(string|int $contentId)
 
@@ -300,6 +309,7 @@ CreateCategoryContentFieldCommand(string|int $categoryId, string $fieldKey,
 UpdateCategoryContentFieldCommand(string|int $fieldId,
                                   CategoryContentFieldFormatEnum $format,
                                   string $value)
+UpdateCategoryContentFieldValueCommand(string|int $fieldId, string $value)
 UpdateCategoryContentFieldDisplayOrderCommand(string|int $fieldId,
                                               int $displayOrder)
 SoftDeleteCategoryContentFieldCommand(string|int $fieldId)
@@ -423,6 +433,8 @@ CategoryApiInterface [Maatify\Category\Api; src/Category/Api]
 ContentApiInterface
   create(CreateCategoryContentCommand): int
   update(UpdateCategoryContentCommand): void
+  updateName(UpdateCategoryContentNameCommand): void
+  updateDescription(UpdateCategoryContentDescriptionCommand): void
   softDelete(SoftDeleteCategoryContentCommand): void
   restore(RestoreCategoryContentCommand): void
   listVisibleForCategory(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
@@ -433,6 +445,7 @@ ContentApiInterface
 ContentFieldApiInterface
   create(CreateCategoryContentFieldCommand): int
   update(UpdateCategoryContentFieldCommand): void
+  updateValue(UpdateCategoryContentFieldValueCommand): void
   updateDisplayOrder(UpdateCategoryContentFieldDisplayOrderCommand): void
   softDelete(SoftDeleteCategoryContentFieldCommand): void
   restore(RestoreCategoryContentFieldCommand): void
@@ -728,7 +741,10 @@ ancestor path to be active and non-deleted.
 - Category `code` is immutable and unique among all stored identities.
 - Category Content logical identity `(category_id, language_code)` is
   immutable and unique, including the database-enforced single NULL-language
-  identity per Category.
+  identity per Category. Full-form updates change `name` and `description`
+  together; typed `updateName()` and `updateDescription()` operations preserve
+  the other field by locking the current row and delegating the same full-form
+  write.
 - Content creation rejects an existing identity, including a soft-deleted
   row; restoration reuses that same identity.
 - Parent movement rejects direct self-parenting and every indirect cycle,
@@ -755,6 +771,10 @@ ancestor path to be active and non-deleted.
 - Content Field formats are exact lowercase `text`, `html`, and `json`; declared JSON values
   must be syntactically valid, while Host HTML/semantic validation is outside
   the package.
+- Content Field full-form updates change `format` and `value` atomically. The
+  typed `updateValue()` operation preserves the current format and uses that
+  same atomic update, so no independent format/value mutation can violate the
+  format invariant.
 - Content Field ordering is independent per Category and exact scope, uses
   explicit reorder commands, and is stable across soft delete/restore.
 - Restore reuses the same Category, Content, Image Role, Image Assignment, or

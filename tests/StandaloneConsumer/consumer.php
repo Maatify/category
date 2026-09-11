@@ -12,10 +12,13 @@ use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\RestoreCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\SoftDeleteCategoryContentCommand;
 use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\RestoreCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\SoftDeleteCategoryContentFieldCommand;
 use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ContentField\Ordering\Command\UpdateCategoryContentFieldDisplayOrderCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\ImageAssignment\Lifecycle\Command\RestoreCategoryImageAssignmentCommand;
@@ -403,6 +406,12 @@ try {
     $category->contents()->update(
         new UpdateCategoryContentCommand($localizedContentId, 'Standalone Category English Updated', null),
     );
+    $category->contents()->updateName(
+        new UpdateCategoryContentNameCommand($localizedContentId, 'Standalone Category English Inline'),
+    );
+    $category->contents()->updateDescription(
+        new UpdateCategoryContentDescriptionCommand($localizedContentId, 'Standalone inline description'),
+    );
     $category->contents()->softDelete(new SoftDeleteCategoryContentCommand($localizedContentId));
     $category->contents()->restore(new RestoreCategoryContentCommand($localizedContentId));
     $category->images()->updateDisplayOrder(
@@ -424,6 +433,9 @@ try {
             CategoryContentFieldFormatEnum::JSON,
             '{"enabled":false}',
         ),
+    );
+    $category->contentFields()->updateValue(
+        new UpdateCategoryContentFieldValueCommand($contentFieldId, '{"enabled":true}'),
     );
     $category->contentFields()->updateDisplayOrder(
         new UpdateCategoryContentFieldDisplayOrderCommand($contentFieldId, 2),
@@ -698,6 +710,10 @@ try {
         && $managementContentField->fieldKey === 'badge_config'
         && $managementContentField->format === CategoryContentFieldFormatEnum::JSON,
         'Standalone management read service returned the wrong Content Field.',
+    );
+    standalone_consumer_require(
+        $managementContentField->value === '{"enabled":true}',
+        'Standalone Content Field inline value mutation returned the wrong value.',
     );
     standalone_consumer_require(
         $category->contentFields()->listForManagement(

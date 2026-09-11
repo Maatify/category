@@ -26,8 +26,11 @@ use Maatify\Category\ImageRole\Contract\ImageRoleServiceInterface;
 use Maatify\Category\Lifecycle\Command\CreateCategoryCommand;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Content\Mutation\Command\CreateCategoryContentCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentDescriptionCommand;
+use Maatify\Category\Content\Mutation\Command\UpdateCategoryContentNameCommand;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\ContentField\Mutation\Command\CreateCategoryContentFieldCommand;
+use Maatify\Category\ContentField\Mutation\Command\UpdateCategoryContentFieldValueCommand;
 use Maatify\Category\ImageAssignment\Assignment\Command\CreateCategoryImageAssignmentCommand;
 use Maatify\Category\ImageRole\Lifecycle\Command\CreateCategoryImageRoleCommand;
 use Maatify\SharedCommon\Contracts\ClockInterface;
@@ -139,6 +142,28 @@ final class CategoryCompositionTest extends TestCase
 
         self::assertSame($category, $api->getByCode('category'));
         self::assertSame($page, $api->paginateForManagement($criteria, $pageRequest));
+    }
+
+    public function testDomainApisRouteInlineMutationsToTheirOwnServices(): void
+    {
+        $contentService = $this->createMock(ContentServiceInterface::class);
+        $contentService->expects(self::once())
+            ->method('updateName')
+            ->with(new UpdateCategoryContentNameCommand(11, 'Updated name'));
+        $contentService->expects(self::once())
+            ->method('updateDescription')
+            ->with(new UpdateCategoryContentDescriptionCommand(11, null));
+        $contentApi = new ContentApi($contentService);
+        $contentApi->updateName(new UpdateCategoryContentNameCommand(11, 'Updated name'));
+        $contentApi->updateDescription(new UpdateCategoryContentDescriptionCommand(11, null));
+
+        $fieldService = $this->createMock(ContentFieldServiceInterface::class);
+        $fieldService->expects(self::once())
+            ->method('updateValue')
+            ->with(new UpdateCategoryContentFieldValueCommand(17, 'Updated value'));
+        (new ContentFieldApi($fieldService))->updateValue(
+            new UpdateCategoryContentFieldValueCommand(17, 'Updated value'),
+        );
     }
 
     public function testEachDomainApiContractExposesExactlyItsDomainServiceOperations(): void
