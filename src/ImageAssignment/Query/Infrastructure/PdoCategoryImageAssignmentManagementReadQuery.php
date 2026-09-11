@@ -12,6 +12,13 @@ use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentCollection
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentDTO;
 use Maatify\Category\ImageAssignment\Query\DTO\CategoryImageAssignmentListCriteriaDTO;
 use Maatify\Category\ImageAssignment\Query\Enum\CategoryImageAssignmentRoleFilterModeEnum;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\PaginationConfig;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginationQueryDescriptor;
+use Maatify\Persistence\Pdo\Pagination\PdoPaginator;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
+use Maatify\Persistence\Pdo\Pagination\SortWhitelist;
 use Maatify\SharedCommon\Contracts\ClockInterface;
 use PDO;
 
@@ -20,10 +27,14 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
 {
     private const IMAGE_ASSIGNMENT_TABLE = 'maa_category_category_image_assignments';
 
+    private PdoPaginator $paginator;
+
     public function __construct(
         private PDO $pdo,
         private ClockInterface $clock,
-    ) {}
+    ) {
+        $this->paginator = new PdoPaginator();
+    }
 
     public function findImageAssignmentById(
         int $assignmentId,
@@ -103,6 +114,140 @@ final readonly class PdoCategoryImageAssignmentManagementReadQuery extends PdoRe
 
         /** @var list<CategoryImageAssignmentDTO> $items */
         return new CategoryImageAssignmentCollectionDTO($items);
+    }
+
+    /** @return PageResult<CategoryImageAssignmentDTO> */
+    public function paginateImageAssignments(
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        $where = [];
+        /** @var array<string, int|string> $params */
+        $params = [];
+        $this->appendCriteria($where, $params, $criteria);
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+        $descriptor = new PdoPaginationQueryDescriptor(
+            totalSql: 'SELECT COUNT(*) ' . $this->imageAssignmentFrom() . $whereSql,
+            totalParams: $params,
+            filteredCountSql: 'SELECT COUNT(*) ' . $this->imageAssignmentFrom() . $whereSql,
+            filteredCountParams: $params,
+            dataSql: $this->imageAssignmentPaginationSelect() . $whereSql,
+            dataParams: $params,
+        );
+
+        return $this->paginator->paginate(
+            $this->pdo,
+            $descriptor,
+            $pageRequest,
+            new PaginationConfig(
+                sortWhitelist: new SortWhitelist([
+                    'business_order' => 'management_order',
+                    'category_id' => 'assignment.category_id',
+                    'display_order' => 'assignment.display_order',
+                    'media_asset_id' => 'assignment.media_asset_id',
+                    'id' => 'assignment.id',
+                    'created_at' => 'assignment.created_at',
+                ]),
+                defaultSortBy: 'business_order',
+                defaultSortDirection: SortDirectionEnum::ASC,
+                tieBreakerSortBy: 'id',
+                tieBreakerDirection: SortDirectionEnum::ASC,
+                defaultPerPage: 20,
+                minPerPage: 1,
+                maxPerPage: 100,
+            ),
+            fn (array $row): CategoryImageAssignmentDTO => $this->hydrateAssignment($row),
+        );
+    }
+
+    /**
+     * @param list<string> $where
+     * @param array<string, int|string> $params
+     */
+    private function appendCriteria(
+        array &$where,
+        array &$params,
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): void {
+        if ($criteria->categoryId !== null) {
+            $where[] = '`assignment`.`category_id` = :image_category_id';
+            $params['image_category_id'] = $criteria->categoryId;
+        }
+        $this->appendDeletedStateFilter($where, $params, $criteria->deletedState, 'assignment');
+        $this->appendScopeFilter($where, $params, $criteria);
+        $this->appendRoleFilter($where, $params, $criteria);
+    }
+
+    /**
+     * @param list<string> $where
+     * @param array<string, int|string> $params
+     */
+    private function appendScopeFilter(
+        array &$where,
+        array &$params,
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): void {
+        if ($criteria->scope === null) {
+            return;
+        }
+        if ($criteria->scope->languageCode === null) {
+            $where[] = '`assignment`.`language_code` IS NULL';
+        } else {
+            $where[] = '`assignment`.`language_code` = :image_language_code';
+            $params['image_language_code'] = $criteria->scope->languageCode;
+        }
+        if ($criteria->scope->platform === null) {
+            $where[] = '`assignment`.`platform` IS NULL';
+        } else {
+            $where[] = '`assignment`.`platform` = :image_platform';
+            $params['image_platform'] = $criteria->scope->platform;
+        }
+    }
+
+    /**
+     * @param list<string> $where
+     * @param array<string, int|string> $params
+     */
+    private function appendRoleFilter(
+        array &$where,
+        array &$params,
+        CategoryImageAssignmentListCriteriaDTO $criteria,
+    ): void {
+        switch ($criteria->roleFilter->mode) {
+            case CategoryImageAssignmentRoleFilterModeEnum::OMITTED:
+                return;
+            case CategoryImageAssignmentRoleFilterModeEnum::EXACT_NULL:
+                $where[] = '`assignment`.`role_id` IS NULL';
+                return;
+            case CategoryImageAssignmentRoleFilterModeEnum::CONCRETE:
+                $roleId = $criteria->roleFilter->roleId;
+                if ($roleId === null) {
+                    throw CategoryInvalidArgumentException::invalidId('roleId');
+                }
+                $where[] = '`assignment`.`role_id` = :image_role_id';
+                $params['image_role_id'] = $roleId;
+                return;
+        }
+    }
+
+    private function imageAssignmentFrom(): string
+    {
+        return 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
+    }
+
+    private function imageAssignmentPaginationSelect(): string
+    {
+        // The paginator's single default key is backed by the legacy four-column business ordering.
+        return 'SELECT `assignment`.`id`, `assignment`.`category_id`, '
+            . '`assignment`.`media_asset_id`, `assignment`.`role_id`, '
+            . '`assignment`.`language_code`, `assignment`.`platform`, '
+            . '`assignment`.`is_default`, `assignment`.`display_order`, '
+            . '`assignment`.`created_at`, `assignment`.`updated_at`, '
+            . '`assignment`.`deleted_at`, `assignment`.`ordering_scope`, '
+            . 'ROW_NUMBER() OVER (ORDER BY `assignment`.`category_id` ASC, '
+            . '`assignment`.`ordering_scope` ASC, `assignment`.`display_order` ASC, '
+            . '`assignment`.`id` ASC) AS `management_order` '
+            . 'FROM `' . self::IMAGE_ASSIGNMENT_TABLE . '` AS `assignment`';
     }
 
     /**

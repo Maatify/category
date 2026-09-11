@@ -29,6 +29,7 @@ use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\ImageAssignment\Query\Infrastructure\PdoCategoryImageAssignmentQueryReader;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
 use PDO;
 
 final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -284,6 +285,43 @@ final class CategoryImageAssignmentIntegrationTest extends CategoryMySqlIntegrat
         self::assertTrue(
             $imageService->listVisibleForCategory($childId, new CategoryImageAssignmentScopeDTO('en-US', 'web'))->isEmpty(),
         );
+    }
+
+    public function testManagementPaginationPreservesExactScopeOrderingByDefault(): void
+    {
+        $connection = $this->connection();
+        $service = $this->commandService($connection);
+        $imageService = $this->imageService($connection);
+        $categoryId = $service->create(new CreateCategoryCommand('image-pagination-category'));
+        $neutralId = $imageService->create(new CreateCategoryImageAssignmentCommand($categoryId, 600));
+        $localizedId = $imageService->create(
+            new CreateCategoryImageAssignmentCommand($categoryId, 601, 'en-US'),
+        );
+        $neutralSecondId = $imageService->create(new CreateCategoryImageAssignmentCommand($categoryId, 602));
+
+        $page = $imageService->paginateForManagement(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 3),
+        );
+        $ids = [];
+        foreach ($page->data as $assignment) {
+            $ids[] = $assignment->id;
+        }
+
+        self::assertSame('business_order', $page->sortBy);
+        self::assertSame([$localizedId, $neutralId, $neutralSecondId], $ids);
+
+        $categorySortedPage = $imageService->paginateForManagement(
+            new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+            new PageRequest(perPage: 3, sortBy: 'category_id'),
+        );
+        $categorySortedIds = [];
+        foreach ($categorySortedPage->data as $assignment) {
+            $categorySortedIds[] = $assignment->id;
+        }
+
+        self::assertSame('category_id', $categorySortedPage->sortBy);
+        self::assertSame([$neutralId, $localizedId, $neutralSecondId], $categorySortedIds);
     }
 
     public function testManagementReadsDistinguishNoScopeFilterFromExactNullScope(): void

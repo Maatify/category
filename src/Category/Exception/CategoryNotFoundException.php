@@ -14,4 +14,9 @@ final class CategoryNotFoundException extends ResourceNotFoundMaatifyException
     {
         return new self(sprintf('Category with id %d was not found.', $categoryId));
     }
+
+    public static function withCode(string $code): self
+    {
+        return new self(sprintf('Category with code "%s" was not found.', $code));
+    }
 }

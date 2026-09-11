@@ -6,6 +6,7 @@ namespace Maatify\Category\Service;
 
 use Maatify\Category\Common\DTO\CategoryIdDTO;
 use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
+use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Contract\CategoryCommandRepositoryInterface;
 use Maatify\Category\Contract\CategoryServiceInterface;
 use Maatify\Category\Exception\CategoryNotFoundException;
@@ -27,6 +28,8 @@ use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
 use Maatify\Persistence\Pdo\Transaction\TransactionRunnerInterface;
 use Maatify\SharedCommon\Contracts\ClockInterface;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /**
  * Coordinates Category business rules and consumes Host-provided mutation time.
@@ -166,6 +169,25 @@ final readonly class CategoryService implements CategoryServiceInterface
         return $category;
     }
 
+    public function getByCode(
+        string $code,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryDTO {
+        if (trim($code) === '') {
+            throw CategoryInvalidArgumentException::emptyField('code');
+        }
+        if (mb_strlen($code) > 100) {
+            throw CategoryInvalidArgumentException::fieldTooLong('code', 100);
+        }
+
+        $category = $this->managementReader->findByCode($code, $deletedState);
+        if ($category === null) {
+            throw CategoryNotFoundException::withCode($code);
+        }
+
+        return $category;
+    }
+
     public function listForManagement(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO
     {
         return $this->managementReader->listCategories($criteria);
@@ -181,6 +203,30 @@ final readonly class CategoryService implements CategoryServiceInterface
         $id = (new CategoryIdDTO($parentId, 'parentId'))->value;
 
         return $this->managementReader->listChildren($id, $criteria);
+    }
+
+    public function paginateForManagement(
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->managementReader->paginateCategories($criteria, $pageRequest);
+    }
+
+    public function paginateRootCategoriesForManagement(
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        return $this->managementReader->paginateRootCategories($criteria, $pageRequest);
+    }
+
+    public function paginateChildrenForManagement(
+        int $parentId,
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult {
+        $id = (new CategoryIdDTO($parentId, 'parentId'))->value;
+
+        return $this->managementReader->paginateChildren($id, $criteria, $pageRequest);
     }
 
     private function requireActiveCategoryForUpdate(int $categoryId): CategoryDTO

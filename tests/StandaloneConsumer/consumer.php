@@ -40,6 +40,7 @@ use Maatify\Category\ContentField\CategoryContentFieldFormatEnum;
 use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\ImageRole\Lifecycle\Enum\CategoryImageRoleStatusEnum;
 use Maatify\Category\Factory\CategoryFactory;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
 use Maatify\SharedCommon\Infrastructure\SystemClock;
 
 /** @return never */
@@ -521,6 +522,24 @@ try {
         $managementCategory->id === $categoryId,
         'Standalone management read service returned the wrong Category.',
     );
+    standalone_consumer_require(
+        $category->categories()->getByCode('standalone-consumer-category')->id === $categoryId,
+        'Standalone management code lookup returned the wrong Category.',
+    );
+    $managementCategoryPage = $category->categories()->paginateForManagement(
+        new CategoryListCriteriaDTO(
+            deletedState: CategoryDeletedStateEnum::NON_DELETED,
+            search: 'standalone-consumer-category',
+        ),
+        new PageRequest(page: 1, perPage: 1, sortBy: 'code', sortDirection: 'ASC'),
+    );
+    standalone_consumer_require(
+        $managementCategoryPage->total === 1
+        && $managementCategoryPage->filtered === 1
+        && count($managementCategoryPage->data) === 1
+        && $managementCategoryPage->data[0]->id === $categoryId,
+        'Standalone management Category pagination/search returned the wrong result.',
+    );
     $managementCategories = $category->categories()->listForManagement(
         new CategoryListCriteriaDTO(
             status: CategoryStatusEnum::ACTIVE,
@@ -539,6 +558,32 @@ try {
     standalone_consumer_require(
         $category->categories()->listChildrenForManagement($categoryId, new CategoryListCriteriaDTO(maxResults: 10))->count() === 0,
         'Standalone management child list returned an unexpected Category.',
+    );
+    $managementRootPage = $category->categories()->paginateRootCategoriesForManagement(
+        new CategoryListCriteriaDTO(
+            status: CategoryStatusEnum::ACTIVE,
+            deletedState: CategoryDeletedStateEnum::NON_DELETED,
+        ),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementRootPage->total === 1
+        && $managementRootPage->filtered === 1
+        && count($managementRootPage->data) === 1
+        && $managementRootPage->data[0]->id === $categoryId,
+        'Standalone management root pagination returned the wrong result.',
+    );
+    $managementDeletedChildPage = $category->categories()->paginateChildrenForManagement(
+        $categoryId,
+        new CategoryListCriteriaDTO(deletedState: CategoryDeletedStateEnum::DELETED_ONLY),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementDeletedChildPage->total === 1
+        && $managementDeletedChildPage->filtered === 1
+        && count($managementDeletedChildPage->data) === 1
+        && $managementDeletedChildPage->data[0]->id === $temporaryCategoryId,
+        'Standalone management child pagination returned the wrong result.',
     );
     $managementContent = $category->contents()->getByIdForManagement(
         $contentId,
@@ -562,6 +607,17 @@ try {
         )->count() === 2,
         'Standalone management Content list did not return both Content records.',
     );
+    $managementContentPage = $category->contents()->paginateForManagement(
+        new CategoryContentListCriteriaDTO(categoryId: $categoryId),
+        new PageRequest(page: 1, perPage: 1, sortBy: 'language_code', sortDirection: 'ASC'),
+    );
+    standalone_consumer_require(
+        $managementContentPage->total === 2
+        && $managementContentPage->filtered === 2
+        && count($managementContentPage->data) === 1
+        && $managementContentPage->data[0]->id === $contentId,
+        'Standalone management Content pagination returned the wrong result.',
+    );
     standalone_consumer_require(
         $category->images()->getByIdForManagement($imageAssignmentId)->id === $imageAssignmentId,
         'Standalone management read service returned the wrong Image Assignment.',
@@ -578,6 +634,35 @@ try {
             new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
         )->count() === 4,
         'Standalone management Image Assignment list did not return all scopes.',
+    );
+    $managementImagePage = $category->images()->paginateForManagement(
+        new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+        new PageRequest(page: 1, perPage: 4),
+    );
+    standalone_consumer_require(
+        $managementImagePage->total === 4
+        && $managementImagePage->filtered === 4
+        && count($managementImagePage->data) === 4
+        && $managementImagePage->data[0]->id === $localizedImageAssignmentId
+        && $managementImagePage->data[1]->id === $roleImageAssignmentId
+        && $managementImagePage->data[2]->id === $secondImageAssignmentId
+        && $managementImagePage->data[3]->id === $imageAssignmentId,
+        'Standalone management Image Assignment pagination returned the wrong result.',
+    );
+    $managementImageCategoryPage = $category->images()->paginateForManagement(
+        new CategoryImageAssignmentListCriteriaDTO(categoryId: $categoryId),
+        new PageRequest(page: 1, perPage: 4, sortBy: 'category_id'),
+    );
+    standalone_consumer_require(
+        $managementImageCategoryPage->sortBy === 'category_id'
+        && $managementImageCategoryPage->total === 4
+        && $managementImageCategoryPage->filtered === 4
+        && count($managementImageCategoryPage->data) === 4
+        && $managementImageCategoryPage->data[0]->id === $imageAssignmentId
+        && $managementImageCategoryPage->data[1]->id === $secondImageAssignmentId
+        && $managementImageCategoryPage->data[2]->id === $localizedImageAssignmentId
+        && $managementImageCategoryPage->data[3]->id === $roleImageAssignmentId,
+        'Standalone category_id Image Assignment pagination returned the wrong result.',
     );
     standalone_consumer_require(
         $category->imageRoles()->getByIdForManagement($imageRoleId)->roleKey === 'gallery',
@@ -596,6 +681,17 @@ try {
         )->count() === 1,
         'Standalone management Role list did not return the stored Role.',
     );
+    $managementRolePage = $category->imageRoles()->paginateForManagement(
+        new CategoryImageRoleListCriteriaDTO(status: CategoryImageRoleStatusEnum::ACTIVE),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementRolePage->total === 1
+        && $managementRolePage->filtered === 1
+        && count($managementRolePage->data) === 1
+        && $managementRolePage->data[0]->id === $imageRoleId,
+        'Standalone management Role pagination returned the wrong result.',
+    );
     $managementContentField = $category->contentFields()->getByIdForManagement($contentFieldId);
     standalone_consumer_require(
         $managementContentField->id === $contentFieldId
@@ -612,6 +708,20 @@ try {
             ),
         )->count() === 1,
         'Standalone management Content Field list did not return the exact scope.',
+    );
+    $managementContentFieldPage = $category->contentFields()->paginateForManagement(
+        new CategoryContentFieldListCriteriaDTO(
+            categoryId: $categoryId,
+            scope: new CategoryContentFieldScopeDTO('en-US', 'web'),
+        ),
+        new PageRequest(page: 1, perPage: 1),
+    );
+    standalone_consumer_require(
+        $managementContentFieldPage->total === 1
+        && $managementContentFieldPage->filtered === 1
+        && count($managementContentFieldPage->data) === 1
+        && $managementContentFieldPage->data[0]->id === $contentFieldId,
+        'Standalone management Content Field pagination returned the wrong result.',
     );
     $category->categories()->updateStatus(
         new UpdateCategoryStatusCommand($categoryId, CategoryStatusEnum::INACTIVE),

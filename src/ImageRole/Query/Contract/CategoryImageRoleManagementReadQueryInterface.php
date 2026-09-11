@@ -8,6 +8,8 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\ImageRole\CategoryImageRoleDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleCollectionDTO;
 use Maatify\Category\ImageRole\Query\DTO\CategoryImageRoleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Dedicated management read port for Image Roles. */
 interface CategoryImageRoleManagementReadQueryInterface
@@ -23,4 +25,7 @@ interface CategoryImageRoleManagementReadQueryInterface
     ): ?CategoryImageRoleDTO;
 
     public function listImageRoles(CategoryImageRoleListCriteriaDTO $criteria): CategoryImageRoleCollectionDTO;
+
+    /** @return PageResult<CategoryImageRoleDTO> */
+    public function paginateImageRoles(CategoryImageRoleListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult;
 }

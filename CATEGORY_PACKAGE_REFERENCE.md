@@ -355,7 +355,8 @@ CategoryImageAssignmentCollectionDTO(array $items)
 CategoryContentFieldCollectionDTO(array $items)
 CategoryListCriteriaDTO(?CategoryStatusEnum $status = null,
                         CategoryDeletedStateEnum $deletedState = NON_DELETED,
-                        int $maxResults = 100)
+                        int $maxResults = 100,
+                        ?string $search = null)
 CategoryContentListCriteriaDTO(?int $categoryId = null,
                                    CategoryDeletedStateEnum $deletedState = NON_DELETED,
                                    int $maxResults = 100)
@@ -411,9 +412,13 @@ CategoryApiInterface [Maatify\Category\Api; src/Category/Api]
   listRootCategories(CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   listChildren(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryCollectionDTO
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
+  getByCode(string, CategoryDeletedStateEnum = NON_DELETED): CategoryDTO
   listForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategoriesForManagement(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildrenForManagement(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  paginateForManagement(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateRootCategoriesForManagement(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateChildrenForManagement(int, CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
 
 ContentApiInterface
   create(CreateCategoryContentCommand): int
@@ -423,6 +428,7 @@ ContentApiInterface
   listVisibleForCategory(int, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentCollectionDTO
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentDTO
   listForManagement(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  paginateForManagement(CategoryContentListCriteriaDTO, PageRequest): PageResult<CategoryContentDTO>
 
 ContentFieldApiInterface
   create(CreateCategoryContentFieldCommand): int
@@ -433,6 +439,7 @@ ContentFieldApiInterface
   listVisibleForCategory(int, CategoryContentFieldScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryContentFieldCollectionDTO
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryContentFieldDTO
   listForManagement(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+  paginateForManagement(CategoryContentFieldListCriteriaDTO, PageRequest): PageResult<CategoryContentFieldDTO>
 
 ImageRoleApiInterface
   create(CreateCategoryImageRoleCommand): int
@@ -442,6 +449,7 @@ ImageRoleApiInterface
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
   getByKeyForManagement(string, CategoryDeletedStateEnum = NON_DELETED): CategoryImageRoleDTO
   listForManagement(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+  paginateForManagement(CategoryImageRoleListCriteriaDTO, PageRequest): PageResult<CategoryImageRoleDTO>
 
 ImageAssignmentApiInterface [images()]
   create(CreateCategoryImageAssignmentCommand): int
@@ -453,6 +461,7 @@ ImageAssignmentApiInterface [images()]
   listVisibleForCategory(int, CategoryImageAssignmentScopeDTO, CategoryVisibleListCriteriaDTO = new CategoryVisibleListCriteriaDTO()): CategoryImageAssignmentCollectionDTO
   getByIdForManagement(int, CategoryDeletedStateEnum = NON_DELETED): CategoryImageAssignmentDTO
   listForManagement(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  paginateForManagement(CategoryImageAssignmentListCriteriaDTO, PageRequest): PageResult<CategoryImageAssignmentDTO>
 
 CategoryCommandRepositoryInterface
   create(CreateCategoryCommand, DateTimeImmutable): int
@@ -505,26 +514,34 @@ CategoryImageAssignmentReadQueryInterface
 
 CategoryManagementReadQueryInterface [Category domain]
   findById(int, CategoryDeletedStateEnum): ?CategoryDTO
+  findByCode(string, CategoryDeletedStateEnum): ?CategoryDTO
   listCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listRootCategories(CategoryListCriteriaDTO): CategoryCollectionDTO
   listChildren(int, CategoryListCriteriaDTO): CategoryCollectionDTO
+  paginateCategories(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateRootCategories(CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
+  paginateChildren(int, CategoryListCriteriaDTO, PageRequest): PageResult<CategoryDTO>
 
 CategoryContentManagementReadQueryInterface
   findContentById(int, CategoryDeletedStateEnum): ?CategoryContentDTO
   listContents(CategoryContentListCriteriaDTO): CategoryContentCollectionDTO
+  paginateContents(CategoryContentListCriteriaDTO, PageRequest): PageResult<CategoryContentDTO>
 
 CategoryImageRoleManagementReadQueryInterface
   findImageRoleById(int, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   findImageRoleByKey(string, CategoryDeletedStateEnum): ?CategoryImageRoleDTO
   listImageRoles(CategoryImageRoleListCriteriaDTO): CategoryImageRoleCollectionDTO
+  paginateImageRoles(CategoryImageRoleListCriteriaDTO, PageRequest): PageResult<CategoryImageRoleDTO>
 
 CategoryImageAssignmentManagementReadQueryInterface
   findImageAssignmentById(int, CategoryDeletedStateEnum): ?CategoryImageAssignmentDTO
   listImageAssignments(CategoryImageAssignmentListCriteriaDTO): CategoryImageAssignmentCollectionDTO
+  paginateImageAssignments(CategoryImageAssignmentListCriteriaDTO, PageRequest): PageResult<CategoryImageAssignmentDTO>
 
 CategoryContentFieldManagementReadQueryInterface
   findContentFieldById(int, CategoryDeletedStateEnum): ?CategoryContentFieldDTO
   listContentFields(CategoryContentFieldListCriteriaDTO): CategoryContentFieldCollectionDTO
+  paginateContentFields(CategoryContentFieldListCriteriaDTO, PageRequest): PageResult<CategoryContentFieldDTO>
 
 CategoryQueryReaderInterface [internal mutation-support port]
   findById(int): ?CategoryDTO
@@ -553,10 +570,10 @@ TransactionRunnerInterface (from maatify/persistence)
   run(callable $callback): mixed
 ```
 
-`findByCode()` is intentionally present only on the internal
-mutation-support port in the current Stage 2 contract. It is not a public
-management read or service method; public management `getByCode()` is part of
-the next Consumer Readiness Stage 3 scope, not post-v1 work.
+The internal mutation-support `findByCode()` remains separate from the public
+management read port. The management surface now exposes exact `getByCode()`;
+its deleted-state argument preserves the same explicit non-deleted,
+include-deleted, and deleted-only semantics as management get-by-ID.
 
 #### Services and PDO adapters
 
@@ -622,22 +639,28 @@ The concrete adapters implement the public contracts listed above and contain
 no Host framework/container bindings.
 
 Management Category lists accept `CategoryListCriteriaDTO`, apply an optional
-status filter and an explicit `CategoryDeletedStateEnum`, and are bounded to
-at most 100 rows per call. Management Content lists accept
+status filter, explicit `CategoryDeletedStateEnum`, and optional Category-owned
+SQL search against `code`. Their unpaginated form remains bounded to at most
+100 rows per call. Management Content lists accept
 `CategoryContentListCriteriaDTO`, optionally filter by Category, apply an
 explicit deleted state, and use the same bound. Category lists are ordered by
 `display_order, id`; Content lists are ordered by `language_code, id`.
 Image Role lists are ordered by `role_key, id`.
-The package does not implement a local pagination engine; the next Consumer
-Readiness Stage 3 scope uses `maatify/persistence` for pagination, while Search
-is a Category-owned query capability implemented through the package's SQL/query
-layer. Language fallback remains Host-owned. Content collections may contain
+Every management list API also has a paginated counterpart returning the
+canonical `PageResult<T>` from `maatify/persistence`. The package does not
+implement a local pagination engine: the shared `PdoPaginator` owns page
+normalization, counts, limits, offsets, sorting, and pagination metadata, while
+the package owns SQL, filters, Category search, and row mapping. Language fallback remains Host-owned. Content collections may contain
 the single NULL-language row together with zero or more
 language-specific rows; Category queries never join an unrestricted Content
 collection in a way that multiplies Category rows.
 Management Image Assignment lists accept `CategoryImageAssignmentListCriteriaDTO`,
 apply exact nullable language/platform scope predicates only when a scope object
 is supplied, and are ordered by Category, exact scope, `display_order, id`.
+For paginated Content Field and Image Assignment management lists, the default
+`sortBy` is the explicit `business_order` key, which represents that complete
+legacy business ordering; `sortBy=category_id` remains a direct Category ID sort
+with the shared `id` tie-breaker.
 The management criteria also support three independent Role-filter states
 through `CategoryImageAssignmentRoleFilterDTO`: omitted (all Roles), exact
 NULL Role, or one concrete Role. When the explicit Role filter is absent, the
@@ -658,8 +681,9 @@ means exact NULL/NULL scope.
 Consumer Category lists use the same maximum of 100 through their separate
 criteria DTO; root and child lists use `display_order, id`, and Content
 lists use `language_code, id`. The bound is applied by the persistence query
-with a typed integer parameter; pagination and search are the next Consumer
-Readiness Stage 3 scope and are not post-v1 exclusions.
+with a typed integer parameter; paginated management queries use the shared
+Persistence pagination contract and do not change the consumer visibility or
+deleted/status semantics.
 
 ### Content parent-state contract
 
@@ -746,12 +770,13 @@ ancestor path to be active and non-deleted.
 Management query methods expose stored Category, Content, Image Role, and Image
 Assignment state for
 management/use-case consumers. They do not apply consumer ancestor visibility
-rules. Management reads provide Category get-by-ID, bounded all/root/child
-lists, Content get-by-ID, and bounded Content lists. Deleted records
-are returned only when the caller explicitly selects `include_deleted` or
-`deleted_only`; the current Stage 2 public contract does not yet expose
-management `getByCode()`, search, or pagination. They are the next Consumer
-Readiness Stage 3 scope within the v1 line, not work deferred beyond v1.
+rules. Management reads provide Category get-by-ID/get-by-code, bounded
+all/root/child lists plus paginated counterparts, and the same paginated
+management surfaces for Content, Image Roles, Image Assignments, and Content
+Fields. Deleted records are returned only when the caller explicitly selects
+`include_deleted` or `deleted_only`. Category search remains within the
+selected status and deleted-state scope, and `getByCode()` applies the
+requested deleted state exactly.
 
 Visible query methods:
 
@@ -920,6 +945,4 @@ including CI's isolated MySQL configuration.
 - HTTP/API routes, controllers, middleware, permissions, Twig, and JavaScript.
 - Presentation serialization and response envelopes.
 - Host language fallback.
-- Consumer Readiness Stage 3: Persistence-backed pagination, Category-owned
-  search, and public management `getByCode()`.
 - A separate Catalog entity or Catalog identity.

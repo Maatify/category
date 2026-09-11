@@ -22,6 +22,9 @@ use Maatify\Category\Lifecycle\Enum\CategoryStatusEnum;
 use Maatify\Category\Common\Exception\CategoryInvalidArgumentException;
 use Maatify\Category\Exception\CategoryNotFoundException;
 use Maatify\Category\Content\Exception\CategoryContentNotFoundException;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
+use Maatify\Persistence\Pdo\Pagination\SortDirectionEnum;
 
 final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
 {
@@ -37,6 +40,24 @@ final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
         self::assertSame(
             $category,
             ($this->categoryService(management: $reader))->getByIdForManagement(7, CategoryDeletedStateEnum::DELETED_ONLY),
+        );
+    }
+
+    public function testGetByCodePassesTheExplicitDeletedStateAndReturnsTheCategory(): void
+    {
+        $category = $this->category(7);
+        $reader = $this->createMock(CategoryManagementReadQueryInterface::class);
+        $reader->expects(self::once())
+            ->method('findByCode')
+            ->with('category-7', CategoryDeletedStateEnum::DELETED_ONLY)
+            ->willReturn($category);
+
+        self::assertSame(
+            $category,
+            ($this->categoryService(management: $reader))->getByCode(
+                'category-7',
+                CategoryDeletedStateEnum::DELETED_ONLY,
+            ),
         );
     }
 
@@ -96,6 +117,34 @@ final class DomainManagementReadServiceTest extends DomainReadServiceTestCase
         self::assertSame($categories, $service->listChildrenForManagement(1, $categoryCriteria));
         self::assertSame($contents, $this->contentService(management: $contentReader)->listForManagement($contentCriteria));
         self::assertSame($imageAssignments, $this->imageAssignmentService(management: $assignmentReader)->listForManagement($imageCriteria));
+    }
+
+    public function testCategoryPaginationRequestIsPassedToTheDedicatedReader(): void
+    {
+        $criteria = new CategoryListCriteriaDTO(search: 'category');
+        $pageRequest = new PageRequest(page: 2, perPage: 1, sortBy: 'code', sortDirection: 'DESC');
+        $page = new PageResult(
+            data: [$this->category(2)],
+            page: 2,
+            perPage: 1,
+            total: 2,
+            filtered: 2,
+            totalPages: 2,
+            hasNext: false,
+            hasPrevious: true,
+            sortBy: 'code',
+            sortDirection: SortDirectionEnum::DESC,
+        );
+        $reader = $this->createMock(CategoryManagementReadQueryInterface::class);
+        $reader->expects(self::once())
+            ->method('paginateCategories')
+            ->with($criteria, $pageRequest)
+            ->willReturn($page);
+
+        self::assertSame(
+            $page,
+            ($this->categoryService(management: $reader))->paginateForManagement($criteria, $pageRequest),
+        );
     }
 
     public function testCriteriaRejectNonPositiveCategoryIds(): void

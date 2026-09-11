@@ -15,6 +15,8 @@ use Maatify\Category\Query\DTO\CategoryCollectionDTO;
 use Maatify\Category\Query\DTO\CategoryDTO;
 use Maatify\Category\Query\DTO\CategoryListCriteriaDTO;
 use Maatify\Category\Query\DTO\CategoryVisibleListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /**
  * Public application contract for Category business mutations.
@@ -53,9 +55,31 @@ interface CategoryApiInterface
         CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
     ): CategoryDTO;
 
+    /** @throws \Maatify\Category\Exception\CategoryNotFoundException */
+    public function getByCode(
+        string $code,
+        CategoryDeletedStateEnum $deletedState = CategoryDeletedStateEnum::NON_DELETED,
+    ): CategoryDTO;
+
     public function listForManagement(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO;
 
     public function listRootCategoriesForManagement(CategoryListCriteriaDTO $criteria): CategoryCollectionDTO;
 
     public function listChildrenForManagement(int $parentId, CategoryListCriteriaDTO $criteria): CategoryCollectionDTO;
+
+    /** @return PageResult<CategoryDTO> */
+    public function paginateForManagement(CategoryListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult;
+
+    /** @return PageResult<CategoryDTO> */
+    public function paginateRootCategoriesForManagement(
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult;
+
+    /** @return PageResult<CategoryDTO> */
+    public function paginateChildrenForManagement(
+        int $parentId,
+        CategoryListCriteriaDTO $criteria,
+        PageRequest $pageRequest,
+    ): PageResult;
 }

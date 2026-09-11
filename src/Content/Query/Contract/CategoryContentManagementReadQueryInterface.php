@@ -8,6 +8,8 @@ use Maatify\Category\Common\Enum\CategoryDeletedStateEnum;
 use Maatify\Category\Content\Query\DTO\CategoryContentCollectionDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentDTO;
 use Maatify\Category\Content\Query\DTO\CategoryContentListCriteriaDTO;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
+use Maatify\Persistence\Pdo\Pagination\PageResult;
 
 /** Dedicated management read port for Category Content. */
 interface CategoryContentManagementReadQueryInterface
@@ -22,4 +24,7 @@ interface CategoryContentManagementReadQueryInterface
     public function listContents(
         CategoryContentListCriteriaDTO $criteria,
     ): CategoryContentCollectionDTO;
+
+    /** @return PageResult<CategoryContentDTO> */
+    public function paginateContents(CategoryContentListCriteriaDTO $criteria, PageRequest $pageRequest): PageResult;
 }

@@ -26,6 +26,7 @@ use Maatify\Category\ImageRole\Exception\CategoryImageRoleNotFoundException;
 use Maatify\Category\ImageRole\Lifecycle\Exception\CategoryImageRoleUnavailableException;
 use Maatify\Category\Tests\Integration\Support\CategoryMySqlIntegrationTestCase;
 use Maatify\Category\Tests\Integration\Support\FixedCategoryClock;
+use Maatify\Persistence\Pdo\Pagination\PageRequest;
 use PDO;
 
 final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTestCase
@@ -240,6 +241,24 @@ final class CategoryImageRoleIntegrationTest extends CategoryMySqlIntegrationTes
             $categoryId,
             new CategoryImageAssignmentScopeDTO('ar', 'ios', $galleryId),
         ));
+    }
+
+    public function testManagementPaginationPreservesBinaryRoleKeyOrderingByDefault(): void
+    {
+        $management = $this->roleService($this->connection());
+        $lowercaseId = $management->create(new CreateCategoryImageRoleCommand('a'));
+        $uppercaseId = $management->create(new CreateCategoryImageRoleCommand('A1'));
+
+        $page = $management->paginateForManagement(
+            new CategoryImageRoleListCriteriaDTO(),
+            new PageRequest(perPage: 2),
+        );
+        $ids = [];
+        foreach ($page->data as $role) {
+            $ids[] = $role->id;
+        }
+
+        self::assertSame([$uppercaseId, $lowercaseId], $ids);
     }
 
     public function testUnavailableAndMissingRolesAreRejectedForNewAssignments(): void
