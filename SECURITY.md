@@ -5,28 +5,26 @@
 
 ## Scope
 
-This policy covers the `maatify/category` `v1.0.0-rc.1` pre-release validation
-build, its package-owned runtime contracts, Composer metadata, schema, and CI
-configuration. Host applications, Host-owned tables, and integrations outside
-this repository are not maintained by this package.
+**State:** Development / Pre-Publication Preparation
 
-The target supported major line is `1.x`; it becomes active only when the
-stable `v1.0.0` release is published after owner approval. The RC is not a
-stable supported release line.
+**Target:** `v1.0.0-rc.1` (unpublished)
+
+This policy covers the package's development state and its package-owned
+runtime contracts, Composer metadata, schema, and CI configuration. The target
+RC has not been tagged, released, or published and is not externally
+Composer-resolvable. This is not a Published SemVer RC state. Host applications,
+Host-owned tables, and integrations outside this repository are not maintained
+by this package.
 
 ## Supported Versions
 
-The target stable release line is `1.x`, pending the first stable `v1.0.0`
-publication.
+No Stable release line is currently supported. The `v1.0.0-rc.1` entry below
+is an unpublished target only and creates no support commitment.
 
-Once `v1.0.0` is published, security fixes will be provided in the latest
-stable release within the supported `1.x` line. Until then, the RC is for
-validation and is not a stable support commitment.
-
-| Version | Supported |
-|---------|-----------|
-| `1.x` after stable `v1.0.0` publication | Planned |
-| `v1.0.0-rc.1` | Pre-release validation only |
+| Version | Support status |
+|---------|-----------------|
+| `v1.0.0-rc.1` target (unpublished) | Not a published or supported release |
+| Published Stable release lines | None |
 
 ## Reporting a Vulnerability
 

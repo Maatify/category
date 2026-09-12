@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] - 2026-09-11
+**RC publication preparation:** target `v1.0.0-rc.1`. The RC has not been
+tagged, published, or made externally Composer-resolvable; no release date is
+assigned. The Consumer Verification Harness and at least two independent Real
+Host validations must use that same published RC before the first Stable
+release.
 
-These notes record the contents of the `v1.0.0-rc.1` pre-release validation
-build for Host-project integration before the stable `v1.0.0` compatibility
-commitment.
+These unreleased notes describe package work prepared for the target
+`v1.0.0-rc.1`; they do not describe a published RC or set a release date.
 
 ### Added
 
@@ -60,9 +63,8 @@ commitment.
   `assign()`, `reorder()`, and `remove()` operations with typed
   default and restore mutations. No generic `updateField()` contract or
   Media/Storage workflow was added.
-- Prepared release-facing documentation for the `v1.0.0-rc.1` pre-release
-  validation build; stable `v1.0.0` publication remains a separate release
-  action.
+- Prepared release-facing documentation for target `v1.0.0-rc.1` as part of RC
+  publication preparation; the RC remains unpublished and has no release date.
 - Corrected the previous content model to unified Category Content,
   supporting one unlocalized (`language_code = NULL`) row and localized rows
   under a database-enforced logical identity.
@@ -88,6 +90,3 @@ commitment.
   the published `maatify/persistence:^1.3` transaction contract. Hosts provide
   `PdoTransactionRunner` with the same PDO used by Category persistence;
   caller-owned outer transactions remain Host-owned.
-
-[Unreleased]: https://github.com/Maatify/category/compare/v1.0.0-rc.1...HEAD
-[1.0.0-rc.1]: https://github.com/Maatify/category/releases/tag/v1.0.0-rc.1
