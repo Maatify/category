@@ -7,8 +7,8 @@ profiles remain the source of truth for their own rules.
 ## Adoption metadata
 
 - **Upstream repository:** `Maatify/php-engineering-standards`
-- **Adoption commit:** `f386948aa873fef9960680411c8918d095d29b93`
-- **Adoption date:** `2026-09-09` (commit timestamp `2026-09-09T07:30:05+03:00`)
+- **Adoption commit:** `4b257cf17bebfd0bacb8c68a58bb0297a16641ae`
+- **Adoption date:** `2026-09-12` (commit timestamp `2026-09-12T13:23:45+03:00`)
 - **Floating upstream `main`:** not used
 - **Adoption model:** Selective Pinned Adoption
 
@@ -44,14 +44,14 @@ invented.
 
 | Standard | Local path | Source version / identity | Resolved through |
 |---|---|---|---|
-| AI Collaboration Workflow | [`standards/ai/AI_COLLABORATION_WORKFLOW_AR.md`](standards/ai/AI_COLLABORATION_WORKFLOW_AR.md) | `5.2.0` | `repository-governance` |
-| GitHub Phase Stack Workflow | [`standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md`](standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md) | `2.1.0` | `repository-governance` |
-| Module Building Standard | [`standards/modules/MODULE_BUILDING_STANDARD.md`](standards/modules/MODULE_BUILDING_STANDARD.md) | `v1` | `base-module` |
-| Package Building Standard | [`standards/packages/PACKAGE_BUILDING_STANDARD.md`](standards/packages/PACKAGE_BUILDING_STANDARD.md) | `v1` | inherited `composer-package` |
-| Composer Package Standard | [`standards/packages/COMPOSER_PACKAGE_STANDARD.md`](standards/packages/COMPOSER_PACKAGE_STANDARD.md) | `v1` | inherited `composer-package` |
+| AI Collaboration Workflow | [`standards/ai/AI_COLLABORATION_WORKFLOW_AR.md`](standards/ai/AI_COLLABORATION_WORKFLOW_AR.md) | `5.3.0` | `repository-governance` |
+| GitHub Phase Stack Workflow | [`standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md`](standards/GITHUB_PHASE_STACK_WORKFLOW_AR.md) | `2.2.0` | `repository-governance` |
+| Module Building Standard | [`standards/modules/MODULE_BUILDING_STANDARD.md`](standards/modules/MODULE_BUILDING_STANDARD.md) | `v1.3` | `base-module` |
+| Package Building Standard | [`standards/packages/PACKAGE_BUILDING_STANDARD.md`](standards/packages/PACKAGE_BUILDING_STANDARD.md) | `v1.2` | inherited `composer-package` |
+| Composer Package Standard | [`standards/packages/COMPOSER_PACKAGE_STANDARD.md`](standards/packages/COMPOSER_PACKAGE_STANDARD.md) | `v1.1` | inherited `composer-package` |
 | CI Workflow Standard | [`standards/packages/CI_WORKFLOW_STANDARD.md`](standards/packages/CI_WORKFLOW_STANDARD.md) | not declared in source | inherited `composer-package` |
 | Library Presentation Standard | [`standards/packages/LIBRARY_PRESENTATION_STANDARD.md`](standards/packages/LIBRARY_PRESENTATION_STANDARD.md) | not declared in source | inherited `composer-package` |
-| Testing Standard | [`standards/testing/TESTING_STANDARD.md`](standards/testing/TESTING_STANDARD.md) | `v1` | inherited `composer-package` |
+| Testing Standard | [`standards/testing/TESTING_STANDARD.md`](standards/testing/TESTING_STANDARD.md) | `v1.1` | inherited `composer-package` |
 
 ### Auditable profile resolution
 

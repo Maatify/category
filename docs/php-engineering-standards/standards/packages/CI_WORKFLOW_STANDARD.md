@@ -15,6 +15,30 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 This standard governs CI execution and enforcement. The testing architecture and regression protection requirements are exclusively governed by the [Testing Standard](../testing/TESTING_STANDARD.md).
 Repositories with required system/E2E suites MUST execute them as CI gates appropriate to that repository. CI MUST make it impossible to treat a required failing E2E/system suite as successful verification.
 
+### 2.1 Local Quality-Gate Parity
+
+For every applicable required quality gate in this Standard, the repository MUST document a local command or command sequence that runs the same verification contract. This includes Composer validation and dependency resolution, platform requirements, PHP syntax, PHPStan, code style, whitespace, applicable test suites, schema verification, Composer audit, workflow lint, and the Consumer Verification Harness.
+
+Every CI gate MUST invoke a repository-owned command or script, or a documented command sequence, that a developer can run locally to prove the same verification contract. Runner-specific service provisioning, environment setup, dependency matrices, and job orchestration MAY differ, but MUST NOT change what the gate verifies. Workflow YAML MAY coordinate those concerns; it MUST NOT be the only place where a maintainer can discover or understand the verification logic. A repository MUST document the prerequisites and service setup needed to run each applicable gate locally.
+
+Local parity means that the gate is runnable locally with equivalent verification semantics; it does not require a developer workstation to reproduce the GitHub runner. This Standard does not require one universal command or Composer script name. The repository MUST use its actual maintained commands and document the mapping from local invocation to CI invocation. GitHub CI remains the final evidence for the integrated runner environment.
+
+### 2.2 Consumer Verification Harness Gate
+
+The [Testing Standard](../testing/TESTING_STANDARD.md) owns Consumer Verification Harness applicability and evidence semantics. This Standard owns only its CI execution and enforcement.
+
+When the Harness is required for an artifact, CI MUST execute the Harness defined by the Testing Standard as a required applicable gate using the repository-owned local invocation documented under §2.1. CI orchestration MUST preserve the clean-state and repeatability requirements in the Testing Standard, and the executed Harness MUST prove production autoload. For a Base Module, the Harness MUST consume the Module Artifact Root's Composer contract as the dependency; the Host root MUST NOT substitute for the Artifact Root, as defined by the [Composer Package Standard](COMPOSER_PACKAGE_STANDARD.md).
+
+The Harness gate MUST fail closed. Missing or incomplete setup, unavailable required dependencies or services, and an unexpected skip MUST fail verification when the Harness is relevant. The gate MUST NOT be hidden behind `continue-on-error`, `|| true`, or a silent skip. Applicable real-service requirements continue to follow Section 11, and baseline CI MUST NOT require production secrets.
+
+Repositories using change-relevance detection for an applicable Harness MUST configure it from that Harness's actual implementation. Changes to the consumer project, fixture, template, script, or other files that affect its verification MUST make the Harness relevant. This Standard does not define a universal Harness path list.
+
+### 2.3 Affected Checks and Full Integration Gate
+
+After a small remediation or micro-fix, CI MAY run the affected checks selected by risk instead of repeating an expensive full matrix, provided all checks directly related to the changed contract still run. Risk-based selection MUST NOT remove evidence for the behavior, compatibility, or integration boundary changed by the fix.
+
+At a meaningful integration boundary, CI MUST run the full applicable verification set for the integrated change. Boundaries include closing a substantial Work Unit or Phase, moving an Integration Draft to its next stage when its changed contract is affected, final acceptance for the integration boundary, and changes that expand compatibility or integration behavior. The full set includes all applicable required quality, dependency, PHP-version, test, real-service, package, and workflow checks defined by this Standard.
+
 Repositories MAY organize their workflows into multiple files (e.g., separating `quality`/`static analysis`, `tests`, `integration`, and `dependency compatibility`).
 However, workflows MUST have:
 * stable workflow names
@@ -278,6 +302,7 @@ The final gate MUST:
 
 As a **Maatify Internal Policy**, repositories MUST NOT require individual matrix child jobs directly; a stable aggregate gate MUST be used instead to avoid matrix ambiguity.
 The gate MUST inspect `needs.*.result` which returns one of `success`, `failure`, `cancelled`, or `skipped`. The `skipped` state is only acceptable when an approved relevance detector proves the job was intentionally bypassed; any unexpected `skipped` state for a relevant job MUST fail the gate. The gate MUST NOT hide `failure` or `cancelled` or equivalent unsuccessful states.
+When a Consumer Verification Harness is required and relevant, its job MUST be included among the upstream requirements inspected by the stable aggregate gate. A skipped Harness job is acceptable only when the approved relevance detector proves it is not relevant.
 
 ## 17. Trigger Events
 
@@ -328,3 +353,6 @@ Any standalone Composer package in the Maatify ecosystem MUST verify the followi
 * [ ] branch protection requires stable gates only
 * [ ] no continue-on-error or hidden failures exist
 * [ ] package-created service/database state is cleaned up where Integration tests create such state
+* [ ] every applicable required gate has a documented local invocation with the same verification contract as its CI invocation
+* [ ] a required Consumer Verification Harness runs as a fail-closed gate, preserves clean-state repeatability, and is included in the stable aggregate gate when relevant
+* [ ] meaningful integration boundaries run the full applicable verification set, while reduced runs still include every check tied directly to a changed contract
