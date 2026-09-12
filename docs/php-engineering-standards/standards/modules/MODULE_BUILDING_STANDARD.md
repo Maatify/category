@@ -11,8 +11,8 @@ To ensure clarity in modular architecture, the following profile relationships a
 
 - **Base Module:** Exclusively designed as a reusable/extractable Composer Package.
 - A Base Module is a reusable Package artifact located inside the Host repository. Extraction is a repository/distribution operation and MUST NOT require a Composer-contract, Runtime, namespace, or architecture rewrite.
-- **Slim Module Wrapper:** An optional, highly specialized wrapper around **a single Base Module**. [`MODULE_SLIM_BUILDING_STANDARD.md`](MODULE_SLIM_BUILDING_STANDARD.md) owns its Admin HTTP/UI behavior; it must not duplicate core business logic.
-- **Project-Aware Module:** Host-specific and non-extractable. [`MODULE_PROJECT_AWARE_STANDARD.md`](MODULE_PROJECT_AWARE_STANDARD.md) owns its Host-specific behavior; it never overrides Base Module rules unless explicitly named as an exception inside that profile.
+- **Slim Module Wrapper:** An optional, highly specialized wrapper around **a single Base Module**. `MODULE_SLIM_BUILDING_STANDARD.md` owns its Admin HTTP/UI behavior; it must not duplicate core business logic.
+- **Project-Aware Module:** Host-specific and non-extractable. `MODULE_PROJECT_AWARE_STANDARD.md` owns its Host-specific behavior; it never overrides Base Module rules unless explicitly named as an exception inside that profile.
 - Non-extractable modules DO NOT implicitly expand Base. They must use the Project-Aware profile or establish a separate documented profile decision.
 - All applicable Base Module rules, including those for Persistence and PDO, remain in effect when the module possesses Database behavior.
 
@@ -26,7 +26,7 @@ The module MUST also adhere to:
 
 - **Testing Architecture, Regression Protection & Evidence:** [TESTING_STANDARD.md](../testing/TESTING_STANDARD.md) owns the canonical testing strategy, behavior evidence, regression-protection rules, E2E/system test enforcement, and Consumer Verification Harness contract; this Standard defines Base Module applicability, while [PACKAGE_BUILDING_STANDARD.md](../packages/PACKAGE_BUILDING_STANDARD.md) defines Package-specific applicability.
 - **Package Architecture & Runtime Mechanics:** [PACKAGE_BUILDING_STANDARD.md](../packages/PACKAGE_BUILDING_STANDARD.md) owns reusable Package structure, public contracts, persistence mechanics, validation, exceptions, query behavior, construction patterns, and domain architecture.
-- **Other Module Profiles:** [`MODULE_SLIM_BUILDING_STANDARD.md`](MODULE_SLIM_BUILDING_STANDARD.md) and [`MODULE_PROJECT_AWARE_STANDARD.md`](MODULE_PROJECT_AWARE_STANDARD.md) own their respective profile-specific behavior; neither expands Base Module applicability.
+- **Other Module Profiles:** `MODULE_SLIM_BUILDING_STANDARD.md` and `MODULE_PROJECT_AWARE_STANDARD.md` own their respective profile-specific behavior; neither expands Base Module applicability.
 - **Composer Metadata:** [COMPOSER_PACKAGE_STANDARD.md](../packages/COMPOSER_PACKAGE_STANDARD.md) owns dependency rules.
 - **CI Checks:** [CI_WORKFLOW_STANDARD.md](../packages/CI_WORKFLOW_STANDARD.md) owns GitHub Actions workflow execution.
 - **Library Presentation:** [LIBRARY_PRESENTATION_STANDARD.md](../packages/LIBRARY_PRESENTATION_STANDARD.md) owns READMEs, badges, and documentation formatting. The module must use the canonical root Package Reference; do not create a competing Module Reference.

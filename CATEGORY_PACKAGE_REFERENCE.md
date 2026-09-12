@@ -43,7 +43,7 @@ The package is host-agnostic:
 
 The current normative standards adoption is the repository-local selective
 pinning recorded in [`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](docs/php-engineering-standards/STANDARDS_MANIFEST.md).
-Its exact adoption commit is `4b257cf17bebfd0bacb8c68a58bb0297a16641ae`.
+Its exact adoption commit is `639bbdb7c70c1d6db9e8d5cfef93b23fb926afd3`.
 The manifest, not a floating upstream branch or a historical roadmap claim,
 resolves the active and inherited profiles for this package.
 

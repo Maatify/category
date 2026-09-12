@@ -7,8 +7,8 @@ profiles remain the source of truth for their own rules.
 ## Adoption metadata
 
 - **Upstream repository:** `Maatify/php-engineering-standards`
-- **Adoption commit:** `4b257cf17bebfd0bacb8c68a58bb0297a16641ae`
-- **Adoption date:** `2026-09-12` (commit timestamp `2026-09-12T13:23:45+03:00`)
+- **Adoption commit:** `639bbdb7c70c1d6db9e8d5cfef93b23fb926afd3`
+- **Adoption date:** `2026-09-12` (commit timestamp `2026-09-12T14:08:43+03:00`)
 - **Floating upstream `main`:** not used
 - **Adoption model:** Selective Pinned Adoption
 
@@ -57,17 +57,17 @@ invented.
 
 ```text
 repository-governance (/)
-└── AI Collaboration Workflow 5.2.0
-└── GitHub Phase Stack Workflow 2.1.0
+└── AI Collaboration Workflow 5.3.0
+└── GitHub Phase Stack Workflow 2.2.0
 
 base-module (/)
-├── Module Building Standard v1
+├── Module Building Standard v1.3
 └── composer-package (inherited)
-    ├── Package Building Standard v1
-    ├── Composer Package Standard v1
+    ├── Package Building Standard v1.2
+    ├── Composer Package Standard v1.1
     ├── CI Workflow Standard (source version not declared)
     ├── Library Presentation Standard (source version not declared)
-    └── Testing Standard v1
+    └── Testing Standard v1.1
 ```
 
 `STANDARDS_ADOPTION_STANDARD_AR.md` is part of the Control Set and is not an
