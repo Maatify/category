@@ -5,16 +5,26 @@
 
 ## Scope
 
-This policy covers the published `maatify/category` package, its package-owned
-runtime contracts, Composer metadata, schema, and CI configuration. Host
-applications, Host-owned tables, and integrations outside this repository are
-not maintained by this package.
+**State:** Development / Pre-Publication Preparation
+
+**Target:** `v1.0.0-rc.1` (unpublished)
+
+This policy covers the package's development state and its package-owned
+runtime contracts, Composer metadata, schema, and CI configuration. The target
+RC has not been tagged, released, or published and is not externally
+Composer-resolvable. This is not a Published SemVer RC state. Host applications,
+Host-owned tables, and integrations outside this repository are not maintained
+by this package.
 
 ## Supported Versions
 
-No stable release line has been published yet. Security fixes will be
-provided for the latest stable release after the first supported version is
-tagged.
+No Stable release line is currently supported. The `v1.0.0-rc.1` entry below
+is an unpublished target only and creates no support commitment.
+
+| Version | Support status |
+|---------|-----------------|
+| `v1.0.0-rc.1` target (unpublished) | Not a published or supported release |
+| Published Stable release lines | None |
 
 ## Reporting a Vulnerability
 

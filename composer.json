@@ -1,11 +1,11 @@
 {
   "name": "maatify/category",
-  "description": "Framework-neutral hierarchical category and translation domain with PDO persistence.",
+  "description": "Framework-neutral hierarchical category and content domain with PDO persistence.",
   "keywords": [
     "category",
     "taxonomy",
     "hierarchy",
-    "translations",
+    "content",
     "mysql",
     "pdo",
     "php",
@@ -28,7 +28,14 @@
   },
   "autoload": {
     "psr-4": {
-      "Maatify\\Category\\": "src/"
+      "Maatify\\Category\\": "src/Category/",
+      "Maatify\\Category\\Common\\": "src/Common/",
+      "Maatify\\Category\\Content\\": "src/Content/",
+      "Maatify\\Category\\ContentField\\": "src/ContentField/",
+      "Maatify\\Category\\Facade\\": "src/Facade/",
+      "Maatify\\Category\\Factory\\": "src/Factory/",
+      "Maatify\\Category\\ImageAssignment\\": "src/ImageAssignment/",
+      "Maatify\\Category\\ImageRole\\": "src/ImageRole/"
     }
   },
   "autoload-dev": {
@@ -41,7 +48,7 @@
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
     "maatify/exceptions": "^1.0",
-    "maatify/persistence": "^1.2.0",
+    "maatify/persistence": "^1.3",
     "maatify/shared-common": "^1.0",
     "php": "^8.4"
   },

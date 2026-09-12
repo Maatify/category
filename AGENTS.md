@@ -3,7 +3,8 @@
 ## 1. نطاق المشروع
 
 هذا المستودع مكتبة PHP مستقلة قابلة لإعادة الاستخدام عبر Composer، ويمثل
-`Category` و`Category Translation` كـ **Base Module** قابل للاستخراج.
+`Category` و`Category Content` و`Content Fields` و`Image Roles` و`Image Assignments`
+كـ **Base Module** قابل للاستخراج.
 
 القواعد العامة لا تُعاد كتابتها هنا. مصدر اعتماد المعايير المحلي وسجل تركيبها
 هو [`docs/php-engineering-standards/STANDARDS_MANIFEST.md`](docs/php-engineering-standards/STANDARDS_MANIFEST.md)،
@@ -46,22 +47,22 @@
 
 المكتبة تملك فقط:
 
-- Category وCategory Translation والعقود والـDTOs والاستثناءات الخاصة بهما.
+- Category وCategory Content وContent Fields وImage Roles وImage Assignments
+  والعقود والـDTOs والاستثناءات الخاصة بها.
 - orchestration الخاص بالمجال وطبقات PDO والجداول المملوكة للحزمة.
 - schema MySQL المملوك للحزمة واختبارات التكامل مع الخدمة الحقيقية.
 
 المضيف يملك Dependency Injection وHTTP وRoutes وPermissions وsemantic Language
 validation وfallback/locale policy وPresentation، وأي علاقات مع جداول Host.
-وتملك الحزمة syntactic/storage validation الخاصة بـ`language_code` المطلوبة
-بعقدها وRuntime. لا تُضاف داخل هذه الحزمة Catalog أو Product أو Pricing أو
+وتملك الحزمة syntactic/storage validation الخاصة بقيم `language_code` غير
+الفارغة المطلوبة بعقدها وRuntime؛ أما `NULL` فهو هوية المحتوى غير المحلي.
+لا تُضاف داخل هذه الحزمة Catalog أو Product أو Pricing أو
 Inventory أو Media أو Framework bindings.
 
-التفاصيل المستقرة الخاصة بالعقد موجودة في
-[`CATEGORY_PACKAGE_REFERENCE.md`](CATEGORY_PACKAGE_REFERENCE.md)، والتفاصيل
-المعمارية في
-[`docs/architecture/CATEGORY_ARCHITECTURE.md`](docs/architecture/CATEGORY_ARCHITECTURE.md)،
-والـschema في [`schema/README.md`](schema/README.md). لا تنشئ Package Reference
-منافسًا داخل `docs/`.
+التفاصيل المستقرة الخاصة بالعقود والمعمارية موجودة في
+[`CATEGORY_PACKAGE_REFERENCE.md`](CATEGORY_PACKAGE_REFERENCE.md)، والـschema في
+[`schema/README.md`](schema/README.md). لا تنشئ Package Reference منافسًا داخل
+`docs/`.
 
 ## 5. القراءة والتنفيذ
 
