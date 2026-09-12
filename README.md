@@ -17,13 +17,16 @@ Framework-neutral hierarchical categories, contents, extensible Host-defined
 content fields, a Category-owned Image Role registry, and Category-owned image assignments for reusable PHP
 applications.
 
-**Status:** v1.0.0-rc.1 Pre-release Validation Build
+**Target:** `v1.0.0-rc.1`
 
-The code and release-facing documentation are prepared as the first
-`v1.0.0-rc.1` pre-release validation build for real Host-project integration.
-The public API remains pre-stable and may change if RC validation identifies
-necessary findings. Stable compatibility begins with `v1.0.0`; this RC does
-not make a stable-release claim.
+**State:** RC publication preparation / pre-publication readiness
+
+The target RC has not been published and is not externally Composer-resolvable.
+The public API remains subject to pre-publication validation; no Stable
+compatibility or supported Stable line is claimed. After owner-approved
+publication, the Consumer Verification Harness and at least two independent
+Real Host validations must use this same published RC before the first Stable
+release.
 
 </div>
 
@@ -197,16 +200,11 @@ visibility.
 
 ## Installation
 
-The package is prepared as the `v1.0.0-rc.1` pre-release validation build for
-Host integration from the `Maatify/category` repository. After the stable
-release is published, install it with:
-
-```bash
-composer require maatify/category
-```
-
-For RC validation, use the repository checkout; stable `v1.0.0` compatibility
-begins only after its owner-approved publication.
+The target `v1.0.0-rc.1` has not been published to Packagist and cannot
+currently be resolved as that exact external Composer version. A branch,
+repository checkout, local path, or VCS source is not a published RC and does
+not substitute for exact-version Consumer Verification Harness or Real Host
+validation. No install command is provided for this unpublished target.
 
 ## Quick Usage
 
@@ -290,8 +288,9 @@ composer test:integration
 composer test
 ```
 
-Packagist publication, GitHub Release, and stable `v1.0.0` publication are
-separate release actions outside this RC preparation scope.
+This pre-publication state does not publish a tag, GitHub Release, or Packagist
+version. Final Acceptance of the RC.1 readiness boundary does not mean Stable
+readiness.
 
 ## License
 
