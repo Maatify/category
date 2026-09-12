@@ -267,7 +267,7 @@ atomic update. No generic or string-based field update exists.
 ### Complete public runtime inventory
 
 The following inventory is generated from the current `src/` tree and is the
-stable v1 API surface. Concrete PDO adapters are public host-wiring classes;
+current v1 public API surface. Concrete PDO adapters are public host-wiring classes;
 their public methods implement the corresponding contracts below.
 
 #### Commands and constructors
