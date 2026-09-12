@@ -17,11 +17,16 @@ Framework-neutral hierarchical categories, contents, extensible Host-defined
 content fields, a Category-owned Image Role registry, and Category-owned image assignments for reusable PHP
 applications.
 
-**Status:** v1.0.0 Final Release Candidate · not yet tagged, released, or published
+**Target:** `v1.0.0-rc.1`
 
-The code and release-facing documentation are prepared as a `v1.0.0` Final
-Release Candidate. No stable Git tag, GitHub Release, or Packagist publication
-exists yet.
+**State:** RC publication preparation / pre-publication readiness
+
+The target RC has not been published and is not externally Composer-resolvable.
+The public API remains subject to pre-publication validation; no Stable
+compatibility or supported Stable line is claimed. After owner-approved
+publication, the Consumer Verification Harness and at least two independent
+Real Host validations must use this same published RC before the first Stable
+release.
 
 </div>
 
@@ -195,16 +200,11 @@ visibility.
 
 ## Installation
 
-The package is prepared as the `v1.0.0` Final Release Candidate for independent
-publication from the `Maatify/category` repository. After publication, install
-it with:
-
-```bash
-composer require maatify/category
-```
-
-Until the first stable release is published, use the repository checkout for
-development and do not rely on a Packagist version claim.
+The target `v1.0.0-rc.1` has not been published to Packagist and cannot
+currently be resolved as that exact external Composer version. A branch,
+repository checkout, local path, or VCS source is not a published RC and does
+not substitute for exact-version Consumer Verification Harness or Real Host
+validation. No install command is provided for this unpublished target.
 
 ## Quick Usage
 
@@ -288,9 +288,9 @@ composer test:integration
 composer test
 ```
 
-No Packagist publication, stable Git tag, or GitHub Release has been created by
-this repository preparation; those publication actions remain outside its
-scope.
+This pre-publication state does not publish a tag, GitHub Release, or Packagist
+version. Final Acceptance of the RC.1 readiness boundary does not mean Stable
+readiness.
 
 ## License
 

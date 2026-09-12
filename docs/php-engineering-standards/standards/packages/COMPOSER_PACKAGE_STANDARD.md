@@ -1,6 +1,6 @@
 # Maatify Composer Package Standard
 
-**Maatify Standalone PHP Composer Library Standard — v1**
+**Maatify Standalone PHP Composer Library Standard — v1.1**
 
 This document defines the canonical `composer.json` contract for standalone, reusable PHP libraries in the Maatify ecosystem.
 
@@ -87,6 +87,8 @@ It does not automatically apply to:
 - JavaScript, Rust, or other language ecosystems.
 
 Those package types require a separate profile or Standard.
+
+For an extractable Base Module, this Standard applies to the Module's Artifact Root even while it is located inside a Host repository. The Artifact Root MUST contain its own `composer.json`; a Host root `composer.json` MAY provide in-project autoloading but MUST NOT replace the Artifact Root's Composer contract.
 
 ### 3.1 Root-Package Context
 
@@ -208,9 +210,17 @@ Rules:
 - Spaces and uppercase characters are forbidden.
 - Underscores SHOULD NOT be used even though Composer may accept them.
 - The slug MUST reflect the library's actual responsibility.
-- The Composer package slug SHOULD match `{REPOSITORY_SLUG}`.
-- A mismatch requires a documented distribution reason.
-- Renaming a published package is a compatibility and distribution change, not presentation polish.
+
+For every new or Pre-Stable Maatify PHP package:
+
+Here, `{domain}` is the package's lowercase `kebab-case` domain slug under the rules above.
+
+- The Composer package name MUST be exactly `maatify/php-{domain}`.
+- When the package has its own repository, its repository slug MUST be exactly `php-{domain}`.
+- The same lowercase `kebab-case` `{domain}` slug MUST be used in both identities, so the Composer package slug MUST match the dedicated repository slug exactly.
+- `php-` MUST prefix the repository slug and the package slug after `maatify/`; alternative placement, distribution exceptions, and documented deviations are not permitted.
+
+A Stable published PHP package and its repository MUST retain their existing identities unless a separate migration, compatibility, and distribution decision approves a rename. This Standard MUST NOT trigger an automatic rename of a Stable published package.
 
 ### 7.2 Package Display Name
 
@@ -1140,7 +1150,8 @@ Automated verification of latest dependencies, lowest dependencies, platform req
 
 - [ ] Package name uses the `maatify` vendor.
 - [ ] Package name is lowercase and uses `kebab-case`.
-- [ ] Package slug matches the repository slug or the difference is documented.
+- [ ] A new or Pre-Stable package uses Composer name `maatify/php-{domain}` and, when it has its own repository, repository slug `php-{domain}`; no documented deviation is permitted.
+- [ ] A Stable published package and its repository retain their existing identities unless a separate migration, compatibility, and distribution decision approves a rename.
 - [ ] Description accurately states the current package purpose.
 - [ ] Keywords are focused, relevant, lowercase, and non-duplicated.
 - [ ] `php` and `maatify` keywords are present.

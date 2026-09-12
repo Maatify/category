@@ -2,7 +2,7 @@
 
 ## بيانات المعيار
 
-- **الإصدار:** `2.1.0`
+- **الإصدار:** `2.2.0`
 - **اللغة المعتمدة:** العربية.
 - **حالة الاعتماد:** يصبح معتمدًا عند دمجه في الفرع الافتراضي للمشروع.
 - **الهدف:** تقليل زمن التسليم الكلي عبر Phase Draft أو Execution Batch وDependency-Aware Execution Train، مع الحفاظ على traceability والمراجعة والاختبارات وجودة `main` دون فرض Branch/PR أو تسلسل إداري لا تدعمه dependencies فعلية.
@@ -189,6 +189,8 @@ Verification نشاط أو Gate، وليست Component افتراضية.
 ## 4.3 Final Review كـGate
 
 Final Review نشاط قبول ومراجعة، وليست Component افتراضية.
+
+إذا تضمنت المراجعة remediation غيّرت حالة سبق رفضها أو طلب تعديلها، فيجب قبل الدمج إلى **أي Integration Boundary** تنفيذ `Fresh Full Acceptance Review` للحالة النهائية المتراكمة. فحص إصلاح finding وحدها لا يكفي؛ مسؤولية المساعد القائد ومتطلبات هذه المراجعة يملكها [`AI_COLLABORATION_WORKFLOW_AR.md`](ai/AI_COLLABORATION_WORKFLOW_AR.md)، وهذا القسم يحدد موضعها كبوابة تكامل.
 
 إذا لم تنتج Final Review تغييرًا في المستودع، تسجل نتيجتها كـGate evidence فقط ولا تنشئ Branch أو PR مستقلة. وإذا كشفت عن تغييرات، تطبق قواعد Work Unit أو Consolidated Required Fixes داخل الـBatch، ولا تنشأ سلسلة PRs منفصلة لكل ملاحظة صغيرة.
 
@@ -390,6 +392,10 @@ Execution Batch 2 — Phase C — complete
 ---
 
 # 10. سجل تغييرات المعيار
+
+## `2.2.0`
+
+- ربط أي remediation تغيّر حالة سبق رفضها أو طلب تعديلها بـ`Fresh Full Acceptance Review` قبل الدمج إلى أي Integration Boundary، مع إحالة مسؤولية المراجعة إلى معيار AI Collaboration.
 
 ## `2.1.0`
 
